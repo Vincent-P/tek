@@ -77,6 +77,9 @@ uint32_t buffer_get_size(VulkanDevice *device, uint32_t handle);
 void new_render_target(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t height, int format);
 void resize_render_target(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t height);
 
+void new_texture(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t height, int format, void *data, uint32_t size);
+
+
 void begin_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t *out_swapchain_w, uint32_t *out_swapchain_h);
 void end_frame(VulkanDevice *device, VulkanFrame *fame, uint32_t output_rt);
 void begin_render_pass(VulkanDevice *device, VulkanFrame *frame, VulkanRenderPass *pass, struct VulkanBeginPassInfo pass_info);
@@ -88,3 +91,6 @@ void vulkan_push_constants(VulkanDevice *Device, VulkanRenderPass *pass, void *d
 void vulkan_bind_graphics_pso(VulkanDevice *device, VulkanRenderPass *pass, uint32_t pso);
 void vulkan_bind_index_buffer(VulkanDevice *device, VulkanRenderPass *pass, uint32_t index_buffer);
 void vulkan_draw(VulkanDevice *device, VulkanRenderPass *pass, struct VulkanDraw draw);
+
+// temp
+void vulkan_bind_texture(VulkanDevice *device, VulkanFrame *frame, uint32_t texture, uint32_t slot);

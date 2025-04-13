@@ -34,6 +34,7 @@ void renderer_init(Renderer *renderer, SDL_Window *window)
 
 	// Create imgui assets
 	renderer->imgui_pso = 0;
+	renderer->imgui_fontatlas = 0;
 	renderer->imgui_ibuffer = 0;
 	renderer->imgui_vbuffer = 1;
 	struct MaterialAsset imgui_material = {0};
@@ -49,7 +50,7 @@ void renderer_init(Renderer *renderer, SDL_Window *window)
 	int bpp = 0;
 	ImGuiIO *io = ImGui_GetIO();
 	ImFontAtlas_GetTexDataAsRGBA32(io->Fonts, &pixels, &width, &height, &bpp);
-
+	new_texture(renderer->device, renderer->imgui_fontatlas, width, height, PG_FORMAT_R8G8B8A8_UNORM, pixels, width*height*bpp);
 }
 
 static void renderer_imgui_pass(Renderer *renderer, VulkanFrame *frame, VulkanRenderPass *pass)
@@ -156,6 +157,8 @@ void renderer_render(Renderer *renderer)
 	uint32_t swapchain_width = 0;
 	uint32_t swapchain_height = 0;
 	begin_frame(renderer->device, &frame, &swapchain_width, &swapchain_height);
+
+	vulkan_bind_texture(renderer->device, &frame, renderer->imgui_fontatlas, 0);
 
 	if (renderer->device->rts[renderer->output_rt].width != swapchain_width || renderer->device->rts[renderer->output_rt].height != swapchain_height) {
 		resize_render_target(renderer->device, renderer->output_rt, swapchain_width, swapchain_height);

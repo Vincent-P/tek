@@ -20,6 +20,7 @@
 #define VK_BUFFER_CAPACITY 64
 #define VK_PROGRAM_CAPACITY 64
 #define VK_RT_CAPACITY 16
+#define VK_TEXTURE_CAPACITY 16
 
 typedef struct VulkanGraphicsProgram
 {
@@ -48,6 +49,19 @@ typedef struct VulkanRenderTarget
 	uint32_t height;
 } VulkanRenderTarget;
 
+typedef struct VulkanTexture
+{
+	oa_allocation_t allocation;
+	VkImage image;
+	VkImageView image_view;
+	VkFormat format;
+	uint32_t memory_offset;
+	uint32_t width;
+	uint32_t height;
+	uint32_t upload_offset; // temp
+	uint32_t upload_size; // temp
+} VulkanTexture;
+
 struct VulkanDevice
 {
 	// device
@@ -58,6 +72,7 @@ struct VulkanDevice
 	uint32_t graphics_family_idx;
 	PFN_vkCreateDebugUtilsMessengerEXT my_vkCreateDebugUtilsMessengerEXT;
 	PFN_vkDestroyDebugUtilsMessengerEXT my_vkDestroyDebugUtilsMessengerEXT;
+	PFN_vkCmdPushDescriptorSetKHR my_vkCmdPushDescriptorSetKHR;
 	// memory
 	oa_allocator_t main_memory_allocator;
 	oa_allocator_t rt_memory_allocator;
@@ -86,6 +101,10 @@ struct VulkanDevice
 	VulkanGraphicsProgram graphics_psos[VK_PROGRAM_CAPACITY];
 	VulkanBuffer buffers[VK_BUFFER_CAPACITY];
 	VulkanRenderTarget rts[VK_RT_CAPACITY];
+	VulkanTexture textures[VK_TEXTURE_CAPACITY];
+	uint32_t upload_buffer; // TEMP
+	uint32_t upload_buffer_offset;
+	VkSampler default_sampler;
 	VkPipelineLayout pipeline_layout;
 };
 
@@ -119,6 +138,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverity
 }
 
 static void create_swapchain(VulkanDevice *device, void *hwnd);
+void new_buffer_internal(VulkanDevice *device, uint32_t handle,uint32_t size, VkBufferCreateFlags flags, VkBufferUsageFlagBits  usage);
 
 void vulkan_create_device(VulkanDevice *device, void *hwnd)
 {
@@ -149,6 +169,7 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	assert(res == VK_SUCCESS);
 	device->my_vkCreateDebugUtilsMessengerEXT  = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(device->instance, "vkCreateDebugUtilsMessengerEXT");
 	device->my_vkDestroyDebugUtilsMessengerEXT = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(device->instance, "vkDestroyDebugUtilsMessengerEXT");
+
 	if (device->my_vkCreateDebugUtilsMessengerEXT){
 		VkDebugUtilsMessengerCreateInfoEXT ci	= {.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
 		ci.flags				= 0;
@@ -200,6 +221,7 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	printf("queue family index: %u\n", queue_info.queueFamilyIndex);
 	const char *device_extensions[] = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+		VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
 	};
 	VkDeviceCreateInfo dci		= {.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
 	dci.pNext			= &physical_device_features;
@@ -214,7 +236,9 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	res = vkCreateDevice(device->physical_device, &dci, NULL, &device->device);
 	assert(res == VK_SUCCESS);
 	vkGetDeviceQueue(device->device, device->graphics_family_idx, 0, &device->graphics_queue);
-
+	
+	device->my_vkCmdPushDescriptorSetKHR = (PFN_vkCmdPushDescriptorSetKHR)vkGetDeviceProcAddr(device->device, "vkCmdPushDescriptorSetKHR");
+	assert(device->my_vkCmdPushDescriptorSetKHR != NULL);
 	
 	// -- Create command buffers
 	for (uint32_t iframe = 0; iframe < FRAME_COUNT; ++iframe) {
@@ -285,13 +309,36 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	assert(res == 0);
 	res = oa_create(&device->rt_memory_allocator, RT_MEMORY_SIZE / MEMORY_ALIGNMENT, VK_RT_CAPACITY);
 	assert(res == 0);
+
+	// -- Resources
+	device->upload_buffer = VK_BUFFER_CAPACITY - 1;
+	new_buffer_internal(device, device->upload_buffer, (8 << 20), 0, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+	device->upload_buffer_offset = 0;
+
+	VkSamplerCreateInfo sampler_info = {.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+	res = vkCreateSampler(device->device, &sampler_info, NULL, &device->default_sampler);
+	assert(res == VK_SUCCESS);
 	
 	// -- Prepare descriptor layout
+	VkDescriptorSetLayoutBinding binding = {0};
+	binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	binding.descriptorCount = 1;
+	binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+	VkDescriptorSetLayoutCreateInfo desc_layout_info = {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+	desc_layout_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+	desc_layout_info.bindingCount = 1;
+	desc_layout_info.pBindings = &binding;
+	VkDescriptorSetLayout desc_layout = VK_NULL_HANDLE;
+	res = vkCreateDescriptorSetLayout(device->device, &desc_layout_info, NULL, &desc_layout);
+	assert(res == VK_SUCCESS);
+	
 	VkPushConstantRange push_constants_ranges[] = {
 		// {stage, offset, size}
 		{VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, 128},
 	};
 	VkPipelineLayoutCreateInfo pipeline_layout_info = {.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+	pipeline_layout_info.setLayoutCount =1;
+	pipeline_layout_info.pSetLayouts = &desc_layout;
 	pipeline_layout_info.pushConstantRangeCount = ARRAY_LENGTH(push_constants_ranges);
 	pipeline_layout_info.pPushConstantRanges = push_constants_ranges;
 	res = vkCreatePipelineLayout(device->device, &pipeline_layout_info, NULL, &device->pipeline_layout);
@@ -486,7 +533,7 @@ void new_graphics_program(VulkanDevice *device, uint32_t handle, MaterialAsset m
 	
 	VkPipelineRasterizationStateCreateInfo RasterizationState = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
 	RasterizationState.polygonMode = VK_POLYGON_MODE_FILL;
-	RasterizationState.cullMode = VK_CULL_MODE_BACK_BIT;
+	RasterizationState.cullMode = VK_CULL_MODE_NONE;
 	RasterizationState.frontFace = VK_FRONT_FACE_CLOCKWISE;
 	
 	VkPipelineMultisampleStateCreateInfo MultisampleState = {.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
@@ -597,12 +644,12 @@ void new_buffer_internal(VulkanDevice *device, uint32_t handle,uint32_t size, Vk
 
 void new_index_buffer(VulkanDevice *device, uint32_t handle, uint32_t size)
 {
-	return new_buffer_internal(device, handle, size, 0, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+	new_buffer_internal(device, handle, size, 0, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 }
 
 void new_storage_buffer(VulkanDevice *device, uint32_t handle, uint32_t size)
 {
-	return new_buffer_internal(device, handle, size, 0, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+	new_buffer_internal(device, handle, size, 0, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 }
 
 void* buffer_get_mapped_pointer(VulkanDevice *device, uint32_t handle)
@@ -707,6 +754,70 @@ void resize_render_target(VulkanDevice *device, uint32_t handle, uint32_t width,
 	new_render_target(device, handle, width, height, device->rts[handle].format);
 }
 
+void new_texture(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t height, int format, void *data, uint32_t size)
+{
+	VkImageCreateInfo image_info = {.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+	image_info.flags = 0;
+	image_info.imageType = VK_IMAGE_TYPE_2D;
+	image_info.format = format;
+	image_info.extent.width = width;
+	image_info.extent.height = height;
+	image_info.extent.depth = 1;
+	image_info.mipLevels = 1;
+	image_info.arrayLayers = 1;
+	image_info.samples = VK_SAMPLE_COUNT_1_BIT;
+	image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+	image_info.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	VkImage image = VK_NULL_HANDLE;
+	VkResult res = vkCreateImage(device->device, &image_info, NULL, &image);
+	assert(res == VK_SUCCESS);
+	
+	VkDeviceImageMemoryRequirements image_requirements = {.sType = VK_STRUCTURE_TYPE_DEVICE_IMAGE_MEMORY_REQUIREMENTS};
+	image_requirements.pCreateInfo = &image_info;
+	VkMemoryRequirements2 mem_requirements = {.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
+	vkGetDeviceImageMemoryRequirements(device->device, &image_requirements, &mem_requirements);
+	assert(((mem_requirements.memoryRequirements.memoryTypeBits >> device->main_memory_type_index) & 1) != 0); // check that our memory supports this render_target
+	assert(mem_requirements.memoryRequirements.alignment <= MEMORY_ALIGNMENT);
+	oa_allocation_t allocation = {0};
+	uint32_t rounded_up_size = (mem_requirements.memoryRequirements.size + MEMORY_ALIGNMENT - 1) / MEMORY_ALIGNMENT;
+	int alloc_res = oa_allocate(&device->main_memory_allocator, rounded_up_size, &allocation);
+	assert(alloc_res == 0);
+	uint32_t real_offset = allocation.offset * MEMORY_ALIGNMENT;
+	res = vkBindImageMemory(device->device, image, device->main_memory, real_offset);
+	assert(res == VK_SUCCESS);
+
+	// create image view
+	VkImageViewCreateInfo view_info = {.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+	view_info.image = image;
+	view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	view_info.format = format;
+	view_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+	view_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+	view_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+	view_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+	view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	view_info.subresourceRange.levelCount = 1;
+	view_info.subresourceRange.layerCount = 1;
+	VkImageView image_view = VK_NULL_HANDLE;
+	res = vkCreateImageView(device->device, &view_info, NULL, &image_view);
+
+	device->textures[handle].allocation = allocation;
+	device->textures[handle].image = image;
+	device->textures[handle].image_view = image_view;
+	device->textures[handle].format = format;
+	device->textures[handle].width = width;
+	device->textures[handle].height = height;
+
+	// temp: prepare upload
+	device->textures[handle].upload_offset = device->upload_buffer_offset;
+	device->textures[handle].upload_size = size;
+	assert(device->upload_buffer_offset + size <= device->buffers[device->upload_buffer].size);
+	memcpy(device->buffers[device->upload_buffer].mapped + device->upload_buffer_offset,
+	       data,
+	       size);
+	device->upload_buffer_offset += size;
+}
 
 // -- Rendering
 static void set_image_layout(VkCommandBuffer cmd, VkImage image, VkImageLayout old_image_layout, VkImageLayout new_image_layout,
@@ -754,7 +865,7 @@ static void set_image_layout(VkCommandBuffer cmd, VkImage image, VkImageLayout o
 		image_barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 		break;
 
-        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+        case VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL:
 		image_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 		break;
 
@@ -812,6 +923,40 @@ void begin_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t *out_swapcha
 	}
 	if (out_swapchain_h != NULL) {
 		*out_swapchain_h = device->swapchain_height;
+	}
+
+	// temp: process uploads
+	for (uint32_t itexture = 0; itexture < VK_TEXTURE_CAPACITY; ++itexture) {
+		if (device->textures[itexture].upload_size > 0) {
+			set_image_layout(frame->cmd, device->textures[itexture].image,
+				 VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				 VK_ACCESS_NONE, VK_PIPELINE_STAGE_NONE,
+				 VK_PIPELINE_STAGE_TRANSFER_BIT);
+
+			VkBufferImageCopy region = {0};
+			region.bufferOffset = device->textures[itexture].upload_offset;
+			region.bufferRowLength = device->textures[itexture].width;
+			region.bufferImageHeight = device->textures[itexture].height;
+			region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			region.imageSubresource.layerCount = 1;
+			region.imageExtent.width = device->textures[itexture].width;
+			region.imageExtent.height = device->textures[itexture].height;
+			region.imageExtent.depth = 1;
+			vkCmdCopyBufferToImage(frame->cmd,
+					       device->buffers[device->upload_buffer].buffer,
+					       device->textures[itexture].image,
+					       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+					       1,
+					       &region);
+			
+			set_image_layout(frame->cmd, device->textures[itexture].image,
+				 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
+				 VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+				 VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT);
+		
+			device->textures[itexture].upload_offset = 0;
+			device->textures[itexture].upload_size = 0;
+		}
 	}
 }
 
@@ -877,7 +1022,7 @@ void end_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t output_rt_hand
 	// -- submit
 	VkSemaphoreSubmitInfo wait_semaphore_info = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO};
 	wait_semaphore_info.semaphore = device->swapchain_acquire_semaphore[frame->iframe];
-	wait_semaphore_info.stageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	wait_semaphore_info.stageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
 	VkCommandBufferSubmitInfo command_buffer_info = {.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO};
 	command_buffer_info.commandBuffer = frame->cmd;
 	VkSemaphoreSubmitInfo signal_semaphore_info = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO};
@@ -1001,14 +1146,14 @@ void end_render_pass(VulkanDevice *device, VulkanRenderPass *pass)
 		set_image_layout(frame->cmd, pass->color_rts[icolor]->image,
 				 VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
 				 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-				 VK_PIPELINE_STAGE_NONE);
+				 VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT);
 	}
 	if (pass->depth_rt != NULL) {
 		set_image_layout(frame->cmd, pass->depth_rt->image,
 				 VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
 				 VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
 				 VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-				 VK_PIPELINE_STAGE_NONE);
+				 VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT);
 	}
 }
 
@@ -1096,4 +1241,25 @@ void vulkan_draw(VulkanDevice *device, VulkanRenderPass *pass, struct VulkanDraw
 			 draw.first_index,
 			 draw.vertex_offset,
 			 draw.first_instance);
+}
+
+void vulkan_bind_texture(VulkanDevice *device, VulkanFrame *frame, uint32_t texture_handle, uint32_t slot)
+{
+	VkDescriptorImageInfo image_info = {0};
+	image_info.sampler = device->default_sampler;
+	image_info.imageView = device->textures[texture_handle].image_view;
+	image_info.imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
+	
+	VkWriteDescriptorSet write = {.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+	write.dstArrayElement = slot;
+	write.descriptorCount = 1;
+	write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	write.pImageInfo = &image_info;
+
+	device->my_vkCmdPushDescriptorSetKHR(frame->cmd,
+			       VK_PIPELINE_BIND_POINT_GRAPHICS,
+			       device->pipeline_layout,
+			       0,
+			       1,
+			       &write);
 }
