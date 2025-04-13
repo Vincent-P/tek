@@ -94,9 +94,9 @@ int cook_material()
 	// Save material to disk
 	struct MaterialAsset material = {0};
 	material.vertex_shader_bytecode.size = shaderc_result_get_length(vshader_result);
-	material.vertex_shader_bytecode.data = shaderc_result_get_bytes(vshader_result);
+	material.vertex_shader_bytecode.data = (char*)shaderc_result_get_bytes(vshader_result);
 	material.pixel_shader_bytecode.size = shaderc_result_get_length(pshader_result);
-	material.pixel_shader_bytecode.data = shaderc_result_get_bytes(pshader_result);
+	material.pixel_shader_bytecode.data = (char*)shaderc_result_get_bytes(pshader_result);
 	material.render_pass_id = render_pass_id;
 	Serializer serializer = serialize_begin_write_file();
 	Serialize_MaterialAsset(&serializer, &material);
