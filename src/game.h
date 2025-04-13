@@ -3,6 +3,8 @@
 
 #define INPUT_BUFFER_SIZE 20
 
+struct Inputs;
+
 // For GGPO, we need a single big object for the game state, and for inputs.
 enum GameInputBits
 {

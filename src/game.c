@@ -1,4 +1,5 @@
 #include "game.h"
+#include "inputs.h"
 
 // -- Game
 struct GameInputs game_read_input(struct Inputs *inputs)
