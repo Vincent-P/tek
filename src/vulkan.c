@@ -101,6 +101,8 @@ struct VulkanRenderPass
 	VulkanRenderTarget *color_rts[8];
 	uint32_t color_rts_length;
 	VulkanRenderTarget *depth_rt;
+	uint32_t render_width;
+	uint32_t render_height;
 };
 
 
@@ -493,6 +495,16 @@ void new_graphics_program(VulkanDevice *device, uint32_t handle, MaterialAsset m
 	VkPipelineDepthStencilStateCreateInfo DepthStencilState = {.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
 
 	VkPipelineColorBlendAttachmentState AttachmentBlendStates[8] = {0};
+	for (uint32_t iattachment = 0; iattachment < renderpass.color_formats_length; ++iattachment) {
+		AttachmentBlendStates[iattachment].blendEnable = VK_TRUE;
+ 		AttachmentBlendStates[iattachment].srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+		AttachmentBlendStates[iattachment].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+		AttachmentBlendStates[iattachment].colorBlendOp = VK_BLEND_OP_ADD;
+ 		AttachmentBlendStates[iattachment].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+		AttachmentBlendStates[iattachment].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+		AttachmentBlendStates[iattachment].alphaBlendOp = VK_BLEND_OP_ADD;
+		AttachmentBlendStates[iattachment].colorWriteMask = 0xf;
+	}
 	
 	VkPipelineColorBlendStateCreateInfo ColorBlendState = {.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
 	ColorBlendState.attachmentCount = renderpass.color_formats_length;
@@ -865,7 +877,7 @@ void end_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t output_rt_hand
 	// -- submit
 	VkSemaphoreSubmitInfo wait_semaphore_info = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO};
 	wait_semaphore_info.semaphore = device->swapchain_acquire_semaphore[frame->iframe];
-	wait_semaphore_info.stageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+	wait_semaphore_info.stageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	VkCommandBufferSubmitInfo command_buffer_info = {.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO};
 	command_buffer_info.commandBuffer = frame->cmd;
 	VkSemaphoreSubmitInfo signal_semaphore_info = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO};
@@ -898,8 +910,6 @@ void end_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t output_rt_hand
 
 void begin_render_pass(VulkanDevice *device, VulkanFrame *frame, VulkanRenderPass *pass, struct VulkanBeginPassInfo pass_info)
 {
-	pass->frame = frame;
-	
 	VkRenderingAttachmentInfoKHR color_infos[8] = {0};
 	VkRenderingAttachmentInfoKHR depth_info = {0};
 	uint32_t render_width = 8 << 10;
@@ -976,6 +986,10 @@ void begin_render_pass(VulkanDevice *device, VulkanFrame *frame, VulkanRenderPas
 
 	VkRect2D scissor = {.extent = {.width = render_width, .height = render_height}};
 	vkCmdSetScissor(frame->cmd, 0, 1, &scissor);
+
+	pass->frame = frame;
+	pass->render_width = render_width;
+	pass->render_height = render_height;
 }
 
 void end_render_pass(VulkanDevice *device, VulkanRenderPass *pass)
@@ -998,118 +1012,88 @@ void end_render_pass(VulkanDevice *device, VulkanRenderPass *pass)
 	}
 }
 
-
-#if 0
-void render_vulkan(void)	
+void vulkan_clear(VulkanDevice *device, VulkanRenderPass *pass, union VulkanClearColor const* colors, uint32_t colors_length, float depth)
 {
-	// "set heap"
-	VkDescriptorBufferBindingInfoEXT binding_info = {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_BUFFER_BINDING_INFO_EXT};
-	binding_info.address = device->buffer_library.buffers[device->descriptor_buffer.index].gpu_address;
-	binding_info.usage = VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT;
-	device->vkCmdBindDescriptorBuffersEXT(cmd, 1, &binding_info);
-	// "set table"
-	uint32_t buffer_index = 0;
-	VkDeviceSize  offset = 0;
-	device->vkCmdSetDescriptorBufferOffsetsEXT(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, device->pipeline_layout, 0, 1, &buffer_index, &offset);
+	VulkanFrame *frame = pass->frame;
 
-	for (uint32_t irenderpass = 0; irenderpass < g_renderer->renderpasses_count; ++irenderpass) {
-		struct RenderPass renderpass = g_renderer->renderpasses[irenderpass];
-#if 0
-		printf("renderpass #%u, [d: %u, rt: %u, ds: %u, w: %u, h: %u, dt? %u, dw? %u]\n",
-		       irenderpass,
-		       renderpass.drawcalls_count,
-		       renderpass.render_target,
-		       renderpass.depth_target,
-		       renderpass.width,
-		       renderpass.height,
-		       renderpass.enable_depth_test,
-		       renderpass.enable_depth_write);
-#endif
-
-		// depth state
-		vkCmdSetDepthCompareOp(cmd, VK_COMPARE_OP_GREATER_OR_EQUAL);
-		vkCmdSetDepthTestEnable(cmd, renderpass.enable_depth_test ? VK_TRUE : VK_FALSE);
-		vkCmdSetDepthBoundsTestEnable(cmd, VK_FALSE);
-		vkCmdSetDepthWriteEnable(cmd, renderpass.enable_depth_write ? VK_TRUE : VK_FALSE);
-		// stencil state
-		vkCmdSetStencilTestEnable(cmd, VK_FALSE);
-		vkCmdSetStencilOp(cmd, VK_STENCIL_FACE_FRONT_BIT, VK_STENCIL_OP_KEEP, VK_STENCIL_OP_REPLACE, VK_STENCIL_OP_KEEP, VK_COMPARE_OP_ALWAYS);
-		// blend state
-		VkColorBlendEquationEXT blend_eq = {0};
-		blend_eq.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
-		blend_eq.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
-		blend_eq.colorBlendOp = VK_BLEND_OP_ADD;
-		blend_eq.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-		blend_eq.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-		blend_eq.alphaBlendOp = VK_BLEND_OP_ADD;
-		device->my_vkCmdSetColorBlendEquation(cmd, 0, 1, &blend_eq);
-		VkBool32 blend_enable = VK_TRUE;
-		device->my_vkCmdSetColorBlendEnable(cmd,0, 1, &blend_enable);
-		VkColorComponentFlags all_mask = 0xf;
-		device->my_vkCmdSetColorWriteMask(cmd, 0, 1, &all_mask);
-
-		GraphicsProgramLibrary *gplib = &device->graphics_programs_library;
-		BufferLibrary *buflib = &device->buffer_library;
-		for (uint32_t i_draw = 0; i_draw < renderpass.drawcalls_count; ++i_draw) {
-			struct Draw draw = g_renderer->drawcalls[renderpass.drawcalls_offset + i_draw];
-			
-			if (!pool_is_valid(&buflib->allocator, draw.index_buffer)
-			    || !pool_is_valid(&buflib->allocator, draw.args_buffer)
-			    || !pool_is_valid(&buflib->allocator, draw.vertex_shader_buffer)
-			    || !pool_is_valid(&buflib->allocator, draw.pixel_shader_buffer)
-			    || !pool_is_valid(&gplib->allocator, draw.graphics_program)) {
-				// puts("skipping draw!...");
-				continue;
-			}
-			
-			VulkanBuffer *index_buffer = &device->buffer_library.buffers[draw.index_buffer.index];
-			VulkanBuffer *args_buffer = &device->buffer_library.buffers[draw.args_buffer.index];
-			VulkanGraphicsProgram *program = &device->graphics_programs_library.programs[draw.graphics_program.index];
-			uint64_t vertex_shader_buffer_address = device->buffer_library.buffers[draw.vertex_shader_buffer.index].gpu_address;
-			uint64_t pixel_shader_buffer_address = device->buffer_library.buffers[draw.pixel_shader_buffer.index].gpu_address;
-
-#if 0
-			printf("graphics_program: %u | index_buffer %u | args_buffer %u + %u | vbuf %u | pbuf %u\n",
-			       draw.graphics_program,
-			       draw.index_buffer,
-			       draw.args_buffer,
-			       draw.args_offset,
-			       draw.vertex_shader_buffer,
-			       draw.pixel_shader_buffer);
-
-			struct DrawArguments* arg = (struct DrawArguments*)((char*)args_buffer->mapped + draw.args_offset);
-			printf("draw(index_count %u, instance_count %u, first_index %u, vertex_offset %d, first_instance %u)\n",
-			       arg->index_count,
-			       arg->instance_count,
-			       arg->first_index,
-			       arg->vertex_offset,
-			       arg->first_instance);
-#else
-			VkPipeline pipeline = program->pipeline;
-			if (pipeline == VK_NULL_HANDLE) {
-				VkFormat *color_formats = NULL;
-				uint32_t color_formats_count = 0;
-				VkFormat depth_format = 0;
-				if (color_rt) {
-					color_formats = &color_rt->format;
-					color_formats_count = 1;
-				}
-				if (depth_rt) {
-					depth_format = depth_rt->format;
-				}
-				pipeline = graphics_program_create_pipeline(draw.graphics_program,
-									    color_formats, color_formats_count,
-									    depth_format);
-			}
-			vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-			vkCmdBindIndexBuffer(cmd, index_buffer->buffer, 0, VK_INDEX_TYPE_UINT32);
-			vkCmdPushConstants(cmd, device->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 8, &vertex_shader_buffer_address);
-			vkCmdPushConstants(cmd, device->pipeline_layout, VK_SHADER_STAGE_FRAGMENT_BIT, 8, 8, &pixel_shader_buffer_address);
-			vkCmdDrawIndexedIndirect(cmd, args_buffer->buffer, draw.args_offset, 1, sizeof(struct DrawArguments));
-#endif
-		}
-
+	VkClearAttachment attachments[8] = {0};
+	VkClearRect rects[8] = {0};
+	
+	uint32_t iattachment = 0;
+	for (; iattachment < colors_length; ++iattachment) {
+		assert(iattachment < ARRAY_LENGTH(attachments));
+		attachments[iattachment].aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		attachments[iattachment].colorAttachment = iattachment;
+		attachments[iattachment].clearValue.color.uint32[0] = colors[iattachment].u32[0];
+		attachments[iattachment].clearValue.color.uint32[1] = colors[iattachment].u32[1];
+		attachments[iattachment].clearValue.color.uint32[2] = colors[iattachment].u32[2];
+		attachments[iattachment].clearValue.color.uint32[3] = colors[iattachment].u32[3];
+		rects[iattachment].rect.extent.width = pass->render_width;
+		rects[iattachment].rect.extent.height = pass->render_height;
+		rects[iattachment].layerCount = 1;
+	}
+	if (pass->depth_rt != NULL) {
+		assert(iattachment < ARRAY_LENGTH(attachments));
+		attachments[iattachment].aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+		attachments[iattachment].clearValue.depthStencil.depth = depth;
+		rects[iattachment].rect.extent.width = pass->render_width;
+		rects[iattachment].rect.extent.height = pass->render_height;
+		rects[iattachment].layerCount = 1;
 	}
 	
+	vkCmdClearAttachments(frame->cmd,
+			      iattachment,
+			      attachments,
+			      iattachment,
+			      rects);
 }
-#endif
+
+void vulkan_set_scissor(VulkanDevice *device, VulkanRenderPass *pass, struct VulkanScissor scissor)
+{
+	VulkanFrame *frame = pass->frame;
+	VkRect2D s = {0};
+	s.offset.x = scissor.x;
+	s.offset.y = scissor.y;
+	s.extent.width = scissor.w;
+	s.extent.height = scissor.h;
+	vkCmdSetScissor(frame->cmd, 0, 1, &s);
+
+}
+
+void vulkan_push_constants(VulkanDevice *device, VulkanRenderPass *pass, void *data, uint32_t size)
+{
+	VulkanFrame *frame = pass->frame;
+	vkCmdPushConstants(frame->cmd,
+			   device->pipeline_layout,
+			   VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+			   0,
+			   size,
+			   data);
+}
+
+void vulkan_bind_graphics_pso(VulkanDevice *device, VulkanRenderPass *pass, uint32_t pso_handle)
+{
+	VulkanFrame *frame = pass->frame;
+	assert(pso_handle < ARRAY_LENGTH(device->graphics_psos));
+	assert(device->graphics_psos[pso_handle].pipeline != VK_NULL_HANDLE);
+	vkCmdBindPipeline(frame->cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, device->graphics_psos[pso_handle].pipeline);
+}
+
+void vulkan_bind_index_buffer(VulkanDevice *device, VulkanRenderPass *pass, uint32_t buffer_handle)
+{
+	VulkanFrame *frame = pass->frame;
+	assert(buffer_handle < ARRAY_LENGTH(device->buffers));
+	assert(device->buffers[buffer_handle].buffer != VK_NULL_HANDLE);
+	vkCmdBindIndexBuffer(frame->cmd, device->buffers[buffer_handle].buffer, 0, VK_INDEX_TYPE_UINT32);
+}
+
+void vulkan_draw(VulkanDevice *device, VulkanRenderPass *pass, struct VulkanDraw draw)
+{
+	VulkanFrame *frame = pass->frame;
+	vkCmdDrawIndexed(frame->cmd,
+			 draw.index_count,
+			 draw.instance_count,
+			 draw.first_index,
+			 draw.vertex_offset,
+			 draw.first_instance);
+}

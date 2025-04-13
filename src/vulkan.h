@@ -40,6 +40,29 @@ struct VulkanBeginPassInfo
 	uint32_t depth_rt;
 };
 
+struct VulkanScissor
+{
+	uint32_t x;
+	uint32_t y;
+	uint32_t w;
+	uint32_t h;
+};
+
+struct VulkanDraw
+{
+    uint32_t    index_count;
+    uint32_t    instance_count;
+    uint32_t    first_index;
+    int32_t     vertex_offset;
+    uint32_t    first_instance;
+};
+
+union VulkanClearColor
+{
+	float f32[4];
+	uint32_t u32[4];
+};
+
 uint32_t vulkan_get_device_size(void);
 void vulkan_create_device(VulkanDevice *device, void *hwnd);
 
@@ -58,3 +81,10 @@ void begin_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t *out_swapcha
 void end_frame(VulkanDevice *device, VulkanFrame *fame, uint32_t output_rt);
 void begin_render_pass(VulkanDevice *device, VulkanFrame *frame, VulkanRenderPass *pass, struct VulkanBeginPassInfo pass_info);
 void end_render_pass(VulkanDevice *device, VulkanRenderPass *pass);
+
+void vulkan_clear(VulkanDevice *device, VulkanRenderPass *pass, union VulkanClearColor const* colors, uint32_t colors_length, float depth);
+void vulkan_set_scissor(VulkanDevice *device, VulkanRenderPass *pass, struct VulkanScissor scissor);
+void vulkan_push_constants(VulkanDevice *Device, VulkanRenderPass *pass, void *data, uint32_t size);
+void vulkan_bind_graphics_pso(VulkanDevice *device, VulkanRenderPass *pass, uint32_t pso);
+void vulkan_bind_index_buffer(VulkanDevice *device, VulkanRenderPass *pass, uint32_t index_buffer);
+void vulkan_draw(VulkanDevice *device, VulkanRenderPass *pass, struct VulkanDraw draw);
