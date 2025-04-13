@@ -1,0 +1,5 @@
+{
+    "vertex_shader": "imgui.vert",
+    "pixel_shader": "imgui.frag",
+    "render_pass": "ui",
+}

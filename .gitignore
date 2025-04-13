@@ -1,0 +1,10 @@
+.~
+imgui.lib
+*.exe
+*.ilk
+*.pdb
+*.rdi
+cooking
+.asset_cooker
+.vs
+imgui.ini

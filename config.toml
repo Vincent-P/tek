@@ -1,0 +1,21 @@
+# Path to the rule file (optional)
+# Extension can be toml or lua.
+RuleFile = "rules.toml" 
+
+# Path to the log directory (optional)
+LogDirectory = ".asset_cooker/Logs"
+
+# Path to the cache directory (optional)
+CacheDirectory = ".asset_cooker/Cache"
+
+# Window title (optional)
+WindowTitle = "Asset Cooker" 
+
+# Repo (array, mandatory)
+[[Repo]]
+Name = "assets" # Name of the Repo (mandatory). Must be unique.
+Path = 'assets' # Path to the repo (mandatory). Can be absolute or relative to current directory.
+
+[[Repo]]
+Name = "cooking"
+Path = 'cooking'

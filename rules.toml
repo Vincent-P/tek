@@ -1,0 +1,10 @@
+[[Rule]]
+Name = "Material"
+Priority = 1
+
+InputFilters = [
+    { Repo = "assets", PathPattern = "*.mat.json" }
+]
+
+DepFile = { Path = '{ Repo:cooking }{ Path }.dep', Format = 'AssetCooker' }
+CommandLine = 'cooker.exe mat "{ Path }" "{ Repo:assets }" "{ Repo:cooking }"'

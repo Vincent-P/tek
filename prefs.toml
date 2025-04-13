@@ -1,0 +1,10 @@
+EnableNotifOnCookingError = 'Always'
+EnableNotifOnCookingFinish = 'When Minimized'
+EnableNotifOnHideWindow = 'Never'
+EnableNotifSound = 'Always'
+HideWindowOnMinimize = true
+LogFSActivity = 'Normal'
+NumCookingThreads = 0
+StartMinimized = false
+StartPaused = false
+UIScale = 1.0
