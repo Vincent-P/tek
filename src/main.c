@@ -1,6 +1,8 @@
+#define _CRT_SECURE_NO_WARNINGS
 #define SDL_MAIN_USE_CALLBACKS
 #include <SDL3/SDL_main.h>
 #include <stdio.h>
+#include <assert.h>
 
 #define ARRAY_LENGTH(x) (sizeof(x)/sizeof(*x))
 
@@ -53,5 +55,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 	return SDL_APP_CONTINUE;
 }
 
+#include "asset.c"
 #include "vulkan.c"
 #include "renderer.c"

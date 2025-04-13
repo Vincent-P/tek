@@ -1,4 +1,5 @@
 #include "renderer.h"
+#include "file.h"
 
 struct Renderer
 {
@@ -24,6 +25,12 @@ void renderer_init(Renderer *renderer, SDL_Window *window)
 			  renderer->device->swapchain_width,
 			  renderer->device->swapchain_height,
 			  PG_FORMAT_R8G8B8A8_UNORM);
+
+	uint32_t imgui_pso = 0;
+	struct MaterialAsset imgui_material = {0};
+	Serializer s = serialize_read_file("cooking/imgui.mat.json");
+	Serialize_MaterialAsset(&s, &imgui_material);
+	new_graphics_program(renderer->device, imgui_pso, imgui_material);
 }
 
 void renderer_render(Renderer *renderer)

@@ -15,6 +15,7 @@ enum ImageFormat
 
 struct RenderPass
 {
+	const char* name;
 	enum ImageFormat color_formats[8];
 	uint32_t color_formats_length;
 	enum ImageFormat depth_format;
@@ -28,8 +29,7 @@ enum RenderPassesId
 
 static struct RenderPass RENDER_PASSES[RENDER_PASSES_COUNT] =
 {
-	// UI
-	{{PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_NONE},
+	{"ui", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_NONE},
 };
 
 struct VulkanBeginPassInfo
