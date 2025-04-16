@@ -4,6 +4,7 @@
 #include <SDL3/SDL_timer.h>
 #include <stdio.h>
 #include <assert.h>
+#include <math.h>
 #include <dcimgui.h>
 
 #define ARRAY_LENGTH(x) (sizeof(x)/sizeof(*x))
@@ -29,6 +30,7 @@ struct Application
 
 	uint64_t current_time;
 	uint64_t accumulator;
+	uint64_t t;
 };
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
@@ -47,6 +49,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 
 	// game init
 	game_state_init(&application->game.gs);
+	game_non_state_init(&application->game.ngs);
 	
 	return SDL_APP_CONTINUE;
 }
@@ -122,6 +125,9 @@ static void game_run_frame(struct Application *application)
 
 	// ggpo_synchronize_input
 	game_simulate_frame(&application->game.ngs, &application->game.gs, inputs);
+
+	application->game.ngs.t += 0.1f;
+	application->game.ngs.frame_number += 1;
 }
 
 SDL_AppResult SDL_AppIterate(void *appstate)
@@ -153,20 +159,23 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 	application->current_time = new_time;
 	application->accumulator += frame_time;
 	if (ImGui_Begin("Application", NULL, 0)) {
-		ImGui_Text("time: %llu", application->current_time);
+		ImGui_Text("current time: %llu", application->current_time);
+		ImGui_Text("time: %llu", application->t);
 		ImGui_Text("frame_time: %llu", frame_time);
 		ImGui_Text("accumulator: %llu", application->accumulator);
 	}
 	ImGui_End();
 
 	// simulate in fixed-step increments from the accumulator
-	const uint64_t dt = 10;
+	const uint64_t dt = 100;
 	while (application->accumulator >= dt) {
 		game_run_frame(application);
+		application->t += dt;
 		application->accumulator -= dt;
 	}
 	
 	game_state_render(&application->game.gs);
+	game_non_state_render(&application->game.ngs);
 
 	renderer_render(application->renderer);
 
@@ -178,3 +187,5 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 #include "renderer.c"
 #include "game.c"
 #include "inputs.c"
+#include <ufbx.c>
+

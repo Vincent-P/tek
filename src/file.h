@@ -25,7 +25,7 @@ void file_write_entire_file(const char* path, struct Blob buffer)
 	fclose(f);
 }
 
-Serializer serialize_read_file(const char* path)
+Serializer serialize_begin_read_file(const char* path)
 {
 	Serializer serializer = {0};
 	serializer.buffer = file_read_entire_file(path);
@@ -34,11 +34,17 @@ Serializer serialize_read_file(const char* path)
 	return serializer;
 }
 
-Serializer serialize_begin_write_file()
+void serialize_end_read_file(Serializer *serializer)
+{
+	free(serializer->buffer.data);
+	*serializer = (Serializer){0};
+}
+
+Serializer serialize_begin_write_file(uint32_t buffer_capacity)
 {
 	Serializer serializer = {0};
-	serializer.buffer.data = calloc(1, (16 << 10));
-	serializer.buffer.size = (16 << 10);
+	serializer.buffer.data = calloc(1, buffer_capacity);
+	serializer.buffer.size = buffer_capacity;
 	serializer.is_reading = false;
 	serializer.version = SV_LATEST;
 	Serialize_uint32_t(&serializer, &serializer.version);

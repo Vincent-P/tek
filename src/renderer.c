@@ -38,8 +38,9 @@ void renderer_init(Renderer *renderer, SDL_Window *window)
 	renderer->imgui_ibuffer = 0;
 	renderer->imgui_vbuffer = 1;
 	struct MaterialAsset imgui_material = {0};
-	Serializer s = serialize_read_file("cooking/imgui.mat.json");
+	Serializer s = serialize_begin_read_file("cooking/c6be81795603b19");
 	Serialize_MaterialAsset(&s, &imgui_material);
+	serialize_end_read_file(&s);
 	new_graphics_program(renderer->device, renderer->imgui_pso, imgui_material);
 	new_index_buffer(renderer->device, renderer->imgui_ibuffer, (64 << 10));
 	new_storage_buffer(renderer->device, renderer->imgui_vbuffer, (64 << 10));
