@@ -187,5 +187,5 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 #include "renderer.c"
 #include "game.c"
 #include "inputs.c"
+#include "anim.c"
 #include <ufbx.c>
-

@@ -140,135 +140,131 @@ int cook_fbx()
 		return 1;
 	}
 
-	// Use and inspect `scene`, it's just plain data!
+	// Find all bones
+	uint32_t scene_bone_count = 0;
+	for (size_t i = 0; i < scene->nodes.count; i++) {
+		if (scene->nodes.data[i]->bone != NULL) {
+			scene_bone_count += 1;
+		}
+	}
 
-	// Let's just list all objects within the scene for example:
 	ufbx_node *root_bone = NULL;
+	ufbx_node *bones[MAX_BONES_PER_MESH] = {0};
+	uint32_t bones_length = 0;
 	for (size_t i = 0; i < scene->nodes.count; i++) {
 		ufbx_node *node = scene->nodes.data[i];
-		if (node->mesh) {
-			printf("Mesh: %s\n", node->name.data);
-			printf("\t faces: %zu\n", node->mesh->faces.count);
-		} else if (node->bone) {
+		
+		if (root_bone != NULL && node->node_depth <= root_bone->node_depth) {
+			break;
+		}
+		
+		if (node->bone) {
 			bool is_root_bone = node->bone->is_root || node->parent->bone == NULL;
-			printf("%s Bone: %s\n", is_root_bone ? "Root " : "", node->name.data);
-
 			if (is_root_bone) {
 				assert(root_bone == NULL);
 				root_bone = node;
+			} else {
+				assert(root_bone != NULL);
+				assert(bones_length < MAX_BONES_PER_MESH);
+				bones[bones_length++] = node;
+				fprintf(stderr, "Importing bone %s\n", node->name.data);
 			}
-			
-		} else {
-			printf("Node: %s\n", node->name.data);
 		}
-	}
 
-	if (scene->skin_deformers.count > 0) {
-		ufbx_skin_deformer *deformer = scene->skin_deformers.data[0];
-		printf("Deformer: %s\n", deformer->name.data);
-		const char* method = NULL;
-		if (deformer->skinning_method == UFBX_SKINNING_METHOD_LINEAR) {
-			method = "linear";
-		} else if (deformer->skinning_method == UFBX_SKINNING_METHOD_RIGID) {
-			method = "rigid";
-		} else if (deformer->skinning_method == UFBX_SKINNING_METHOD_DUAL_QUATERNION) {
-			method = "dual quaternion";
-		} else if (deformer->skinning_method == UFBX_SKINNING_METHOD_BLENDED_DQ_LINEAR) {
-			method = "blended dq linear";
-		}
-		printf("\tmethod: %s\n", method);
-		printf("\tmax weights per vertex: %zu\n", deformer->max_weights_per_vertex);
-		printf("\tbones: %zu\n", deformer->clusters.count);
-		for (size_t icluster = 0; icluster < deformer->clusters.count; ++icluster) {
-			ufbx_skin_cluster *cluster = deformer->clusters.data[icluster];
-			printf("\t\tCluster: %s (%zu)\n", cluster->name.data, cluster->num_weights);
-		}
 	}
-
-	printf("Poses: %zu\n", scene->poses.count);
-	for (size_t ipose = 0; ipose < scene->poses.count; ipose++) {
-		ufbx_pose *pose = scene->poses.data[ipose];
-		printf("\tis bind pose: %s\n", pose->is_bind_pose ? "true": "false");
-		printf("\tbones: %zu\n", pose->bone_poses.count);
-	}
+	assert(bones_length + 1 == scene_bone_count);
 	
-	for (size_t istack = 0; istack < scene->anim_stacks.count && false; istack++) {
+	// find parents for each bone
+	uint8_t bones_parent[MAX_BONES_PER_MESH] = {0};
+	assert(bones[0]->parent == root_bone);
+	for (uint32_t ibone = 1; ibone < bones_length; ++ibone) {
+		uint32_t iparent = 0;
+		for (; iparent < ibone; ++iparent) {
+			if (bones[iparent] == bones[ibone]->parent) {
+				break;
+			}
+		}
+		assert(iparent < ibone);
+		bones_parent[ibone] = iparent;
+	}
+
+	struct Animation animations[MAX_ANIMATIONS_PER_ASSET];
+	assert(scene->anim_stacks.count < MAX_ANIMATIONS_PER_ASSET);
+	for (size_t istack = 0; istack < scene->anim_stacks.count; istack++) {
 		ufbx_anim_stack *stack = scene->anim_stacks.data[istack];
 		ufbx_anim *anim = stack->anim;
-		printf("Anim stack: %s\n", stack->name.data);
-
 		ufbx_bake_opts opts = {0};
 		opts.key_reduction_enabled = false;
 		ufbx_baked_anim *bake = ufbx_bake_anim(scene, anim, &opts, NULL);
 		assert(bake);
-
-		printf("\tbones: %zu\n", bake->nodes.count);
 		for (size_t inode = 0; inode < bake->nodes.count; inode++) {
 			ufbx_baked_node *baked_node = &bake->nodes.data[inode];
-			ufbx_node *scene_node = scene->nodes.data[baked_node->typed_id];
+			ufbx_node *node = scene->nodes.data[baked_node->typed_id];
 
-			printf("\t  node %s: t[%zu]%u r[%zu]%u s[%zu]%u\n",
-			       scene_node->name.data,
-			       baked_node->translation_keys.count,
-			       (uint32_t)baked_node->constant_translation,
-			       baked_node->rotation_keys.count,
-			       (uint32_t)baked_node->constant_rotation,
-			       baked_node->scale_keys.count,
-			       (uint32_t)baked_node->constant_scale);
+			// Find the matching bone in the skeleton. Skip if not found.
+			uint32_t ibone = 0;
+			for (; ibone < bones_length; ++ibone) {
+				if (bones[ibone] == node) {
+					break;
+				}
+			}
+			if (ibone >= bones_length) {
+				continue;
+			}
+
+			animations[istack].tracks_length += 1;
+			animations[istack].tracks[ibone].translations.length = baked_node->translation_keys.count;
+			animations[istack].tracks[ibone].translations.data = calloc(baked_node->translation_keys.count, sizeof(Float3));
+			struct Float3List translations = animations[istack].tracks[ibone].translations;
+			ufbx_baked_vec3_list baked_translations = baked_node->translation_keys;
+			for (uint32_t itrans = 0; itrans < baked_node->translation_keys.count; ++itrans) {
+				
+				translations.data[itrans].x = baked_translations.data[itrans].value.x;
+				translations.data[itrans].y = baked_translations.data[itrans].value.y;
+				translations.data[itrans].z = baked_translations.data[itrans].value.z;
+			}
+
+			animations[istack].tracks[ibone].rotations.length = baked_node->rotation_keys.count;
+			animations[istack].tracks[ibone].rotations.data = calloc(baked_node->rotation_keys.count, sizeof(Quat));
+			struct QuatList rotations = animations[istack].tracks[ibone].rotations;
+			ufbx_baked_quat_list baked_rotations = baked_node->rotation_keys;
+			for (uint32_t itrans = 0; itrans < baked_node->rotation_keys.count; ++itrans) {
+				
+				rotations.data[itrans].x = baked_rotations.data[itrans].value.x;
+				rotations.data[itrans].y = baked_rotations.data[itrans].value.y;
+				rotations.data[itrans].z = baked_rotations.data[itrans].value.z;
+				rotations.data[itrans].w = baked_rotations.data[itrans].value.w;
+			}
+
+			animations[istack].tracks[ibone].scales.length = baked_node->scale_keys.count;
+			animations[istack].tracks[ibone].scales.data = calloc(baked_node->scale_keys.count, sizeof(Float3));
+			struct Float3List scales = animations[istack].tracks[ibone].scales;
+			ufbx_baked_vec3_list baked_scales = baked_node->scale_keys;
+			for (uint32_t itrans = 0; itrans < baked_node->scale_keys.count; ++itrans) {
+				
+				scales.data[itrans].x = baked_scales.data[itrans].value.x;
+				scales.data[itrans].y = baked_scales.data[itrans].value.y;
+				scales.data[itrans].z = baked_scales.data[itrans].value.z;
+			}
 		}
-
 		ufbx_free_baked_anim(bake);
 	}
 
 
 	struct SkeletalMeshWithAnimationsAsset skeletal_mesh_with_animations = {0};
 	skeletal_mesh_with_animations.animations_length = scene->anim_stacks.count;
-	
-	for (size_t istack = 0; istack < scene->anim_stacks.count; istack++) {
-		ufbx_anim_stack *stack = scene->anim_stacks.data[istack];
-		ufbx_anim *anim = stack->anim;
-		ufbx_bake_opts opts = {0};
-		opts.key_reduction_enabled = true;
-		ufbx_baked_anim *bake = ufbx_bake_anim(scene, anim, &opts, NULL);
-		assert(bake);
-
-		struct Anim *out_anim = skeletal_mesh_with_animations.animations + istack;
-		out_anim->tracks_length = bake->nodes.count;
-
-		for (size_t inode = 0; inode < bake->nodes.count; inode++) {
-			ufbx_baked_node *baked_node = &bake->nodes.data[inode];
-			ufbx_node *scene_node = scene->nodes.data[baked_node->typed_id];
-			
-			struct AnimTrack *out_track = out_anim->tracks + inode;
-			out_track->translations.length = baked_node->translation_keys.count;
-			out_track->translations.data = calloc(baked_node->translation_keys.count, sizeof(Float3));
-			for (uint32_t i = 0; i < out_track->translations.length; ++i) {
-				out_track->translations.data[i].x = baked_node->translation_keys.data[i].value.x;
-				out_track->translations.data[i].y = baked_node->translation_keys.data[i].value.y;
-				out_track->translations.data[i].z = baked_node->translation_keys.data[i].value.z;
-			}
-			
-			out_track->rotations.length = baked_node->rotation_keys.count;
-			out_track->rotations.data = calloc(baked_node->rotation_keys.count, sizeof(Quat));
-			for (uint32_t i = 0; i < out_track->rotations.length; ++i) {
-				out_track->rotations.data[i].x = baked_node->rotation_keys.data[i].value.x;
-				out_track->rotations.data[i].y = baked_node->rotation_keys.data[i].value.y;
-				out_track->rotations.data[i].z = baked_node->rotation_keys.data[i].value.z;
-				out_track->rotations.data[i].w = baked_node->rotation_keys.data[i].value.w;
-			}
-
-			out_track->scales.length = baked_node->scale_keys.count;
-			out_track->scales.data = calloc(baked_node->scale_keys.count, sizeof(Float3));
-			for (uint32_t i = 0; i < out_track->scales.length; ++i) {
-				out_track->scales.data[i].x = baked_node->scale_keys.data[i].value.x;
-				out_track->scales.data[i].y = baked_node->scale_keys.data[i].value.y;
-				out_track->scales.data[i].z = baked_node->scale_keys.data[i].value.z;
-			}
-		}
-		
-		ufbx_free_baked_anim(bake);
+	for (uint32_t ianim = 0; ianim < scene->anim_stacks.count; ++ianim) {
+		skeletal_mesh_with_animations.animations[ianim] = animations[ianim];
 	}
-
+	
+	skeletal_mesh_with_animations.anim_skeleton.bones_length = bones_length;
+	for (uint32_t ibone = 0; ibone < bones_length; ++ibone) {
+		for (uint32_t i = 0; i < 12; ++i) {
+			skeletal_mesh_with_animations.anim_skeleton.bones_local_transforms[ibone].values[i] = bones[ibone]->node_to_world.v[i];
+		}
+		skeletal_mesh_with_animations.anim_skeleton.bones_parent[ibone] = bones_parent[ibone];
+	}
+	
 	ufbx_free_scene(scene);
 
 	uint32_t serializer_capacity = (16 << 20);

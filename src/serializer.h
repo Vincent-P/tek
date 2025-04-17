@@ -52,6 +52,7 @@ void SerializeBytes(Serializer *serializer, void *data, uint32_t size)
 	}
 }
 
+SerializeSimpleType(uint8_t)
 SerializeSimpleType(uint32_t)
 SerializeSimpleType(uint64_t)
 SerializeSimpleType(float)

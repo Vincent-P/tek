@@ -54,16 +54,9 @@ void game_state_init(struct GameState *state)
 
 void game_non_state_init(struct NonGameState *state)
 {
-	Serializer s = serialize_begin_read_file("cooking/1801d6b015d7ce56");
+	Serializer s = serialize_begin_read_file("cooking/8e4d0cfae7ddad95");
 	Serialize_SkeletalMeshWithAnimationsAsset(&s, &state->skeletal_mesh_with_animations);
 	serialize_end_read_file(&s);
-
-	ufbx_load_opts opts = { 0 }; // Optional, pass NULL for defaults
-        opts.target_axes = ufbx_axes_right_handed_y_up;
-        opts.target_unit_meters = 1.0f;
-	ufbx_scene *scene = ufbx_load_file("assets/tekken.fbx", &opts, NULL);
-	assert(scene != NULL);
-	state->scene = scene;
 }
 
 void game_state_update(struct GameState *state, struct GameInputs inputs)
@@ -194,171 +187,42 @@ void game_state_render(struct GameState *state)
 
 void game_non_state_render(struct NonGameState *state)
 {
-	Anim *anim_to_play = NULL;// state->skeletal_mesh_with_animations.animations + 1;
-
 	static Float3 s_from = (Float3){1.0f, 0.0f, 0.0f};
-
 	ImGui_DragFloat3Ex("from", &s_from.x, 0.1f, 0.0f, 0.0f, "%.3f", 0);
 	
-
 	Float4x4 proj = perspective_projection(50.0f, 1.0f, 0.1f, 100.0f, NULL);
 	Float4x4 view = lookat_view(s_from, (Float3){0.0f, 0.0f, 0.0f});
 	Float4x4 viewproj = float4x4_mul(proj, view);
+
+	static int32_t ianim = 0;
+	ImGui_DragInt("anim", &ianim);
 	
 	ImDrawList* draw_list = ImGui_GetForegroundDrawList();
 	
-	ufbx_pose *pose = state->scene->poses.data[0];
+	struct SkeletalMeshWithAnimationsAsset *asset = &state->skeletal_mesh_with_animations;
+	struct AnimSkeleton *anim_skeleton = &asset->anim_skeleton;
+	struct Animation *animation = ianim < asset->animations_length ? asset->animations + ianim : NULL;
 
-	#if 0
-	for (size_t ibone = 0; ibone < pose->bone_poses.count; ++ibone) {
-		ufbx_bone_pose *bone_pose = pose->bone_poses.data + ibone;
+	struct AnimPose new_pose = {0};
+	if (animation != NULL) {
+		new_pose.skeleton_id = anim_skeleton->id;
+		anim_evaluate_animation(animation, &new_pose, (float)state->frame_number);
 
-		ufbx_transform world_xform = ufbx_matrix_to_transform(&bone_pose->bone_to_world);
-
-
-		Float3 translation;
-		translation.x = world_xform.translation.x;
-		translation.y = world_xform.translation.y;
-		translation.z = world_xform.translation.z;
+		Float3x4 root_world_transform = {0};
+		F34(root_world_transform, 0, 0) = 1.0f;
+		F34(root_world_transform, 1, 1) = 1.0f;
+		F34(root_world_transform, 2, 2) = 1.0f;
+		anim_pose_compute_global_transforms(anim_skeleton, &new_pose, root_world_transform);
+	
+		for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ibone++) {
+			Float3 vertex;
+			vertex.x = F34(new_pose.global_transforms[ibone], 0, 3);
+			vertex.y = F34(new_pose.global_transforms[ibone], 1, 3);
+			vertex.z = F34(new_pose.global_transforms[ibone], 2, 3);
 		
-		Float3 p = float4x4_project_point(viewproj, translation);
-		p.x = p.x * 0.5f + 0.5f;
-		p.y = p.y * 0.5f + 0.5f;
-
-		float imscale = 500.0f;
-		float imoffset = 200.0f;
-		ImVec2 min = {0};
-		min.x = imscale * p.x - 10.0f + imoffset;
-		min.y = imscale * p.y - 10.0f + imoffset;
-		ImVec2 max = {0};
-		max.x = imscale * p.x + 10.0f + imoffset;
-		max.y = imscale * p.y + 10.0f + imoffset;
-		ImDrawList_AddRect(draw_list, min, max, IM_COL32(255, 0, 0, 255));
-	}
-	#endif
-
-	ufbx_anim_stack *stack = state->scene->anim_stacks.data[2];
-	ufbx_anim *anim = stack->anim;
-
-	float game_time = state->t;
-	float duration = anim->time_end - anim->time_begin;
-	while (game_time > duration) {
-		game_time -= duration;
-	}
-		
-	ufbx_bake_opts opts = {0};
-	ufbx_baked_anim *bake = ufbx_bake_anim(state->scene, anim, &opts, NULL);
-	assert(bake);
-
-	
-	ufbx_node *nodes[MAX_BONES_PER_MESH + 1] = {0};
-	uint32_t parent_indices[MAX_BONES_PER_MESH + 1] = {0};
-	ufbx_matrix node_to_parent[MAX_BONES_PER_MESH + 1] = {0};
-	ufbx_matrix node_to_world[MAX_BONES_PER_MESH + 1] = {0};
-
-	nodes[0] = state->scene->nodes.data[bake->nodes.data[0].typed_id]->parent;
-	parent_indices[0] = 9999;
-	node_to_parent[0] = nodes[0]->node_to_parent;
-	node_to_world[0] = nodes[0]->node_to_world;
-	
-	for (size_t inode = 0; inode < bake->nodes.count; inode++) {
-		ufbx_baked_node *baked_node = &bake->nodes.data[inode];
-		ufbx_node *scene_node = state->scene->nodes.data[baked_node->typed_id];
-
-		// assert that our parent is here
-		uint32_t my_node_index = inode + 1;
-		uint32_t iparent = 0;
-		for (; iparent < my_node_index; ++iparent) {
-			if (nodes[iparent] == scene_node->parent) {
-				break;
-			}
-		}
-		assert(iparent < my_node_index);
-
-		ufbx_transform bone_pose;
-		bone_pose.translation = ufbx_evaluate_baked_vec3(baked_node->translation_keys, game_time);
-		bone_pose.rotation = ufbx_evaluate_baked_quat(baked_node->rotation_keys, game_time);
-		bone_pose.scale = ufbx_evaluate_baked_vec3(baked_node->scale_keys, game_time);
-
-		nodes[my_node_index] = scene_node;
-		parent_indices[my_node_index] = iparent;
-		node_to_parent[my_node_index] = ufbx_transform_to_matrix(&bone_pose);
-	}
-	
-	for (size_t inode = 1; inode < bake->nodes.count + 1; inode++) {
-		uint32_t iparent = parent_indices[inode];
-		assert(iparent < bake->nodes.count + 1);
-		
-		node_to_world[inode] = ufbx_matrix_mul(&node_to_world[iparent], &node_to_parent[inode]);
-	}
-
-	for (size_t inode = 1; inode < bake->nodes.count + 1; inode++) {
-		ufbx_vec3 up = ufbx_transform_position(&node_to_world[inode], (ufbx_vec3){});
-		Float3 vertex;
-		vertex.x = up.x;
-		vertex.y = up.y;
-		vertex.z = up.z;
-			
-			
-		Float3 p = float4x4_project_point(viewproj, vertex);
-		p.x = p.x * 0.5f + 0.5f;
-		p.y = p.y * 0.5f + 0.5f;
-
-		float imscale = 500.0f;
-		float imoffset = 200.0f;
-		ImVec2 min = {0};
-		min.x = imscale * p.x - 10.0f + imoffset;
-		min.y = imscale * p.y - 10.0f + imoffset;
-		ImVec2 max = {0};
-		max.x = imscale * p.x + 10.0f + imoffset;
-		max.y = imscale * p.y + 10.0f + imoffset;
-		ImDrawList_AddRect(draw_list, min, max, IM_COL32(255, 0, 0, 255));
-	}
-
-
-#if 0
-	Float3 cube_vertices[] = {
-		{0.0f, 0.0f, 0.0f},
-		{0.0f, 0.0f, 1.0f},
-		{0.0f, 1.0f, 0.0f},
-		{0.0f, 1.0f, 1.0f},
-		{1.0f, 0.0f, 0.0f},
-		{1.0f, 0.0f, 1.0f},
-		{1.0f, 1.0f, 0.0f},
-		{1.0f, 1.0f, 1.0f},
-	};
-	for (uint32_t i = 0; i < ARRAY_LENGTH(cube_vertices); ++i) {		
-		Float3 p = float4x4_project_point(viewproj, cube_vertices[i]);
-		p.x = p.x * 0.5f + 0.5f;
-		p.y = p.y * 0.5f + 0.5f;
-
-		float imscale = 500.0f;
-		float imoffset = 200.0f;
-		ImVec2 min = {0};
-		min.x = imscale * p.x - 10.0f + imoffset;
-		min.y = imscale * p.y - 10.0f + imoffset;
-		ImVec2 max = {0};
-		max.x = imscale * p.x + 10.0f + imoffset;
-		max.y = imscale * p.y + 10.0f + imoffset;
-		ImDrawList_AddRect(draw_list, min, max, IM_COL32(255, 0, 0, 255));
-	}
-#endif
-	
-	if (anim_to_play != NULL) {
-		for (uint32_t itrack = 0; itrack < anim_to_play->tracks_length; ++itrack) {
-			AnimTrack *track = anim_to_play->tracks + itrack;
-			// assert(track->translations.length == track->rotations.length);
-			// assert(track->translations.length == track->scales.length);
-			uint32_t iframe = state->frame_number % track->translations.length;
-
-			Float3 translation = track->translations.data[iframe];
-			Quat rotation = track->rotations.data[0];
-			Float3 scale = track->scales.data[0];
-
-			Float3 p = float4x4_project_point(viewproj, translation);
+			Float3 p = float4x4_project_point(viewproj, vertex);
 			p.x = p.x * 0.5f + 0.5f;
 			p.y = p.y * 0.5f + 0.5f;
-
 			float imscale = 500.0f;
 			float imoffset = 200.0f;
 			ImVec2 min = {0};

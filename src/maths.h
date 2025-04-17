@@ -11,13 +11,7 @@ union Float3
 	};
 	float values[3];
 };
-
-void Serialize_Float3(Serializer *serializer, Float3 *value)
-{
-	SV_ADD(SV_INITIAL, float, x);
-	SV_ADD(SV_INITIAL, float, y);
-	SV_ADD(SV_INITIAL, float, z);
-}
+SerializeSimpleType(Float3);
 
 Float3 float3_sub(Float3 a, Float3 b)
 {
@@ -60,14 +54,7 @@ union Quat
 	};
 	float values[4];
 };
-
-void Serialize_Quat(Serializer *serializer, Quat *value)
-{
-	SV_ADD(SV_INITIAL, float, x);
-	SV_ADD(SV_INITIAL, float, y);
-	SV_ADD(SV_INITIAL, float, z);
-	SV_ADD(SV_INITIAL, float, w);
-}
+SerializeSimpleType(Quat);
 
 struct FloatList
 {
@@ -120,16 +107,19 @@ struct Float4x4
 {
 	float values[16];
 };
+SerializeSimpleType(Float4x4);
+
 
 typedef struct Float3x4 Float3x4;
 struct Float3x4
 {
 	float values[12];
 };
+SerializeSimpleType(Float3x4);
 
 // Column major
-#define CM(i, j) (i * 4 + j)
-#define F44(m, i, j) m.values[CM(i, j)]
+#define F44(m, i, j) m.values[(i * 4 + j)]
+#define F34(m, i, j) m.values[(i * 3 + j)]
 
 Float4x4 float4x4_mul(Float4x4 a, Float4x4 b)
 {
@@ -218,4 +208,53 @@ Float4x4 lookat_view(Float3 from, Float3 to)
 	F44(v,2,0) = -forward.x;	F44(v,2,1) = -forward.y;	F44(v,2,2) = -forward.z;	F44(v,2,3) =  float3_dot(from, forward);
 	F44(v,3,0) =       0.0f;	F44(v,3,1) =       0.0f;	F44(v,3,2) =        0.0f;	F44(v,3,3) = 1.0f;
 	return v;
+}
+
+Float3x4 float3x4_mul(Float3x4 a, Float3x4 b)
+{
+	Float3x4 result = {0};
+
+	// multiply 3x3
+	for (uint32_t irow = 0; irow < 3; ++irow) {
+		for (uint32_t icol = 0; icol < 3; ++icol) {
+			for (uint32_t i = 0; i < 3; ++i) {
+				F34(result, irow, icol) += F34(a, irow, i) * F34(b, i, icol);
+			}
+		}
+	}
+
+	// do last column by hand
+	for (uint32_t i = 0; i < 4; ++i) {
+		F34(result, 0, 3) += F34(a,0,i) * F34(b,i,3);
+	}
+	for (uint32_t i = 0; i < 4; ++i) {
+		F34(result, 1, 3) += F34(a,1,i) * F34(b,i,3);
+	}
+	for (uint32_t i = 0; i < 4; ++i) {
+		F34(result, 2, 3) += F34(a,2,i) * F34(b,i,3);
+	}
+	
+	return result;
+}
+
+Float3x4 float3x4_from_transform(Float3 translation, Quat rotation, Float3 scale)
+{
+	float sx = 2.0f * scale.x, sy = 2.0f * scale.y, sz = 2.0f * scale.z;
+	float xx = rotation.x*rotation.x, xy = rotation.x*rotation.y, xz = rotation.x*rotation.z, xw = rotation.x*rotation.w;
+	float yy = rotation.y*rotation.y, yz = rotation.y*rotation.z, yw = rotation.y*rotation.w;
+	float zz = rotation.z*rotation.z, zw = rotation.z*rotation.w;
+	Float3x4 m;
+	F34(m,0,0) = sx * (- yy - zz + 0.5f);
+	F34(m,1,0) = sx * (+ xy + zw);
+	F34(m,2,0) = sx * (- yw + xz);
+	F34(m,0,1) = sy * (- zw + xy);
+	F34(m,1,1) = sy * (- xx - zz + 0.5f);
+	F34(m,2,1) = sy * (+ xw + yz);
+	F34(m,0,2) = sz * (+ xz + yw);
+	F34(m,1,2) = sz * (- xw + yz);
+	F34(m,2,2) = sz * (- xx - yy + 0.5f);
+	F34(m,0,3) = translation.x;
+	F34(m,1,3) = translation.y;
+	F34(m,2,3) = translation.z;
+	return m;
 }

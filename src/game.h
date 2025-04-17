@@ -51,7 +51,6 @@ struct NonGameState
 	float dt;
 	float t;
 	SkeletalMeshWithAnimationsAsset skeletal_mesh_with_animations;
-	ufbx_scene *scene;
 	// player handles
 	// session connection
 };
