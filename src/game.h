@@ -51,6 +51,7 @@ struct NonGameState
 	float dt;
 	float t;
 	SkeletalMeshWithAnimationsAsset skeletal_mesh_with_animations;
+	struct AnimPose p1_pose;
 	// player handles
 	// session connection
 };
@@ -64,6 +65,7 @@ void game_non_state_init(struct NonGameState *state);
 
 // Called by the game during a rollback or a frame.
 void game_state_update(struct GameState *state, struct GameInputs input);
+void game_non_state_update(struct NonGameState *state);
 
 // Update renderer with the latest game state.
 void game_state_render(struct GameState *state);

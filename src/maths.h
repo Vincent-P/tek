@@ -118,8 +118,12 @@ struct Float3x4
 SerializeSimpleType(Float3x4);
 
 // Column major
-#define F44(m, i, j) m.values[(i * 4 + j)]
-#define F34(m, i, j) m.values[(i * 3 + j)]
+#define F44(m, i, j) m.values[(j * 4 + i)]
+#define F34(m, i, j) m.values[(j * 3 + i)]
+
+// 0 3 = 0*3+3 = 3  != 9
+// 1 3 = 1*3+3 = 4  != 10
+// 2 3 = 2*3+3 = 9  != 11
 
 Float4x4 float4x4_mul(Float4x4 a, Float4x4 b)
 {
@@ -214,25 +218,21 @@ Float3x4 float3x4_mul(Float3x4 a, Float3x4 b)
 {
 	Float3x4 result = {0};
 
-	// multiply 3x3
-	for (uint32_t irow = 0; irow < 3; ++irow) {
-		for (uint32_t icol = 0; icol < 3; ++icol) {
-			for (uint32_t i = 0; i < 3; ++i) {
-				F34(result, irow, icol) += F34(a, irow, i) * F34(b, i, icol);
-			}
-		}
-	}
+	F34(result,0,0) = F34(a,0,0)*F34(b,0,0) + F34(a,0,1)*F34(b,1,0) + F34(a,0,2)*F34(b,2,0);
+	F34(result,1,0) = F34(a,1,0)*F34(b,0,0) + F34(a,1,1)*F34(b,1,0) + F34(a,1,2)*F34(b,2,0);
+	F34(result,2,0) = F34(a,2,0)*F34(b,0,0) + F34(a,2,1)*F34(b,1,0) + F34(a,2,2)*F34(b,2,0);
 
-	// do last column by hand
-	for (uint32_t i = 0; i < 4; ++i) {
-		F34(result, 0, 3) += F34(a,0,i) * F34(b,i,3);
-	}
-	for (uint32_t i = 0; i < 4; ++i) {
-		F34(result, 1, 3) += F34(a,1,i) * F34(b,i,3);
-	}
-	for (uint32_t i = 0; i < 4; ++i) {
-		F34(result, 2, 3) += F34(a,2,i) * F34(b,i,3);
-	}
+	F34(result,0,1) = F34(a,0,0)*F34(b,0,1) + F34(a,0,1)*F34(b,1,1) + F34(a,0,2)*F34(b,2,1);
+	F34(result,1,1) = F34(a,1,0)*F34(b,0,1) + F34(a,1,1)*F34(b,1,1) + F34(a,1,2)*F34(b,2,1);
+	F34(result,2,1) = F34(a,2,0)*F34(b,0,1) + F34(a,2,1)*F34(b,1,1) + F34(a,2,2)*F34(b,2,1);
+
+	F34(result,0,2) = F34(a,0,0)*F34(b,0,2) + F34(a,0,1)*F34(b,1,2) + F34(a,0,2)*F34(b,2,2);
+	F34(result,1,2) = F34(a,1,0)*F34(b,0,2) + F34(a,1,1)*F34(b,1,2) + F34(a,1,2)*F34(b,2,2);
+	F34(result,2,2) = F34(a,2,0)*F34(b,0,2) + F34(a,2,1)*F34(b,1,2) + F34(a,2,2)*F34(b,2,2);
+	
+	F34(result,0,3) = F34(a,0,0)*F34(b,0,3) + F34(a,0,1)*F34(b,1,3) + F34(a,0,2)*F34(b,2,3) + F34(a,0,3);
+	F34(result,1,3) = F34(a,1,0)*F34(b,0,3) + F34(a,1,1)*F34(b,1,3) + F34(a,1,2)*F34(b,2,3) + F34(a,1,3);
+	F34(result,2,3) = F34(a,2,0)*F34(b,0,3) + F34(a,2,1)*F34(b,1,3) + F34(a,2,2)*F34(b,2,3) + F34(a,2,3);
 	
 	return result;
 }

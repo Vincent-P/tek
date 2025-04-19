@@ -122,6 +122,12 @@ int cook_material()
 	return 0;
 }
 
+uint32_t ufbx_string_to_id(ufbx_string s)
+{
+	XXH64_hash_t hash = XXH64(s.data, s.length, 0);
+	return (uint32_t)hash;
+}
+
 int cook_fbx()
 {
 	char source_path[512];
@@ -149,34 +155,35 @@ int cook_fbx()
 	}
 
 	ufbx_node *root_bone = NULL;
+	ufbx_pose *bind_pose = NULL;
 	ufbx_node *bones[MAX_BONES_PER_MESH] = {0};
 	uint32_t bones_length = 0;
 	for (size_t i = 0; i < scene->nodes.count; i++) {
 		ufbx_node *node = scene->nodes.data[i];
-		
+		fprintf(stderr, "node: %s | bind_pose: %p\n", node->name.data, node->bind_pose);
 		if (root_bone != NULL && node->node_depth <= root_bone->node_depth) {
 			break;
 		}
-		
 		if (node->bone) {
 			bool is_root_bone = node->bone->is_root || node->parent->bone == NULL;
 			if (is_root_bone) {
 				assert(root_bone == NULL);
+				assert(node->bind_pose != NULL);
 				root_bone = node;
+				bind_pose = node->bind_pose;
 			} else {
 				assert(root_bone != NULL);
-				assert(bones_length < MAX_BONES_PER_MESH);
-				bones[bones_length++] = node;
-				fprintf(stderr, "Importing bone %s\n", node->name.data);
 			}
+			assert(bones_length < MAX_BONES_PER_MESH);
+			bones[bones_length++] = node;
+			fprintf(stderr, "Importing bone %s\n", node->name.data);
 		}
 
 	}
-	assert(bones_length + 1 == scene_bone_count);
+	assert(bones_length == scene_bone_count);
 	
 	// find parents for each bone
 	uint8_t bones_parent[MAX_BONES_PER_MESH] = {0};
-	assert(bones[0]->parent == root_bone);
 	for (uint32_t ibone = 1; ibone < bones_length; ++ibone) {
 		uint32_t iparent = 0;
 		for (; iparent < ibone; ++iparent) {
@@ -209,10 +216,15 @@ int cook_fbx()
 				}
 			}
 			if (ibone >= bones_length) {
+				fprintf(stderr, "error skipping baked node: %s\n", node->name.data);
 				continue;
 			}
 
+			fprintf(stderr, "baked node: %s importing at track %u\n", node->name.data, ibone);
+			
 			animations[istack].tracks_length += 1;
+			animations[istack].tracks_identifier[ibone] = ufbx_string_to_id(node->name);
+			
 			animations[istack].tracks[ibone].translations.length = baked_node->translation_keys.count;
 			animations[istack].tracks[ibone].translations.data = calloc(baked_node->translation_keys.count, sizeof(Float3));
 			struct Float3List translations = animations[istack].tracks[ibone].translations;
@@ -259,10 +271,24 @@ int cook_fbx()
 	
 	skeletal_mesh_with_animations.anim_skeleton.bones_length = bones_length;
 	for (uint32_t ibone = 0; ibone < bones_length; ++ibone) {
+		ufbx_bone_pose *bone_pose = ufbx_get_bone_pose(bind_pose, bones[ibone]);
+		assert(bone_pose != NULL);
+
+		fprintf(stderr, "bind pose %s {%f, %f, %f}\n",
+			bones[ibone]->name.data,
+			bone_pose->bone_to_world.m03,
+			bone_pose->bone_to_world.m13,
+			bone_pose->bone_to_world.m23
+			);
+		
 		for (uint32_t i = 0; i < 12; ++i) {
-			skeletal_mesh_with_animations.anim_skeleton.bones_local_transforms[ibone].values[i] = bones[ibone]->node_to_world.v[i];
+			skeletal_mesh_with_animations.anim_skeleton.bones_local_transforms[ibone].values[i] = bone_pose->bone_to_parent.v[i];
+		}
+		for (uint32_t i = 0; i < 12; ++i) {
+			skeletal_mesh_with_animations.anim_skeleton.bones_global_transforms[ibone].values[i] = bone_pose->bone_to_world.v[i];
 		}
 		skeletal_mesh_with_animations.anim_skeleton.bones_parent[ibone] = bones_parent[ibone];
+		skeletal_mesh_with_animations.anim_skeleton.bones_identifier[ibone] = ufbx_string_to_id(bones[ibone]->name);
 	}
 	
 	ufbx_free_scene(scene);

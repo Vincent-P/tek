@@ -18,6 +18,9 @@ void Serialize_AnimSkeleton(Serializer *serializer, AnimSkeleton *value)
 		SV_ADD(SV_INITIAL, Float3x4, bones_local_transforms[i]);
 	}
 	for (uint32_t i = 0; i < value->bones_length; ++i) {
+		SV_ADD(SV_INITIAL, Float3x4, bones_global_transforms[i]);
+	}
+	for (uint32_t i = 0; i < value->bones_length; ++i) {
 		SV_ADD(SV_INITIAL, uint8_t, bones_parent[i]);
 	}
 }
@@ -35,6 +38,9 @@ void Serialize_Animation(Serializer *serializer, Animation *value)
 	SV_ADD(SV_INITIAL, uint32_t, tracks_length);
 	for (uint32_t i = 0; i < value->tracks_length; ++i) {
 		SV_ADD(SV_INITIAL, AnimTrack, tracks[i]);
+	}
+	for (uint32_t i = 0; i < value->tracks_length; ++i) {
+		SV_ADD(SV_INITIAL, uint32_t, tracks_identifier[i]);
 	}
 	SV_ADD(SV_INITIAL, uint32_t, skeleton_id);
 }

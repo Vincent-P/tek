@@ -56,6 +56,7 @@ struct AnimSkeleton
 	uint32_t bones_length;
 	uint32_t bones_identifier[MAX_BONES_PER_MESH];
 	Float3x4 bones_local_transforms[MAX_BONES_PER_MESH];
+	Float3x4 bones_global_transforms[MAX_BONES_PER_MESH];
 	uint8_t bones_parent[MAX_BONES_PER_MESH];
 };
 
@@ -70,6 +71,7 @@ struct Animation
 {
 	struct AnimTrack root_motion_track;
 	struct AnimTrack tracks[MAX_BONES_PER_MESH];
+	uint32_t tracks_identifier[MAX_BONES_PER_MESH]; // debug only
 	uint32_t tracks_length;	
 	uint32_t skeleton_id;
 };
@@ -95,5 +97,5 @@ void Serialize_AnimTrack(Serializer *serializer, AnimTrack *value);
 void Serialize_Animation(Serializer *serializer, Animation *value);
 void Serialize_AnimSkeleton(Serializer *serializer, AnimSkeleton *value);
 
-void anim_evaluate_animation(Animation const* anim, struct AnimPose *out_pose, float t);
+void anim_evaluate_animation(struct AnimSkeleton *skeleton, Animation const* anim, struct AnimPose *out_pose, float t);
 void anim_pose_compute_global_transforms(struct AnimSkeleton *skeleton, struct AnimPose *pose, Float3x4 root_world_transform);
