@@ -30,7 +30,7 @@ struct GameInputs
 struct PlayerState
 {
 	uint32_t character_id;
-	float position[3];
+	Float3 position;
 	tek_PlayerState status;
 	GameInput input_buffer[INPUT_BUFFER_SIZE];
 	uint32_t input_buffer_frame_start[INPUT_BUFFER_SIZE];
@@ -47,11 +47,15 @@ struct GameState
 
 struct NonGameState
 {
+	// frame
 	uint32_t frame_number;
 	float dt;
 	float t;
+	// game
 	SkeletalMeshWithAnimationsAsset skeletal_mesh_with_animations;
 	struct AnimPose p1_pose;
+	// rendering
+	Camera camera;
 	// player handles
 	// session connection
 };
@@ -64,9 +68,7 @@ void game_state_init(struct GameState *state);
 void game_non_state_init(struct NonGameState *state);
 
 // Called by the game during a rollback or a frame.
-void game_state_update(struct GameState *state, struct GameInputs input);
-void game_non_state_update(struct NonGameState *state);
+void game_state_update(struct NonGameState *nonstate, struct GameState *state, struct GameInputs input);
 
 // Update renderer with the latest game state.
-void game_state_render(struct GameState *state);
-void game_non_state_render(struct NonGameState *state);
+void game_render(struct NonGameState *nonstate, struct GameState *state);

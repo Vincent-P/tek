@@ -72,6 +72,7 @@ struct VulkanDevice
 	uint32_t graphics_family_idx;
 	PFN_vkCreateDebugUtilsMessengerEXT my_vkCreateDebugUtilsMessengerEXT;
 	PFN_vkDestroyDebugUtilsMessengerEXT my_vkDestroyDebugUtilsMessengerEXT;
+	PFN_vkCmdInsertDebugUtilsLabelEXT my_vkCmdInsertDebugUtilsLabelEXT;
 	PFN_vkCmdPushDescriptorSetKHR my_vkCmdPushDescriptorSetKHR;
 	// memory
 	oa_allocator_t main_memory_allocator;
@@ -169,6 +170,7 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	assert(res == VK_SUCCESS);
 	device->my_vkCreateDebugUtilsMessengerEXT  = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(device->instance, "vkCreateDebugUtilsMessengerEXT");
 	device->my_vkDestroyDebugUtilsMessengerEXT = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(device->instance, "vkDestroyDebugUtilsMessengerEXT");
+	device->my_vkCmdInsertDebugUtilsLabelEXT = (PFN_vkCmdInsertDebugUtilsLabelEXT)vkGetInstanceProcAddr(device->instance, "vkCmdInsertDebugUtilsLabelEXT");
 
 	if (device->my_vkCreateDebugUtilsMessengerEXT){
 		VkDebugUtilsMessengerCreateInfoEXT ci	= {.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
@@ -334,7 +336,7 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	
 	VkPushConstantRange push_constants_ranges[] = {
 		// {stage, offset, size}
-		{VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, 128},
+		{VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, 256},
 	};
 	VkPipelineLayoutCreateInfo pipeline_layout_info = {.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
 	pipeline_layout_info.setLayoutCount =1;
@@ -501,6 +503,13 @@ static void create_swapchain(VulkanDevice *device, void *hwnd)
 // -- Graphics Programs
 void new_graphics_program(VulkanDevice *device, uint32_t handle, MaterialAsset material_asset)
 {
+	struct VulkanGraphicsPsoSpec spec = {0};
+	spec.topology = VULKAN_TOPOLOGY_TRIANGLE_LIST;
+	new_graphics_program_ex(device, handle, material_asset, spec);
+}
+
+void new_graphics_program_ex(VulkanDevice *device, uint32_t handle, MaterialAsset material_asset, struct VulkanGraphicsPsoSpec spec)
+{
 	assert(material_asset.render_pass_id < ARRAY_LENGTH(RENDER_PASSES));
 	struct RenderPass renderpass = RENDER_PASSES[material_asset.render_pass_id];
 	
@@ -523,7 +532,7 @@ void new_graphics_program(VulkanDevice *device, uint32_t handle, MaterialAsset m
 	VkPipelineVertexInputStateCreateInfo VertexInputState = {.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
 	
 	VkPipelineInputAssemblyStateCreateInfo InputAssemblyState = {.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
-	InputAssemblyState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	InputAssemblyState.topology = (VkPrimitiveTopology)spec.topology;
 	
 	VkPipelineTessellationStateCreateInfo TessellationState = {.sType = VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO};
 
@@ -532,7 +541,7 @@ void new_graphics_program(VulkanDevice *device, uint32_t handle, MaterialAsset m
 	ViewportState.scissorCount = 1;
 	
 	VkPipelineRasterizationStateCreateInfo RasterizationState = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
-	RasterizationState.polygonMode = VK_POLYGON_MODE_FILL;
+	RasterizationState.polygonMode = (VkPolygonMode)spec.fillmode;
 	RasterizationState.cullMode = VK_CULL_MODE_NONE;
 	RasterizationState.frontFace = VK_FRONT_FACE_CLOCKWISE;
 	
@@ -632,6 +641,8 @@ void new_buffer_internal(VulkanDevice *device, uint32_t handle,uint32_t size, Vk
 	void *mapped = (char*)memory_mapped + real_offset;
 	
 	printf("cpu: %p | gpu: %p | size: %u\n", mapped, (void*)gpu_address, size);
+	
+	assert(device->buffers[handle].buffer == VK_NULL_HANDLE);
 	
 	device->buffers[handle].allocation = allocation;
 	device->buffers[handle].buffer = buffer;
@@ -1242,6 +1253,16 @@ void vulkan_draw(VulkanDevice *device, VulkanRenderPass *pass, struct VulkanDraw
 			 draw.vertex_offset,
 			 draw.first_instance);
 }
+
+void vulkan_insert_debug_label(VulkanDevice *device, VulkanRenderPass *pass, const char *label)
+{
+	VulkanFrame *frame = pass->frame;
+
+	VkDebugUtilsLabelEXT label_info = {.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT};
+	label_info.pLabelName = label;
+	device->my_vkCmdInsertDebugUtilsLabelEXT(frame->cmd, &label_info);
+}
+
 
 void vulkan_bind_texture(VulkanDevice *device, VulkanFrame *frame, uint32_t texture_handle, uint32_t slot)
 {

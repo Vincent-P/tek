@@ -10,6 +10,17 @@ struct Renderer
 	uint32_t imgui_fontatlas;
 	uint32_t imgui_ibuffer;
 	uint32_t imgui_vbuffer;
+	
+	uint32_t dd_pso;
+	uint32_t dd_line_pso;
+	uint32_t dd_ibuffer;
+	uint32_t dd_vbuffer;
+
+	// context
+	Float4x4 proj;
+	Float4x4 invproj;
+	Float4x4 view;
+	Float4x4 invview;
 };
 
 uint32_t renderer_get_size(void)
@@ -52,6 +63,138 @@ void renderer_init(Renderer *renderer, SDL_Window *window)
 	ImGuiIO *io = ImGui_GetIO();
 	ImFontAtlas_GetTexDataAsRGBA32(io->Fonts, &pixels, &width, &height, &bpp);
 	new_texture(renderer->device, renderer->imgui_fontatlas, width, height, PG_FORMAT_R8G8B8A8_UNORM, pixels, width*height*bpp);
+
+	// Create debug draw assets
+	struct VulkanGraphicsPsoSpec pso_spec = {0};
+	pso_spec.topology = VULKAN_TOPOLOGY_TRIANGLE_LIST;
+	pso_spec.fillmode = VULKAN_FILL_MODE_LINE;
+	renderer->dd_pso = 1;
+	renderer->dd_line_pso = 2;
+	renderer->dd_ibuffer = 2;
+	renderer->dd_vbuffer = 3;
+	struct MaterialAsset dd_material = {0};
+	s = serialize_begin_read_file("cooking/644f31d49e68df0d");
+	Serialize_MaterialAsset(&s, &dd_material);
+	serialize_end_read_file(&s);
+	new_graphics_program_ex(renderer->device, renderer->dd_pso, dd_material, pso_spec);
+	pso_spec.topology = VULKAN_TOPOLOGY_LINE_LIST;
+	new_graphics_program_ex(renderer->device, renderer->dd_line_pso, dd_material, pso_spec);
+	new_index_buffer(renderer->device, renderer->dd_ibuffer, (64 << 10));
+	new_storage_buffer(renderer->device, renderer->dd_vbuffer, (64 << 10));
+}
+
+struct DdVert
+{
+	Float3 pos;
+	uint32_t col;
+};
+
+static void renderer_debug_draw_pass(Renderer *renderer, VulkanFrame *frame, VulkanRenderPass *pass)
+{
+	uint32_t vertex_size = g_dd.points_length * 6 * sizeof(struct DdVert); //  6 vertices
+	uint32_t index_size = g_dd.points_length * 8 * 3 * sizeof(uint32_t); // 8 faces
+
+	vertex_size += g_dd.lines_length + 2 * sizeof(struct DdVert);
+	index_size += g_dd.lines_length + 2 * sizeof(uint32_t);
+
+	uint32_t vbuffer_size = buffer_get_size(renderer->device, renderer->dd_vbuffer);
+	uint32_t ibuffer_size = buffer_get_size(renderer->device, renderer->dd_ibuffer);
+	if (vertex_size > vbuffer_size || index_size > ibuffer_size) {
+		return;
+	}
+
+	struct DdVert *vertices = buffer_get_mapped_pointer(renderer->device, renderer->dd_vbuffer);
+	uint32_t *indices = buffer_get_mapped_pointer(renderer->device, renderer->dd_ibuffer);
+		
+	// generate spheres
+	float point_radius = 0.05f;
+	uint32_t vertex_count = 0;
+	uint32_t index_count = 0;
+
+	struct VulkanDraw spheres_draw = {0};
+	spheres_draw.instance_count = 1;
+	spheres_draw.first_index = index_count;
+	for (uint32_t ipoint = 0; ipoint < g_dd.points_length; ++ipoint) {
+		vertices[vertex_count+0].pos = float3_add(g_dd.points[ipoint], (Float3){-point_radius, 0.0f, -point_radius});
+		vertices[vertex_count+0].col = 0xff0000ff;
+		vertices[vertex_count+1].pos = float3_add(g_dd.points[ipoint], (Float3){-point_radius, 0.0f, point_radius});
+		vertices[vertex_count+1].col = 0xff0000ff;
+		vertices[vertex_count+2].pos = float3_add(g_dd.points[ipoint], (Float3){point_radius, 0.0f, -point_radius});
+		vertices[vertex_count+2].col = 0xff0000ff;
+		vertices[vertex_count+3].pos = float3_add(g_dd.points[ipoint], (Float3){point_radius, 0.0f, point_radius});
+		vertices[vertex_count+3].col = 0xff0000ff;
+		vertices[vertex_count+4].pos = float3_add(g_dd.points[ipoint], (Float3){0.0f, -point_radius, 0.0f});
+		vertices[vertex_count+4].col = 0xff0000ff;
+		vertices[vertex_count+5].pos = float3_add(g_dd.points[ipoint], (Float3){0.0f, point_radius, 0.0f});
+		vertices[vertex_count+5].col = 0xff0000ff;
+
+		indices[index_count++] = vertex_count+0;
+		indices[index_count++] = vertex_count+1;
+		indices[index_count++] = vertex_count+4;
+		
+		indices[index_count++] = vertex_count+0;
+		indices[index_count++] = vertex_count+1;
+		indices[index_count++] = vertex_count+5;
+		
+		indices[index_count++] = vertex_count+3;
+		indices[index_count++] = vertex_count+1;
+		indices[index_count++] = vertex_count+4;
+		
+		indices[index_count++] = vertex_count+3;
+		indices[index_count++] = vertex_count+1;
+		indices[index_count++] = vertex_count+5;
+		
+		indices[index_count++] = vertex_count+3;
+		indices[index_count++] = vertex_count+2;
+		indices[index_count++] = vertex_count+4;
+		
+		indices[index_count++] = vertex_count+3;
+		indices[index_count++] = vertex_count+2;
+		indices[index_count++] = vertex_count+5;
+			
+		vertex_count += 6;
+	}
+	spheres_draw.index_count = index_count - spheres_draw.first_index;
+
+	// generate lines
+	struct VulkanDraw lines_draw = {0};
+	lines_draw.instance_count = 1;
+	lines_draw.first_index = index_count;
+	for (uint32_t iline = 0; iline < g_dd.lines_length; ++iline) {
+		vertices[vertex_count+0].pos = g_dd.lines_from[iline];
+		vertices[vertex_count+0].col = g_dd.lines_col[iline];
+		vertices[vertex_count+1].pos = g_dd.lines_to[iline];
+		vertices[vertex_count+1].col = g_dd.lines_col[iline];
+
+		indices[index_count++] = vertex_count+0;
+		indices[index_count++] = vertex_count+1;
+		
+		vertex_count += 2;
+	}
+	lines_draw.index_count = index_count - lines_draw.first_index;
+
+	// Render
+	struct DdPushConstants
+	{
+		Float4x4 proj;
+		Float4x4 view;
+		uint64_t vbuffer;
+	} constants;
+	constants.proj = renderer->proj;
+	constants.view = renderer->view;
+	constants.vbuffer = buffer_get_gpu_address(renderer->device, renderer->dd_vbuffer);
+	
+	vulkan_push_constants(renderer->device, pass, &constants, sizeof(constants));
+	vulkan_bind_index_buffer(renderer->device, pass, renderer->dd_ibuffer);
+	vulkan_bind_graphics_pso(renderer->device, pass, renderer->dd_pso);
+
+	vulkan_insert_debug_label(renderer->device, pass, "dd: spheres");
+	vulkan_draw(renderer->device, pass, spheres_draw);
+	
+	vulkan_bind_graphics_pso(renderer->device, pass, renderer->dd_line_pso);
+	
+	vulkan_insert_debug_label(renderer->device, pass, "dd: lines");
+	vulkan_draw(renderer->device, pass, lines_draw);
 }
 
 static void renderer_imgui_pass(Renderer *renderer, VulkanFrame *frame, VulkanRenderPass *pass)
@@ -99,7 +242,8 @@ static void renderer_imgui_pass(Renderer *renderer, VulkanFrame *frame, VulkanRe
 	vulkan_push_constants(renderer->device, pass, &constants, sizeof(constants));
 	vulkan_bind_index_buffer(renderer->device, pass, renderer->imgui_ibuffer);
 	vulkan_bind_graphics_pso(renderer->device, pass, renderer->imgui_pso);
-	
+	vulkan_insert_debug_label(renderer->device, pass, "imgui");
+
 	// Will project scissor/clipping rectangles into framebuffer space
 	ImVec2 clip_off = draw_data->DisplayPos;         // (0,0) unless using multi-viewports
 	ImVec2 clip_scale = draw_data->FramebufferScale; // (1,1) unless using retina display which are often (2,2)
@@ -151,7 +295,7 @@ static void renderer_imgui_pass(Renderer *renderer, VulkanFrame *frame, VulkanRe
 	}
 }
 
-void renderer_render(Renderer *renderer)
+void renderer_render(Renderer *renderer, struct Camera* camera)
 {
 	VulkanFrame frame = {0};
 
@@ -159,6 +303,9 @@ void renderer_render(Renderer *renderer)
 	uint32_t swapchain_height = 0;
 	begin_frame(renderer->device, &frame, &swapchain_width, &swapchain_height);
 
+	renderer->proj = perspective_projection(camera->vertical_fov, (float)swapchain_width / (float)swapchain_height, 0.1f, 100.0f, &renderer->invproj);
+	renderer->view = lookat_view(camera->position, camera->lookat, &renderer->invview);
+	
 	vulkan_bind_texture(renderer->device, &frame, renderer->imgui_fontatlas, 0);
 
 	if (renderer->device->rts[renderer->output_rt].width != swapchain_width || renderer->device->rts[renderer->output_rt].height != swapchain_height) {
@@ -172,6 +319,8 @@ void renderer_render(Renderer *renderer)
 	union VulkanClearColor clear_color = {0};
 	vulkan_clear(renderer->device, &pass, &clear_color, 1, 0.0f);
 
+	renderer_debug_draw_pass(renderer, &frame, &pass);
+	
 	renderer_imgui_pass(renderer, &frame, &pass);
 	
 	end_render_pass(renderer->device, &pass);

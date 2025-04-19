@@ -1,5 +1,6 @@
 #include "game.h"
 #include "inputs.h"
+#include "debugdraw.h"
 
 // -- Game Inputs
 
@@ -92,8 +93,9 @@ struct GameInputs game_read_input(struct Inputs *inputs)
 
 void game_simulate_frame(struct NonGameState *ngs, struct GameState *state, struct GameInputs inputs)
 {
-	game_state_update(state, inputs);
-	game_non_state_update(ngs);
+	debug_draw_reset();
+	
+	game_state_update(ngs, state, inputs);
 	
 	// desync checks
 	
@@ -108,16 +110,23 @@ void game_simulate_frame(struct NonGameState *ngs, struct GameState *state, stru
 void game_state_init(struct GameState *state)
 {
 	// initial game state
+	state->player1.position.x = -1.0f;
+	state->player2.position.x =  1.0f;
 }
 
 void game_non_state_init(struct NonGameState *state)
 {
-	Serializer s = serialize_begin_read_file("cooking/f646212b77c5c12c");
+	state->camera.position.y = 0.8f;
+	state->camera.position.z = 6.0f;
+	state->camera.lookat.y = 0.8f;
+	state->camera.vertical_fov = 40.0f;
+	
+	Serializer s = serialize_begin_read_file("cooking/a1bdf671c96845b7");
 	Serialize_SkeletalMeshWithAnimationsAsset(&s, &state->skeletal_mesh_with_animations);
 	serialize_end_read_file(&s);
 }
 
-void game_state_update(struct GameState *state, struct GameInputs inputs)
+void game_state_update(struct NonGameState *nonstate, struct GameState *state, struct GameInputs inputs)
 {
 	// register input in the input buffer
 	if (inputs.player1 != state->player1.input_buffer[state->player1.current_input_index % INPUT_BUFFER_SIZE]) {
@@ -130,62 +139,84 @@ void game_state_update(struct GameState *state, struct GameInputs inputs)
 	// match inputs
 
 	// gameplay update
-	float speed = 10.0f;
+	float speed = 0.1f;
 	if ((inputs.player1 & GAME_INPUT_BACK) != 0) {
-		state->player1.position[0] -= speed;
+		state->player1.position.x -= speed;
 	}
 	if ((inputs.player1 & GAME_INPUT_FORWARD) != 0) {
-		state->player1.position[0] += speed;
+		state->player1.position.x += speed;
 	}
 
 	if ((inputs.player2 & GAME_INPUT_BACK) != 0) {
-		state->player2.position[0] -= speed;
+		state->player2.position.x -= speed;
 	}
 	if ((inputs.player2 & GAME_INPUT_FORWARD) != 0) {
-		state->player2.position[0] += speed;
+		state->player2.position.x += speed;
 	}
 	
-	state->frame_number += 1;	
-}
+	state->frame_number += 1;
 
-void game_non_state_update(struct NonGameState *state)
-{
-	uint32_t ianim = 0;
+	// Evaluate anims
+	static uint32_t ianim = 0;	
 	
-	struct SkeletalMeshWithAnimationsAsset *asset = &state->skeletal_mesh_with_animations;
+	struct SkeletalMeshWithAnimationsAsset *asset = &nonstate->skeletal_mesh_with_animations;
 	struct AnimSkeleton *anim_skeleton = &asset->anim_skeleton;
 	struct Animation *animation = ianim < asset->animations_length ? asset->animations + ianim : NULL;
-
 	if (animation != NULL) {
-		state->p1_pose.skeleton_id = anim_skeleton->id;
-		anim_evaluate_animation(anim_skeleton, animation, &state->p1_pose, (float)state->frame_number);
+		nonstate->p1_pose.skeleton_id = anim_skeleton->id;
+		anim_evaluate_animation(anim_skeleton, animation, &nonstate->p1_pose, (float)state->frame_number);
 
 		Float3x4 root_world_transform = {0};
 		F34(root_world_transform, 0, 0) = 1.0f;
 		F34(root_world_transform, 1, 1) = 1.0f;
 		F34(root_world_transform, 2, 2) = 1.0f;
-		anim_pose_compute_global_transforms(anim_skeleton, &state->p1_pose, root_world_transform);
+		F34(root_world_transform, 0, 3) = state->player1.position.x;
+		F34(root_world_transform, 1, 3) = state->player1.position.y;
+		F34(root_world_transform, 2, 3) = state->player1.position.z;
+		anim_pose_compute_global_transforms(anim_skeleton, &nonstate->p1_pose, root_world_transform);
+
+		// debug draw animated pose
+		for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ibone++) {
+			Float3 p;
+			p.x = F34(nonstate->p1_pose.global_transforms[ibone], 0, 3);
+			p.y = F34(nonstate->p1_pose.global_transforms[ibone], 1, 3);
+			p.z = F34(nonstate->p1_pose.global_transforms[ibone], 2, 3);
+			debug_draw_point(p);
+		}
+	}
+	
+	// debug draw skeleton at P2
+	for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ibone++) {
+		Float3 p;
+		p.x = F34(anim_skeleton->bones_global_transforms[ibone], 0, 3);
+		p.y = F34(anim_skeleton->bones_global_transforms[ibone], 1, 3);
+		p.z = F34(anim_skeleton->bones_global_transforms[ibone], 2, 3);
+		p = float3_add(p, state->player2.position);
+		debug_draw_point(p);
+	}
+	// debug draw grid
+	float width = 24.0f;
+	for (float i = 1.0f; i <= width; i += 1.0f) {
+		debug_draw_line((Float3){i, 0.0f, -width}, (Float3){i, 0.0f, width}, DD_WHITE & DD_HALF_ALPHA);
+		debug_draw_line((Float3){-i, 0.0f, -width}, (Float3){-i, 0.0f, width}, DD_WHITE & DD_HALF_ALPHA);
+		debug_draw_line((Float3){-width, 0.0f, i}, (Float3){width, 0.0f, i}, DD_WHITE & DD_HALF_ALPHA);
+		debug_draw_line((Float3){-width, 0.0f, -i}, (Float3){width, 0.0f, -i}, DD_WHITE & DD_HALF_ALPHA);
+	}
+	debug_draw_line((Float3){0.0f, 0.0f, -width}, (Float3){0.0f, 0.0f, width}, DD_BLUE);
+	debug_draw_line((Float3){-width, 0.0f, 0.0f}, (Float3){width, 0.0f, 0.0f}, DD_RED);
+	width = 2.4f;
+	for (float i = 0.1f; i <= width; i += 0.1f) {
+		debug_draw_line((Float3){i, 0.0f, -width}, (Float3){i, 0.0f, width}, DD_WHITE & DD_QUARTER_ALPHA);
+		debug_draw_line((Float3){-i, 0.0f, -width}, (Float3){-i, 0.0f, width}, DD_WHITE & DD_QUARTER_ALPHA);
+		debug_draw_line((Float3){-width, 0.0f, i}, (Float3){width, 0.0f, i}, DD_WHITE & DD_QUARTER_ALPHA);
+		debug_draw_line((Float3){-width, 0.0f, -i}, (Float3){width, 0.0f, -i}, DD_WHITE & DD_QUARTER_ALPHA);
 	}
 }
 
-
 // -- Render
 
-void game_state_render(struct GameState *state)
+void game_render(struct NonGameState *nonstate, struct GameState *state)
 {
-	ImDrawList* draw_list = ImGui_GetForegroundDrawList();
-	ImVec2 pos = {0};
-	pos.x = 100.0f + state->player1.position[0];
-	pos.y = 100.0f;
-	
-	ImVec2 min = {0};
-	min.x = pos.x - 10.0f;
-	min.y = pos.y - 10.0f;
-	ImVec2 max = {0};
-	max.x = pos.x + 10.0f;
-	max.y = pos.y + 10.0f;
-	ImDrawList_AddRect(draw_list, min, max, IM_COL32(255, 0, 0, 255));
-
 	if (ImGui_Begin("Player 1 inputs", NULL, 0)) {
 		if (ImGui_BeginTable("inputs", 2, ImGuiTableFlags_Borders)) {
 			uint32_t input_last_frame = state->frame_number;
@@ -210,46 +241,11 @@ void game_state_render(struct GameState *state)
 		}	
 	}
 	ImGui_End();
-}
 
-void game_non_state_render(struct NonGameState *state)
-{
-	static Float3 s_from = (Float3){1.0f, 0.0f, 0.0f};
-	ImGui_DragFloat3Ex("from", &s_from.x, 0.1f, 0.0f, 0.0f, "%.3f", 0);
-	
-	ImDrawList* draw_list = ImGui_GetForegroundDrawList();
-	
-	Float4x4 proj = perspective_projection(50.0f, 1.0f, 0.1f, 100.0f, NULL);
-	Float4x4 view = lookat_view(s_from, (Float3){0.0f, 0.0f, 0.0f});
-	Float4x4 viewproj = float4x4_mul(proj, view);
-
-	Float3 points_to_draw[128] = {0};
-	uint32_t points_to_draw_length = 0;
-	
-	struct SkeletalMeshWithAnimationsAsset *asset = &state->skeletal_mesh_with_animations;
-	struct AnimSkeleton *anim_skeleton = &asset->anim_skeleton;
-	// draw animated pose
-	for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ibone++) {
-		Float3 vertex;
-		vertex.x = F34(state->p1_pose.global_transforms[ibone], 0, 3);
-		vertex.y = F34(state->p1_pose.global_transforms[ibone], 1, 3);
-		vertex.z = F34(state->p1_pose.global_transforms[ibone], 2, 3);
-		points_to_draw[points_to_draw_length++] = vertex;
+	if (ImGui_Begin("Game", NULL, 0)) {
+		ImGui_DragFloat3Ex("camera position", &nonstate->camera.position.x, 0.1f, 0.0f, 0.0f, "%.3f", 0);
+		ImGui_DragFloat3Ex("camera lookat", &nonstate->camera.lookat.x, 0.1f, 0.0f, 0.0f, "%.3f", 0);
+		ImGui_DragFloat("camera fov", &nonstate->camera.vertical_fov);
 	}
-	
-	for (uint32_t ipoint = 0; ipoint < points_to_draw_length; ipoint++) {
-		Float3 p = float4x4_project_point(viewproj, points_to_draw[ipoint]);
-		p.x = p.x * 0.5f + 0.5f;
-		p.y = p.y * 0.5f + 0.5f;
-		float imscale = 500.0f;
-		float imoffset = 200.0f;
-		ImVec2 min = {0};
-		min.x = imscale * p.x - 10.0f + imoffset;
-		min.y = imscale * p.y - 10.0f + imoffset;
-		ImVec2 max = {0};
-		max.x = imscale * p.x + 10.0f + imoffset;
-		max.y = imscale * p.y + 10.0f + imoffset;
-		ImDrawList_AddRect(draw_list, min, max, IM_COL32(255, 0, 0, 255));
-	}
-
+	ImGui_End();
 }

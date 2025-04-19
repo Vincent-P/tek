@@ -13,6 +13,15 @@ union Float3
 };
 SerializeSimpleType(Float3);
 
+Float3 float3_add(Float3 a, Float3 b)
+{
+	Float3 r;
+	r.x = a.x + b.x;
+	r.y = a.y + b.y;
+	r.z = a.z + b.z;
+	return r;
+}
+
 Float3 float3_sub(Float3 a, Float3 b)
 {
 	Float3 r;
@@ -187,8 +196,7 @@ Float4x4 perspective_projection(float vertical_fov, float aspect_ratio, float n,
     F44(p,2,0) = 0.0f;	F44(p,2,1) = 0.0f;	F44(p,2,2) =     A;	F44(p,2,3) =    B;
     F44(p,3,0) = 0.0f;	F44(p,3,1) = 0.0f;	F44(p,3,2) = -1.0f;	F44(p,3,3) = 0.0f;
 
-    if (inverse)
-    {
+    if (inverse) {
 	    Float4x4 ip;
 	    F44(ip,0,0) =  1/x;	F44(ip,0,1) = 0.0f;	F44(ip,0,2) =  0.0f;	F44(ip,0,3) =  0.0f;
 	    F44(ip,1,0) = 0.0f;	F44(ip,1,1) =  1/y;	F44(ip,1,2) =  0.0f;	F44(ip,1,3) =  0.0f;
@@ -200,7 +208,7 @@ Float4x4 perspective_projection(float vertical_fov, float aspect_ratio, float n,
     return p;
 }
 
-Float4x4 lookat_view(Float3 from, Float3 to)
+Float4x4 lookat_view(Float3 from, Float3 to, Float4x4 *inverse)
 {
 	Float3 forward = float3_normalize(float3_sub(to, from)); // -Z
 	Float3 right = float3_cross(forward, (Float3){0.0f, 1.0f, 0.0f}); // X
@@ -211,6 +219,15 @@ Float4x4 lookat_view(Float3 from, Float3 to)
 	F44(v,1,0) =       up.x;	F44(v,1,1) =       up.y;	F44(v,1,2) =       up.z;	F44(v,1,3) = -float3_dot(from, up);
 	F44(v,2,0) = -forward.x;	F44(v,2,1) = -forward.y;	F44(v,2,2) = -forward.z;	F44(v,2,3) =  float3_dot(from, forward);
 	F44(v,3,0) =       0.0f;	F44(v,3,1) =       0.0f;	F44(v,3,2) =        0.0f;	F44(v,3,3) = 1.0f;
+
+	if (inverse) {
+	    Float4x4 iv;
+	    F44(iv,0,0) = right.x;	F44(iv,0,1) = up.x;	F44(iv,0,2) = -forward.x;	F44(iv,0,3) = from.x;
+	    F44(iv,1,0) = right.y;	F44(iv,1,1) = up.y;	F44(iv,1,2) = -forward.y;	F44(iv,1,3) = from.y;
+	    F44(iv,2,0) = right.z;	F44(iv,2,1) = up.z;	F44(iv,2,2) = -forward.z;	F44(iv,2,3) = from.z;
+	    F44(iv,3,0) =    0.0f;	F44(iv,3,1) = 0.0f;	F44(iv,3,2) =        0.0f;	F44(iv,3,3) = 1.0f;
+	    *inverse = iv;
+	}
 	return v;
 }
 

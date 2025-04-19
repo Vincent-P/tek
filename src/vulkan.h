@@ -23,13 +23,33 @@ struct RenderPass
 
 enum RenderPassesId
 {
-	RENDER_PASSES_UI,
+	RENDER_PASSES_UI = 0,
+	RENDER_PASSES_DEBUG_DRAW,
 	RENDER_PASSES_COUNT,
 };
 
 static struct RenderPass RENDER_PASSES[RENDER_PASSES_COUNT] =
 {
 	{"ui", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_NONE},
+	{"debugdraw", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_NONE},
+};
+
+enum VulkanTopology
+{
+	VULKAN_TOPOLOGY_POINT_LIST = 0,
+	VULKAN_TOPOLOGY_LINE_LIST = 1,
+	VULKAN_TOPOLOGY_TRIANGLE_LIST = 3,
+};
+enum VulkanFillMode
+{
+	VULKAN_FILL_MODE_FILL = 0,
+	VULKAN_FILL_MODE_LINE = 1,
+	VULKAN_FILL_MODE_POINT = 1,
+};
+struct VulkanGraphicsPsoSpec
+{
+	enum VulkanTopology topology;
+	enum VulkanFillMode fillmode;
 };
 
 struct VulkanBeginPassInfo
@@ -67,6 +87,7 @@ uint32_t vulkan_get_device_size(void);
 void vulkan_create_device(VulkanDevice *device, void *hwnd);
 
 void new_graphics_program(VulkanDevice *device, uint32_t handle, MaterialAsset material_asset);
+void new_graphics_program_ex(VulkanDevice *device, uint32_t handle, MaterialAsset material_asset, struct VulkanGraphicsPsoSpec spec);
 
 void new_index_buffer(VulkanDevice *device, uint32_t handle, uint32_t size);
 void new_storage_buffer(VulkanDevice *device, uint32_t handle, uint32_t size);
@@ -91,6 +112,7 @@ void vulkan_push_constants(VulkanDevice *Device, VulkanRenderPass *pass, void *d
 void vulkan_bind_graphics_pso(VulkanDevice *device, VulkanRenderPass *pass, uint32_t pso);
 void vulkan_bind_index_buffer(VulkanDevice *device, VulkanRenderPass *pass, uint32_t index_buffer);
 void vulkan_draw(VulkanDevice *device, VulkanRenderPass *pass, struct VulkanDraw draw);
+void vulkan_insert_debug_label(VulkanDevice *device, VulkanRenderPass *pass, const char *label);
 
 // temp
 void vulkan_bind_texture(VulkanDevice *device, VulkanFrame *frame, uint32_t texture, uint32_t slot);

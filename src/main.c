@@ -14,6 +14,7 @@
 #include "renderer.h"
 #include "inputs.h"
 #include "game.h"
+#include "debugdraw.h"
 
 struct Game
 {
@@ -167,23 +168,22 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 	ImGui_End();
 
 	// simulate in fixed-step increments from the accumulator
-	const uint64_t dt = 100;
+	const uint64_t dt = 33;
 	while (application->accumulator >= dt) {
 		game_run_frame(application);
 		application->t += dt;
 		application->accumulator -= dt;
 	}
 	
-	game_state_render(&application->game.gs);
-	game_non_state_render(&application->game.ngs);
-
-	renderer_render(application->renderer);
+	game_render(&application->game.ngs, &application->game.gs);
+	renderer_render(application->renderer, &application->game.ngs.camera);
 
 	return SDL_APP_CONTINUE;
 }
 
 #include "asset.c"
 #include "vulkan.c"
+#include "debugdraw.c"
 #include "renderer.c"
 #include "game.c"
 #include "inputs.c"

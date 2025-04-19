@@ -1,0 +1,5 @@
+{
+    "vertex_shader": "dd.vert",
+    "pixel_shader": "dd.frag",
+    "render_pass": "debugdraw",
+}
