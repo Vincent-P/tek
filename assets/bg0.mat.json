@@ -1,0 +1,5 @@
+{
+    "vertex_shader": "fullscreen.vert",
+    "pixel_shader": "bg0.frag",
+    "render_pass": "mesh",
+}

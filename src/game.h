@@ -4,7 +4,7 @@
 #define INPUT_BUFFER_SIZE 20
 
 struct Inputs;
-typedef struct ufbx_scene ufbx_scene;
+typedef struct Renderer Renderer;
 
 // For GGPO, we need a single big object for the game state, and for inputs.
 enum GameInputBits
@@ -54,7 +54,9 @@ struct NonGameState
 	// game
 	SkeletalMeshWithAnimationsAsset skeletal_mesh_with_animations;
 	struct AnimPose p1_pose;
+	struct SkeletalMeshInstance p1_mesh_instance;
 	// rendering
+	Renderer *renderer;
 	Camera camera;
 	// player handles
 	// session connection
@@ -65,7 +67,7 @@ struct GameInputs game_read_input(struct Inputs *inputs);
 void game_simulate_frame(struct NonGameState *ngs, struct GameState *state, struct GameInputs input);
 
 void game_state_init(struct GameState *state);
-void game_non_state_init(struct NonGameState *state);
+void game_non_state_init(struct NonGameState *state, Renderer *renderer);
 
 // Called by the game during a rollback or a frame.
 void game_state_update(struct NonGameState *nonstate, struct GameState *state, struct GameInputs input);

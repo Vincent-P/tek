@@ -1,0 +1,5 @@
+{
+    "vertex_shader": "skeletal_mesh.vert",
+    "pixel_shader": "skeletal_mesh.frag",
+    "render_pass": "mesh",
+}

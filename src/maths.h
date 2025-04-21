@@ -1,6 +1,16 @@
 #pragma once
 
+typedef union Float2 Float2;
 typedef union Float3 Float3;
+union Float2
+{
+	struct
+	{
+		float x;
+		float y;
+	};
+	float values[2];
+};
 union Float3
 {
 	struct

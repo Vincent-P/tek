@@ -8,55 +8,21 @@ typedef struct Animation Animation;
 typedef struct AnimSkeleton AnimSkeleton;
 
 /**
-animation skeleton:
-  anim bones identifiers
-  anim bones parent
-  anim bones local
+animation system works with bone space poses (local)
+render system works with character space poses (global)
 
-animation:
-  bone_identifiers (per bone)
-  tracks (per bone)
-    positions[]
-    rotations[]
-    scales[]
-  
+anim track, animations -> local space
 
-skeletal mesh:
-  vertices_position
-  ...
-  vertices_bone_indices
-  vertices_bone_weights
-  indices
-  mesh bones geometry_to_bone (bind pose)
-  mesh bones identifiers
-  
+apply to skinned mesh -> local to global space
 
-RUNTIME
-======
-animation -> pose
-
-Pose:
-  skeleton ref
-  local transforms
-  global transforms (cached)
-  state (unset, pose, reference, zero, additive)
-  
-runtime anim skeleton:
-  skeleton ref
-  anim bones world
-
-the runtime anim skeleton is used to compute a pose, applied  to all character meshes
-  
-runtime skeletal mesh:
-  mesh bones in world space
  **/
 struct AnimSkeleton
 {
 	uint32_t id;
 	uint32_t bones_length;
 	uint32_t bones_identifier[MAX_BONES_PER_MESH];
-	Float3x4 bones_local_transforms[MAX_BONES_PER_MESH];
-	Float3x4 bones_global_transforms[MAX_BONES_PER_MESH];
+	Float3x4 bones_local_transforms[MAX_BONES_PER_MESH]; // bone space
+	Float3x4 bones_global_transforms[MAX_BONES_PER_MESH]; // character space
 	uint8_t bones_parent[MAX_BONES_PER_MESH];
 };
 
@@ -88,9 +54,19 @@ enum AnimPoseState
 struct AnimPose
 {
 	uint32_t skeleton_id;
-	Float3x4 local_transforms[MAX_BONES_PER_MESH];
-	Float3x4 global_transforms[MAX_BONES_PER_MESH];
+	uint32_t bones_length;
+	Float3x4 local_transforms[MAX_BONES_PER_MESH]; // bone space
+	Float3x4 global_transforms[MAX_BONES_PER_MESH]; // character space
 	enum AnimPoseState state;
+};
+
+struct SkeletalMeshAsset;
+struct SkeletalMeshInstance
+{
+	uint32_t render_bone_from_anim_bone[MAX_BONES_PER_MESH]; // mapping from anim skeleton to render skeleton
+	Float3x4 pose[MAX_BONES_PER_MESH]; // global_from_local * local_from_bind
+	struct SkeletalMeshAsset *asset;
+	uint32_t skeletal_mesh_render_handle;
 };
 
 void Serialize_AnimTrack(Serializer *serializer, AnimTrack *value);
@@ -98,4 +74,7 @@ void Serialize_Animation(Serializer *serializer, Animation *value);
 void Serialize_AnimSkeleton(Serializer *serializer, AnimSkeleton *value);
 
 void anim_evaluate_animation(struct AnimSkeleton *skeleton, Animation const* anim, struct AnimPose *out_pose, float t);
-void anim_pose_compute_global_transforms(struct AnimSkeleton *skeleton, struct AnimPose *pose, Float3x4 root_world_transform);
+void anim_pose_compute_global_transforms(struct AnimSkeleton *skeleton, struct AnimPose *pose);
+
+void skeletal_mesh_init(struct SkeletalMeshAsset *asset, struct SkeletalMeshInstance *instance, struct AnimSkeleton *skeleton);
+void skeletal_mesh_apply_pose(struct SkeletalMeshInstance *instance, struct AnimPose *pose);

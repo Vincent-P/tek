@@ -19,19 +19,23 @@ struct RenderPass
 	enum ImageFormat color_formats[8];
 	uint32_t color_formats_length;
 	enum ImageFormat depth_format;
+	bool depth_enable_test;
+	bool depth_enable_write;
 };
 
 enum RenderPassesId
 {
 	RENDER_PASSES_UI = 0,
+	RENDER_PASSES_MESH,
 	RENDER_PASSES_DEBUG_DRAW,
 	RENDER_PASSES_COUNT,
 };
 
 static struct RenderPass RENDER_PASSES[RENDER_PASSES_COUNT] =
 {
-	{"ui", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_NONE},
-	{"debugdraw", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_NONE},
+	{"ui", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_NONE, false, false},
+	{"mesh", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_D32_SFLOAT, true, true},
+	{"debugdraw", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_NONE, false, false},
 };
 
 enum VulkanTopology
@@ -104,6 +108,8 @@ void new_texture(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t
 void begin_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t *out_swapchain_w, uint32_t *out_swapchain_h);
 void end_frame(VulkanDevice *device, VulkanFrame *fame, uint32_t output_rt);
 void begin_render_pass(VulkanDevice *device, VulkanFrame *frame, VulkanRenderPass *pass, struct VulkanBeginPassInfo pass_info);
+void begin_render_pass_discard(VulkanDevice *device, VulkanFrame *frame, VulkanRenderPass *pass, struct VulkanBeginPassInfo pass_info);
+
 void end_render_pass(VulkanDevice *device, VulkanRenderPass *pass);
 
 void vulkan_clear(VulkanDevice *device, VulkanRenderPass *pass, union VulkanClearColor const* colors, uint32_t colors_length, float depth);
@@ -112,6 +118,7 @@ void vulkan_push_constants(VulkanDevice *Device, VulkanRenderPass *pass, void *d
 void vulkan_bind_graphics_pso(VulkanDevice *device, VulkanRenderPass *pass, uint32_t pso);
 void vulkan_bind_index_buffer(VulkanDevice *device, VulkanRenderPass *pass, uint32_t index_buffer);
 void vulkan_draw(VulkanDevice *device, VulkanRenderPass *pass, struct VulkanDraw draw);
+void vulkan_draw_not_indexed(VulkanDevice *device, VulkanRenderPass *pass, uint32_t vertex_count);
 void vulkan_insert_debug_label(VulkanDevice *device, VulkanRenderPass *pass, const char *label);
 
 // temp

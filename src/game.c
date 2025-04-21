@@ -1,6 +1,7 @@
 #include "game.h"
 #include "inputs.h"
 #include "debugdraw.h"
+#include "renderer.h"
 
 // -- Game Inputs
 
@@ -25,7 +26,7 @@ static const char* _get_motion_label(enum GameInputBits bits)
 		"duf",
 		"dbuf",
 	};
-	
+
 	uint8_t dirs = bits & MOTION_MASK;
 	assert(dirs < ARRAY_LENGTH(MOTIONS_LABELS));
 	return MOTIONS_LABELS[dirs];
@@ -52,7 +53,7 @@ static const char* _get_action_label(enum GameInputBits bits)
 		"RP+LK+RK",
 		"LP+RP+LK+RK",
 	};
-	
+
 	uint8_t actions = (bits & ACTION_MASK) >> 4;
 	assert(actions < ARRAY_LENGTH(ACTIONS_LABELS));
 	return ACTIONS_LABELS[actions];
@@ -94,11 +95,11 @@ struct GameInputs game_read_input(struct Inputs *inputs)
 void game_simulate_frame(struct NonGameState *ngs, struct GameState *state, struct GameInputs inputs)
 {
 	debug_draw_reset();
-	
+
 	game_state_update(ngs, state, inputs);
-	
+
 	// desync checks
-	
+
 	// Notify ggpo that we've moved forward exactly 1 frame.
 	// ggpo_advance_frame
 
@@ -114,16 +115,23 @@ void game_state_init(struct GameState *state)
 	state->player2.position.x =  1.0f;
 }
 
-void game_non_state_init(struct NonGameState *state)
+void game_non_state_init(struct NonGameState *state, Renderer *renderer)
 {
+	state->renderer = renderer;
+
 	state->camera.position.y = 0.8f;
 	state->camera.position.z = 6.0f;
 	state->camera.lookat.y = 0.8f;
 	state->camera.vertical_fov = 40.0f;
-	
-	Serializer s = serialize_begin_read_file("cooking/a1bdf671c96845b7");
+
+	// Load skeletal mesh
+	Serializer s = serialize_begin_read_file("cooking/28ad6a937f9e6a93");
 	Serialize_SkeletalMeshWithAnimationsAsset(&s, &state->skeletal_mesh_with_animations);
 	serialize_end_read_file(&s);
+	skeletal_mesh_init(&state->skeletal_mesh_with_animations.skeletal_mesh,
+			   &state->p1_mesh_instance,
+			   &state->skeletal_mesh_with_animations.anim_skeleton);
+	renderer_create_skeletal_mesh(renderer, &state->skeletal_mesh_with_animations.skeletal_mesh, 0);
 }
 
 void game_state_update(struct NonGameState *nonstate, struct GameState *state, struct GameInputs inputs)
@@ -153,27 +161,20 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 	if ((inputs.player2 & GAME_INPUT_FORWARD) != 0) {
 		state->player2.position.x += speed;
 	}
-	
+
 	state->frame_number += 1;
 
 	// Evaluate anims
-	static uint32_t ianim = 0;	
-	
+	static uint32_t ianim = 0;
+
 	struct SkeletalMeshWithAnimationsAsset *asset = &nonstate->skeletal_mesh_with_animations;
 	struct AnimSkeleton *anim_skeleton = &asset->anim_skeleton;
 	struct Animation *animation = ianim < asset->animations_length ? asset->animations + ianim : NULL;
 	if (animation != NULL) {
 		nonstate->p1_pose.skeleton_id = anim_skeleton->id;
 		anim_evaluate_animation(anim_skeleton, animation, &nonstate->p1_pose, (float)state->frame_number);
-
-		Float3x4 root_world_transform = {0};
-		F34(root_world_transform, 0, 0) = 1.0f;
-		F34(root_world_transform, 1, 1) = 1.0f;
-		F34(root_world_transform, 2, 2) = 1.0f;
-		F34(root_world_transform, 0, 3) = state->player1.position.x;
-		F34(root_world_transform, 1, 3) = state->player1.position.y;
-		F34(root_world_transform, 2, 3) = state->player1.position.z;
-		anim_pose_compute_global_transforms(anim_skeleton, &nonstate->p1_pose, root_world_transform);
+		anim_pose_compute_global_transforms(anim_skeleton, &nonstate->p1_pose);
+		skeletal_mesh_apply_pose(&nonstate->p1_mesh_instance, &nonstate->p1_pose);
 
 		// debug draw animated pose
 		for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ibone++) {
@@ -184,7 +185,7 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 			debug_draw_point(p);
 		}
 	}
-	
+
 	// debug draw skeleton at P2
 	for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ibone++) {
 		Float3 p;
@@ -225,20 +226,20 @@ void game_render(struct NonGameState *nonstate, struct GameState *state)
 				enum GameInputBits input = state->player1.input_buffer[input_index];
 				uint32_t input_duration = input_last_frame - state->player1.input_buffer_frame_start[input_index];
 				input_last_frame = state->player1.input_buffer_frame_start[input_index];
-				
+
 				ImGui_TableNextRow();
 				ImGui_TableSetColumnIndex(0);
 				char input_label[32] = {0};
 				sprintf(input_label, "%s %s", _get_motion_label(input), _get_action_label(input));
 				ImGui_TextUnformatted(input_label);
-				
+
 				ImGui_TableSetColumnIndex(1);
 				char duration_label[32] = {0};
 				sprintf(duration_label, "%u", input_duration);
 				ImGui_TextUnformatted(duration_label);
 			}
 			ImGui_EndTable();
-		}	
+		}
 	}
 	ImGui_End();
 
@@ -248,4 +249,6 @@ void game_render(struct NonGameState *nonstate, struct GameState *state)
 		ImGui_DragFloat("camera fov", &nonstate->camera.vertical_fov);
 	}
 	ImGui_End();
+
+	renderer_submit_skeletal_instance(nonstate->renderer, &nonstate->p1_mesh_instance);
 }

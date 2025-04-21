@@ -15,7 +15,7 @@
 
 #define MAIN_MEMORY_SIZE (128 << 20)
 #define RT_MEMORY_SIZE (64 << 20)
-#define MEMORY_ALIGNMENT (64 << 10)
+#define MEMORY_ALIGNMENT (128 << 10) // 64K not enough for depth rt ??
 #define MAX_BACKBUFFER_COUNT 5
 #define VK_BUFFER_CAPACITY 64
 #define VK_PROGRAM_CAPACITY 64
@@ -549,6 +549,13 @@ void new_graphics_program_ex(VulkanDevice *device, uint32_t handle, MaterialAsse
 	MultisampleState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
 	VkPipelineDepthStencilStateCreateInfo DepthStencilState = {.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
+	DepthStencilState.depthTestEnable = renderpass.depth_enable_test;
+	DepthStencilState.depthWriteEnable = renderpass.depth_enable_write;
+	DepthStencilState.depthCompareOp = VK_COMPARE_OP_GREATER;
+	DepthStencilState.depthBoundsTestEnable = VK_FALSE;
+	DepthStencilState.stencilTestEnable = VK_FALSE;
+	DepthStencilState.minDepthBounds = 0.0f;
+	DepthStencilState.maxDepthBounds = 1.0f;
 
 	VkPipelineColorBlendAttachmentState AttachmentBlendStates[8] = {0};
 	for (uint32_t iattachment = 0; iattachment < renderpass.color_formats_length; ++iattachment) {
@@ -861,7 +868,7 @@ static void set_image_layout(VkCommandBuffer cmd, VkImage image, VkImageLayout o
 
         case VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL:
 		if (is_depth) {
-			image_barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+			image_barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
 		}
 		else {
 			image_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
@@ -869,10 +876,12 @@ static void set_image_layout(VkCommandBuffer cmd, VkImage image, VkImageLayout o
 		break;
 		
         case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+		assert(false); // deprecated
 		image_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 		break;
 
         case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+		assert(false); // deprecated
 		image_barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 		break;
 
@@ -1064,7 +1073,7 @@ void end_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t output_rt_hand
 		device->should_recreate_swapchain = 1;
 }
 
-void begin_render_pass(VulkanDevice *device, VulkanFrame *frame, VulkanRenderPass *pass, struct VulkanBeginPassInfo pass_info)
+static void begin_render_pass_internal(VulkanDevice *device, VulkanFrame *frame, VulkanRenderPass *pass, struct VulkanBeginPassInfo pass_info, VkImageLayout color_layout, VkImageLayout depth_layout)
 {
 	VkRenderingAttachmentInfoKHR color_infos[8] = {0};
 	VkRenderingAttachmentInfoKHR depth_info = {0};
@@ -1085,7 +1094,7 @@ void begin_render_pass(VulkanDevice *device, VulkanFrame *frame, VulkanRenderPas
 		}
 
 		set_image_layout(frame->cmd, rt->image,
-				 VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
+				 color_layout, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
 				 VK_ACCESS_NONE, VK_PIPELINE_STAGE_NONE,
 				 VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
 		
@@ -1114,7 +1123,7 @@ void begin_render_pass(VulkanDevice *device, VulkanFrame *frame, VulkanRenderPas
 		}
 
 		set_image_layout(frame->cmd, rt->image,
-				 VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
+				 depth_layout, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
 				 VK_ACCESS_NONE, VK_PIPELINE_STAGE_NONE,
 				 VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT);
 
@@ -1148,6 +1157,17 @@ void begin_render_pass(VulkanDevice *device, VulkanFrame *frame, VulkanRenderPas
 	pass->render_height = render_height;
 }
 
+void begin_render_pass(VulkanDevice *device, VulkanFrame *frame, VulkanRenderPass *pass, struct VulkanBeginPassInfo pass_info)
+{
+	begin_render_pass_internal(device, frame, pass, pass_info, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL);
+}
+
+void begin_render_pass_discard(VulkanDevice *device, VulkanFrame *frame, VulkanRenderPass *pass, struct VulkanBeginPassInfo pass_info)
+{
+	begin_render_pass_internal(device, frame, pass, pass_info, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_UNDEFINED);
+}
+
+
 void end_render_pass(VulkanDevice *device, VulkanRenderPass *pass)
 {
 	VulkanFrame *frame = pass->frame;
@@ -1166,14 +1186,16 @@ void end_render_pass(VulkanDevice *device, VulkanRenderPass *pass)
 				 VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
 				 VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT);
 	}
+
+	*pass = (VulkanRenderPass){0}; // allow the user to reuse the same struct for the next pass
 }
 
 void vulkan_clear(VulkanDevice *device, VulkanRenderPass *pass, union VulkanClearColor const* colors, uint32_t colors_length, float depth)
 {
 	VulkanFrame *frame = pass->frame;
 
-	VkClearAttachment attachments[8] = {0};
-	VkClearRect rects[8] = {0};
+	VkClearAttachment attachments[9] = {0};
+	VkClearRect rects[9] = {0};
 	
 	uint32_t iattachment = 0;
 	for (; iattachment < colors_length; ++iattachment) {
@@ -1195,6 +1217,7 @@ void vulkan_clear(VulkanDevice *device, VulkanRenderPass *pass, union VulkanClea
 		rects[iattachment].rect.extent.width = pass->render_width;
 		rects[iattachment].rect.extent.height = pass->render_height;
 		rects[iattachment].layerCount = 1;
+		iattachment += 1;
 	}
 	
 	vkCmdClearAttachments(frame->cmd,
@@ -1253,6 +1276,17 @@ void vulkan_draw(VulkanDevice *device, VulkanRenderPass *pass, struct VulkanDraw
 			 draw.vertex_offset,
 			 draw.first_instance);
 }
+
+void vulkan_draw_not_indexed(VulkanDevice *device, VulkanRenderPass *pass, uint32_t vertex_count)
+{
+	VulkanFrame *frame = pass->frame;
+	vkCmdDraw(frame->cmd,
+			 vertex_count,
+			 1,
+			 0,
+			 0);
+}
+
 
 void vulkan_insert_debug_label(VulkanDevice *device, VulkanRenderPass *pass, const char *label)
 {

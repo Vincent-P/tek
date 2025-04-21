@@ -4,6 +4,9 @@
 struct Blob file_read_entire_file(const char* path)
 {
 	FILE *f = fopen(path, "rb");
+	if (f == NULL) {
+		perror("Error");
+	}
 	assert(f != NULL);
 	fseek(f, 0, SEEK_END);
 	long fsize = ftell(f);

@@ -50,7 +50,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 
 	// game init
 	game_state_init(&application->game.gs);
-	game_non_state_init(&application->game.ngs);
+	game_non_state_init(&application->game.ngs, application->renderer);
 	
 	return SDL_APP_CONTINUE;
 }
@@ -176,6 +176,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 	}
 	
 	game_render(&application->game.ngs, &application->game.gs);
+	renderer_set_time(application->renderer, ((float)application->current_time) / 1000.0f);
 	renderer_render(application->renderer, &application->game.ngs.camera);
 
 	return SDL_APP_CONTINUE;
