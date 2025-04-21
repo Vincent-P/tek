@@ -218,24 +218,22 @@ Float4x4 perspective_projection(float vertical_fov, float aspect_ratio, float n,
     return p;
 }
 
-Float4x4 lookat_view(Float3 from, Float3 to, Float4x4 *inverse)
+Float3x4 lookat_view(Float3 from, Float3 to, Float3x4 *inverse)
 {
 	Float3 forward = float3_normalize(float3_sub(to, from)); // -Z
-	Float3 right = float3_cross(forward, (Float3){0.0f, 1.0f, 0.0f}); // X
-	Float3 up = float3_cross(right, forward); // Y
+	Float3 right = float3_normalize(float3_cross(forward, (Float3){0.0f, 1.0f, 0.0f})); // X
+	Float3 up = float3_normalize(float3_cross(right, forward)); // Y
 
-	Float4x4 v;
-	F44(v,0,0) =    right.x;	F44(v,0,1) =    right.y;	F44(v,0,2) =    right.z;	F44(v,0,3) = -float3_dot(from, right);
-	F44(v,1,0) =       up.x;	F44(v,1,1) =       up.y;	F44(v,1,2) =       up.z;	F44(v,1,3) = -float3_dot(from, up);
-	F44(v,2,0) = -forward.x;	F44(v,2,1) = -forward.y;	F44(v,2,2) = -forward.z;	F44(v,2,3) =  float3_dot(from, forward);
-	F44(v,3,0) =       0.0f;	F44(v,3,1) =       0.0f;	F44(v,3,2) =        0.0f;	F44(v,3,3) = 1.0f;
+	Float3x4 v;
+	F34(v,0,0) =    right.x;	F34(v,0,1) =    right.y;	F34(v,0,2) =    right.z;	F34(v,0,3) = -float3_dot(from, right);
+	F34(v,1,0) =       up.x;	F34(v,1,1) =       up.y;	F34(v,1,2) =       up.z;	F34(v,1,3) = -float3_dot(from, up);
+	F34(v,2,0) = -forward.x;	F34(v,2,1) = -forward.y;	F34(v,2,2) = -forward.z;	F34(v,2,3) =  float3_dot(from, forward);
 
 	if (inverse) {
-	    Float4x4 iv;
-	    F44(iv,0,0) = right.x;	F44(iv,0,1) = up.x;	F44(iv,0,2) = -forward.x;	F44(iv,0,3) = from.x;
-	    F44(iv,1,0) = right.y;	F44(iv,1,1) = up.y;	F44(iv,1,2) = -forward.y;	F44(iv,1,3) = from.y;
-	    F44(iv,2,0) = right.z;	F44(iv,2,1) = up.z;	F44(iv,2,2) = -forward.z;	F44(iv,2,3) = from.z;
-	    F44(iv,3,0) =    0.0f;	F44(iv,3,1) = 0.0f;	F44(iv,3,2) =        0.0f;	F44(iv,3,3) = 1.0f;
+	    Float3x4 iv;
+	    F34(iv,0,0) = right.x;	F34(iv,0,1) = up.x;	F34(iv,0,2) = -forward.x;	F34(iv,0,3) = from.x;
+	    F34(iv,1,0) = right.y;	F34(iv,1,1) = up.y;	F34(iv,1,2) = -forward.y;	F34(iv,1,3) = from.y;
+	    F34(iv,2,0) = right.z;	F34(iv,2,1) = up.z;	F34(iv,2,2) = -forward.z;	F34(iv,2,3) = from.z;
 	    *inverse = iv;
 	}
 	return v;

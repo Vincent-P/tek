@@ -3,7 +3,7 @@
 // AABBGGRR
 #define DD_RED   (uint32_t)0xff0000ff
 #define DD_GREEN (uint32_t)0xff00ff00
-#define DD_BLUE  (uint32_t)0xffff0000
+#define DD_BLUE  (uint32_t)0xffff8800
 #define DD_WHITE (uint32_t)0xffffffff
 #define DD_BLACK (uint32_t)0xff000000
 

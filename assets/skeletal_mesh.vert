@@ -20,9 +20,9 @@ layout(scalar, buffer_reference, buffer_reference_align=8) readonly buffer BoneM
 	mat4x3 matrices[];
 };
 
-layout(push_constant) uniform uPushConstant {
+layout(scalar, push_constant) uniform uPushConstant {
     mat4 proj;
-    mat4 view;
+    mat4x3 view;
     BoneMatricesBuffer bones_buffer;
     MeshVertexBuffer vbuffer;
 } c_;
@@ -41,20 +41,71 @@ uvec4 unpackUint4x8(uint v)
 	return result;
 }
 
+vec4 float34_mul(mat4x3 m, vec3 v)
+{
+	vec4 result;
+	result.x = m[0][0] * v.x + m[1][0] * v.y + m[2][0] * v.z + m[3][0];
+	result.y = m[0][1] * v.x + m[1][1] * v.y + m[2][1] * v.z + m[3][1];
+	result.z = m[0][2] * v.x + m[1][2] * v.y + m[2][2] * v.z + m[3][2];
+	result.w = 1.0;
+	return result;
+}
+
+mat3 adjugate(mat4x3 m)
+{
+    return mat3(cross(m[1].xyz, m[2].xyz), 
+                cross(m[2].xyz, m[0].xyz), 
+                cross(m[0].xyz, m[1].xyz));
+
+    /*
+    // alternative way to write the adjoint
+
+    return mat3( 
+     m[1].yzx*m[2].zxy-m[1].zxy*m[2].yzx,
+     m[2].yzx*m[0].zxy-m[2].zxy*m[0].yzx,
+     m[0].yzx*m[1].zxy-m[0].zxy*m[1].yzx );
+    */
+    
+    /*
+    // alternative way to write the adjoint
+
+    return mat3( 
+     m[1][1]*m[2][2]-m[1][2]*m[2][1],
+     m[1][2]*m[2][0]-m[1][0]*m[2][2],
+     m[1][0]*m[2][1]-m[1][1]*m[2][0],
+     m[0][2]*m[2][1]-m[0][1]*m[2][2],
+	 m[0][0]*m[2][2]-m[0][2]*m[2][0],
+     m[0][1]*m[2][0]-m[0][0]*m[2][1],
+     m[0][1]*m[1][2]-m[0][2]*m[1][1],
+     m[0][2]*m[1][0]-m[0][0]*m[1][2],
+     m[0][0]*m[1][1]-m[0][1]*m[1][0] );
+    */
+}
+
 void main() 
 {
     MeshVert vertex = c_.vbuffer.vertices[gl_VertexIndex];
     
     vec4 bone_weights = unpackUnorm4x8(vertex.bone_weights);
     uvec4 bone_indices = unpackUint4x8(vertex.bone_indices);
+
+    mat4x3 bone_matrix = bone_weights[0] * c_.bones_buffer.matrices[bone_indices[0]]
+    	   	       + bone_weights[1] * c_.bones_buffer.matrices[bone_indices[1]]
+    	   	       + bone_weights[2] * c_.bones_buffer.matrices[bone_indices[2]]
+    	   	       + bone_weights[3] * c_.bones_buffer.matrices[bone_indices[3]];
+
+#if 0
     vec3 skinned_p0 = bone_weights[0] * (c_.bones_buffer.matrices[bone_indices[0]] * vec4(vertex.position, 1.0));
     vec3 skinned_p1 = bone_weights[1] * (c_.bones_buffer.matrices[bone_indices[1]] * vec4(vertex.position, 1.0));
     vec3 skinned_p2 = bone_weights[2] * (c_.bones_buffer.matrices[bone_indices[2]] * vec4(vertex.position, 1.0));
     vec3 skinned_p3 = bone_weights[3] * (c_.bones_buffer.matrices[bone_indices[3]] * vec4(vertex.position, 1.0));
     vec3 skinned_p = skinned_p0 + skinned_p1 + skinned_p2 + skinned_p3;
+#else
+    vec3 skinned_p = float34_mul(bone_matrix, vertex.position).xyz;
+#endif
 
-    vec4 pos = (c_.proj * (c_.view * vec4(skinned_p, 1.0)));
+    vec4 pos = c_.proj * float34_mul(c_.view, skinned_p);
 
-    g_out.normal = vertex.normal;
+    g_out.normal = adjugate(bone_matrix) * vertex.normal;
     gl_Position = pos;
 }

@@ -1,4 +1,5 @@
 #version 450
+#extension GL_EXT_scalar_block_layout : enable
 
 layout(location = 0) out vec4 outColor;
 
@@ -6,11 +7,55 @@ layout(location = 0) in struct {
     vec2 uv;
 } g_in;
 
-layout(push_constant) uniform uPushConstant {
+layout(scalar, push_constant) uniform uPushConstant {
+    mat4 proj;
+    mat4 invproj;
+    mat4x3 view;
+    mat4x3 invview;
     vec3 iResolution;
     float iTime;
 } c_;
 
+struct Ray
+{
+	vec3 pos;
+	vec3 dir;
+};
+
+float sdSphere( vec3 p, float s )
+{
+	return length(p)-s;
+}
+
+float sdBox( vec3 p, vec3 b )
+{
+	vec3 q = abs(p) - b;
+	return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
+}
+
+float sdScene(vec3 p)
+{
+	float d = 0.0;
+	d = sdBox(p, vec3(1.0));
+	d = sdSphere(p, 1.0);
+	return d;
+}
+
+vec3 unproject_dir(vec3 dir)
+{
+	vec3 result;
+	result.x = c_.invproj[0][0] * dir.x;
+	result.y = c_.invproj[1][1] * dir.y;
+	result.z = -1;
+	return result;
+}
+
+float project_depth(float depth)
+{
+	float z = c_.proj[2][2] * depth + c_.proj[2][3];
+	float w = -depth;
+	return z / w;
+}
 
 // Num of maximum marching steps for a ray
 #define MAX_STEPS 100
@@ -31,7 +76,7 @@ layout(push_constant) uniform uPushConstant {
 #define WATER_LINE_HEIGHT 1.0
 
 // Display Capsules. 0=OFF, 1=ON
-#define ENABLE_CAPSULES 1
+#define ENABLE_CAPSULES 0
 
 // Display more SDF shapes. 0=OFF, 1=ON
 #define ENABLE_SHAPES 0
@@ -70,7 +115,7 @@ float FractionBrownianMotion(in vec2 p)
     
     f += 0.0625 * texture( iChannel0, p / 256.0 ).x;
 #endif
-    
+   
     return f / 0.9275;
 }
 
@@ -384,14 +429,11 @@ vec3 GetSkyColor(in vec3 origin, in vec3 direction)
 // We raymarch through it, pixel by pixel.
 // For each sky pixel we calculate cloud noise, sky color and sun glare
 // For each non-sky pixel we calculate diffuse and specular lighting
-void mainImage( out vec4 fragColor, out float out_depth, in vec2 uv )
-{
-    // UVs starting from the screen center
-    // vec2 uv = (fragCoord - 0.5 * c_.iResolution.xy) / c_.iResolution.y;
-    
+void mainImage( out vec4 fragColor, out float out_depth, Ray ray )
+{    
     // Camera position and direction
-    vec3 ray_origin = vec3(0.0, 7.0, -22.0);
-    vec3 ray_direction = normalize(vec3(uv.x, -uv.y, 1.0));
+    vec3 ray_origin = ray.pos;
+    vec3 ray_direction = ray.dir;
 
     // Raymarch the SDFs to get pixel depths
     // Get the attrbiutes that we'll need later for lighting
@@ -477,11 +519,43 @@ void mainImage( out vec4 fragColor, out float out_depth, in vec2 uv )
     out_depth = depth;
 }
 
+
+vec4 ray_march(vec2 clip_space)
+{
+	vec3 camera_dir = unproject_dir(vec3(clip_space.x, clip_space.y, -1));
+	Ray ray;
+	ray.pos = c_.invview[3].xyz;
+	ray.dir = mat3(c_.invview) * camera_dir.xyz;
+
+	int step = 0;
+	float h = 1.0;
+	float t = 1.0;
+	while (h > 0.01 && step < 512) {
+	      h = sdScene(ray.pos + ray.dir * t);
+	      t += h;
+	      step++;
+	}
+
+	vec4 background = vec4(0.2, 0.1, 0.6, 1.0);
+	return (h < 0.01) ? vec4(vec3(abs(h)), 1) : background;
+}
+
+
 void main()
 {
-    vec4 color = vec4(g_in.uv, 0, 1);
-    float depth = 0.0;
-    mainImage(color, depth, g_in.uv*vec2(2.0)-vec2(1.0));
-    outColor = color;
-    gl_FragDepth = 0.0001;
+	vec2 clip_space = g_in.uv * vec2(2.0) - vec2(1.0);
+	vec3 camera_dir = unproject_dir(vec3(clip_space.x, clip_space.y, -1));
+	Ray ray;
+	ray.pos = c_.invview[3].xyz;
+	ray.dir = mat3(c_.invview) * camera_dir.xyz;
+
+
+	vec4 color;
+	float depth;
+	ray.pos.xy = ray.pos.xy * 10.0;
+	mainImage(color, depth, ray);
+	
+	outColor = color;
+	float projected_depth = project_depth(depth / 10.0) + 0.0000000001;
+	gl_FragDepth = projected_depth;
 }

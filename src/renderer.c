@@ -67,8 +67,8 @@ struct Renderer
 	// context
 	Float4x4 proj;
 	Float4x4 invproj;
-	Float4x4 view;
-	Float4x4 invview;
+	Float3x4 view;
+	Float3x4 invview;
 	float time;
 	uint32_t constant_buffer;
 	uint32_t constant_offset;
@@ -212,7 +212,7 @@ struct SkeletalMeshCBuffer
 struct SkeletalMeshConstants
 {
 	Float4x4 proj;
-	Float4x4 view;
+	Float3x4 view;
 	uint64_t bones_matrices_buffer;
 	uint64_t vbuffer;
 };
@@ -249,17 +249,17 @@ static void renderer_debug_draw_pass(Renderer *renderer, VulkanFrame *frame, Vul
 	spheres_draw.first_index = index_count;
 	for (uint32_t ipoint = 0; ipoint < g_dd.points_length; ++ipoint) {
 		vertices[vertex_count+0].pos = float3_add(g_dd.points[ipoint], (Float3){-point_radius, 0.0f, -point_radius});
-		vertices[vertex_count+0].col = 0xff0000ff;
+		vertices[vertex_count+0].col = 0x400000ff;
 		vertices[vertex_count+1].pos = float3_add(g_dd.points[ipoint], (Float3){-point_radius, 0.0f, point_radius});
-		vertices[vertex_count+1].col = 0xff0000ff;
+		vertices[vertex_count+1].col = 0x400000ff;
 		vertices[vertex_count+2].pos = float3_add(g_dd.points[ipoint], (Float3){point_radius, 0.0f, -point_radius});
-		vertices[vertex_count+2].col = 0xff0000ff;
+		vertices[vertex_count+2].col = 0x400000ff;
 		vertices[vertex_count+3].pos = float3_add(g_dd.points[ipoint], (Float3){point_radius, 0.0f, point_radius});
-		vertices[vertex_count+3].col = 0xff0000ff;
+		vertices[vertex_count+3].col = 0x400000ff;
 		vertices[vertex_count+4].pos = float3_add(g_dd.points[ipoint], (Float3){0.0f, -point_radius, 0.0f});
-		vertices[vertex_count+4].col = 0xff0000ff;
+		vertices[vertex_count+4].col = 0x400000ff;
 		vertices[vertex_count+5].pos = float3_add(g_dd.points[ipoint], (Float3){0.0f, point_radius, 0.0f});
-		vertices[vertex_count+5].col = 0xff0000ff;
+		vertices[vertex_count+5].col = 0x400000ff;
 
 		indices[index_count++] = vertex_count+0;
 		indices[index_count++] = vertex_count+1;
@@ -310,7 +310,7 @@ static void renderer_debug_draw_pass(Renderer *renderer, VulkanFrame *frame, Vul
 	struct DdPushConstants
 	{
 		Float4x4 proj;
-		Float4x4 view;
+		Float3x4 view;
 		uint64_t vbuffer;
 	} constants;
 	constants.proj = renderer->proj;
@@ -436,7 +436,7 @@ void renderer_render(Renderer *renderer, struct Camera* camera)
 	uint32_t swapchain_height = 0;
 	begin_frame(renderer->device, &frame, &swapchain_width, &swapchain_height);
 
-	renderer->proj = perspective_projection(camera->vertical_fov, (float)swapchain_width / (float)swapchain_height, 0.1f, 100.0f, &renderer->invproj);
+	renderer->proj = perspective_projection(camera->vertical_fov, (float)swapchain_width / (float)swapchain_height, 1.0f, 100.0f, &renderer->invproj);
 	renderer->view = lookat_view(camera->position, camera->lookat, &renderer->invview);
 	
 	vulkan_bind_texture(renderer->device, &frame, renderer->imgui_fontatlas, 0);
@@ -456,9 +456,17 @@ void renderer_render(Renderer *renderer, struct Camera* camera)
 	{
 		struct Bg0Constants
 		{
+			Float4x4 proj;
+			Float4x4 invproj;
+			Float3x4 view;
+			Float3x4 invview;
 			Float3 resolution;
 			float time;
 		} constants;
+		constants.proj = renderer->proj;
+		constants.invproj = renderer->invproj;
+		constants.view = renderer->view;
+		constants.invview = renderer->invview;
 		constants.resolution = (Float3){swapchain_width, swapchain_height, 1};
 		constants.time = renderer->time;
 		

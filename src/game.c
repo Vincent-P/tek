@@ -203,8 +203,10 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 		debug_draw_line((Float3){-width, 0.0f, i}, (Float3){width, 0.0f, i}, DD_WHITE & DD_HALF_ALPHA);
 		debug_draw_line((Float3){-width, 0.0f, -i}, (Float3){width, 0.0f, -i}, DD_WHITE & DD_HALF_ALPHA);
 	}
-	debug_draw_line((Float3){0.0f, 0.0f, -width}, (Float3){0.0f, 0.0f, width}, DD_BLUE);
-	debug_draw_line((Float3){-width, 0.0f, 0.0f}, (Float3){width, 0.0f, 0.0f}, DD_RED);
+	debug_draw_line((Float3){0.0f, 0.0f, -width}, (Float3){0.0f, 0.0f, 0.0f}, DD_WHITE & DD_HALF_ALPHA);
+	debug_draw_line((Float3){0.0f, 0.0f, 0.0f}, (Float3){0.0f, 0.0f, width}, DD_BLUE);
+	debug_draw_line((Float3){-width, 0.0f, 0.0f}, (Float3){0, 0.0f, 0.0f}, DD_WHITE & DD_HALF_ALPHA);
+	debug_draw_line((Float3){0, 0.0f, 0.0f}, (Float3){width, 0.0f, 0.0f}, DD_RED);
 	width = 2.4f;
 	for (float i = 0.1f; i <= width; i += 0.1f) {
 		debug_draw_line((Float3){i, 0.0f, -width}, (Float3){i, 0.0f, width}, DD_WHITE & DD_QUARTER_ALPHA);

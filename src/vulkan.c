@@ -14,7 +14,7 @@
 #define FRAME_COUNT 2
 
 #define MAIN_MEMORY_SIZE (128 << 20)
-#define RT_MEMORY_SIZE (64 << 20)
+#define RT_MEMORY_SIZE (128 << 20)
 #define MEMORY_ALIGNMENT (128 << 10) // 64K not enough for depth rt ??
 #define MAX_BACKBUFFER_COUNT 5
 #define VK_BUFFER_CAPACITY 64
@@ -551,7 +551,7 @@ void new_graphics_program_ex(VulkanDevice *device, uint32_t handle, MaterialAsse
 	VkPipelineDepthStencilStateCreateInfo DepthStencilState = {.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
 	DepthStencilState.depthTestEnable = renderpass.depth_enable_test;
 	DepthStencilState.depthWriteEnable = renderpass.depth_enable_write;
-	DepthStencilState.depthCompareOp = VK_COMPARE_OP_GREATER;
+	DepthStencilState.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
 	DepthStencilState.depthBoundsTestEnable = VK_FALSE;
 	DepthStencilState.stencilTestEnable = VK_FALSE;
 	DepthStencilState.minDepthBounds = 0.0f;
