@@ -111,8 +111,14 @@ void game_simulate_frame(struct NonGameState *ngs, struct GameState *state, stru
 void game_state_init(struct GameState *state)
 {
 	// initial game state
-	state->player1.position.x = -1.0f;
-	state->player2.position.x =  1.0f;
+	state->player1_entity.spatial.world_transform.cols[3].x = -1.0f;
+	state->player2_entity.spatial.world_transform.cols[3].x = 1.0f;
+
+	state->player1_entity.anim_skeleton.anim_skeleton_id = 3189085727;
+	state->player2_entity.anim_skeleton.anim_skeleton_id = 3189085727;
+
+	state->player1_entity.animation.animation_id = 3108588149;
+	state->player2_entity.animation.animation_id = 3108588149;
 }
 
 void game_non_state_init(struct NonGameState *state, Renderer *renderer)
@@ -124,54 +130,49 @@ void game_non_state_init(struct NonGameState *state, Renderer *renderer)
 	state->camera.lookat.y = 0.8f;
 	state->camera.vertical_fov = 40.0f;
 
-	// Load skeletal mesh
-	Serializer s = serialize_begin_read_file("cooking/28ad6a937f9e6a93");
-	Serialize_SkeletalMeshWithAnimationsAsset(&s, &state->skeletal_mesh_with_animations);
-	serialize_end_read_file(&s);
-	skeletal_mesh_init(&state->skeletal_mesh_with_animations.skeletal_mesh,
-			   &state->p1_mesh_instance,
-			   &state->skeletal_mesh_with_animations.anim_skeleton);
-	renderer_create_skeletal_mesh(renderer, &state->skeletal_mesh_with_animations.skeletal_mesh, 0);
+	skeletal_mesh_create_instance(&skeletal_mesh_with_animations.skeletal_mesh,
+				      &p1_mesh_instance,
+				      &state->skeletal_mesh_with_animations.anim_skeleton);	
+
 }
 
 void game_state_update(struct NonGameState *nonstate, struct GameState *state, struct GameInputs inputs)
 {
 	// register input in the input buffer
-	if (inputs.player1 != state->player1.input_buffer[state->player1.current_input_index % INPUT_BUFFER_SIZE]) {
-		state->player1.current_input_index += 1;
-		uint32_t input_index = state->player1.current_input_index % INPUT_BUFFER_SIZE;
-		state->player1.input_buffer[input_index] = inputs.player1;
-		state->player1.input_buffer_frame_start[input_index] = state->frame_number;
+	struct TekPlayerComponent *p1 = &state->player1_entity.tek;
+	if (inputs.player1 != p1->input_buffer[p1->current_input_index % INPUT_BUFFER_SIZE]) {
+		p1->current_input_index += 1;
+		uint32_t input_index = p1->current_input_index % INPUT_BUFFER_SIZE;
+		p1->input_buffer[input_index] = inputs.player1;
+		p1->input_buffer_frame_start[input_index] = state->frame_number;
 	}
 
 	// match inputs
 
 	// gameplay update
+	struct SpatialComponent *p1_root = &state->player1_entity.spatial;
+	struct SpatialComponent *p2_root = &state->player2_entity.spatial;
 	float speed = 0.1f;
 	if ((inputs.player1 & GAME_INPUT_BACK) != 0) {
-		state->player1.position.x -= speed;
+		p1_root->world_transform.cols[3].x -= speed;
 	}
 	if ((inputs.player1 & GAME_INPUT_FORWARD) != 0) {
-		state->player1.position.x += speed;
+		p1_root->world_transform.cols[3].x += speed;
 	}
-
 	if ((inputs.player2 & GAME_INPUT_BACK) != 0) {
-		state->player2.position.x -= speed;
+		p2_root->world_transform.cols[3].x -= speed;
 	}
 	if ((inputs.player2 & GAME_INPUT_FORWARD) != 0) {
-		state->player2.position.x += speed;
+		p2_root->world_transform.cols[3].x += speed;
 	}
 
 	state->frame_number += 1;
 
 	// Evaluate anims
-	static uint32_t ianim = 0;
-
-	struct SkeletalMeshWithAnimationsAsset *asset = &nonstate->skeletal_mesh_with_animations;
-	struct AnimSkeleton *anim_skeleton = &asset->anim_skeleton;
-	struct Animation *animation = ianim < asset->animations_length ? asset->animations + ianim : NULL;
+	struct AnimSkeleton *anim_skeleton = asset_library_get_anim_skeleton(nonstate->assets,
+									     state->player1_entity.anim_skeleton.anim_skeleton_id);
+	struct Animation *animation = asset_library_get_animation(nonstate->assets, state->player1_entity.animation.animation_id);
 	if (animation != NULL) {
-		nonstate->p1_pose.skeleton_id = anim_skeleton->id;
 		anim_evaluate_animation(anim_skeleton, animation, &nonstate->p1_pose, (float)state->frame_number);
 		anim_pose_compute_global_transforms(anim_skeleton, &nonstate->p1_pose);
 		skeletal_mesh_apply_pose(&nonstate->p1_mesh_instance, &nonstate->p1_pose);
@@ -192,7 +193,7 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 		p.x = F34(anim_skeleton->bones_global_transforms[ibone], 0, 3);
 		p.y = F34(anim_skeleton->bones_global_transforms[ibone], 1, 3);
 		p.z = F34(anim_skeleton->bones_global_transforms[ibone], 2, 3);
-		p = float3_add(p, state->player2.position);
+		p = float3_add(p, state->player2_entity.spatial.world_transform.cols[3]);
 		debug_draw_point(p);
 	}
 	// debug draw grid
@@ -220,14 +221,15 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 
 void game_render(struct NonGameState *nonstate, struct GameState *state)
 {
+	struct TekPlayerComponent const *p1 = &state->player1_entity.tek;
 	if (ImGui_Begin("Player 1 inputs", NULL, 0)) {
 		if (ImGui_BeginTable("inputs", 2, ImGuiTableFlags_Borders)) {
 			uint32_t input_last_frame = state->frame_number;
 			for (uint32_t i = 0; i < INPUT_BUFFER_SIZE; i++) {
-				uint32_t input_index = (state->player1.current_input_index + (INPUT_BUFFER_SIZE - i)) % INPUT_BUFFER_SIZE;
-				enum GameInputBits input = state->player1.input_buffer[input_index];
-				uint32_t input_duration = input_last_frame - state->player1.input_buffer_frame_start[input_index];
-				input_last_frame = state->player1.input_buffer_frame_start[input_index];
+				uint32_t input_index = (p1->current_input_index + (INPUT_BUFFER_SIZE - i)) % INPUT_BUFFER_SIZE;
+				enum GameInputBits input = p1->input_buffer[input_index];
+				uint32_t input_duration = input_last_frame - p1->input_buffer_frame_start[input_index];
+				input_last_frame = p1->input_buffer_frame_start[input_index];
 
 				ImGui_TableNextRow();
 				ImGui_TableSetColumnIndex(0);

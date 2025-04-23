@@ -24,6 +24,107 @@ const char *relative_path;
 const char *source_dir;
 const char *cooking_dir;
 
+#define COOKER_JSON_PARSE_FLAGS json_parse_flags_allow_c_style_comments | json_parse_flags_allow_trailing_comma
+
+uint32_t string_to_id(const char *s, size_t l)
+{
+	XXH64_hash_t hash = XXH64(s, l, 0);
+	return (uint32_t)hash;
+}
+
+uint32_t ufbx_string_to_id(ufbx_string s)
+{
+	return string_to_id(s.data, s.length);
+}
+
+struct MaterialJson
+{
+	const char* vertex_shader;
+	const char* pixel_shader;
+	uint32_t vertex_shader_length;
+	uint32_t pixel_shader_length;
+	uint32_t render_pass_id;
+};
+
+struct MaterialJson parse_material_json(const char* source_path)
+{
+	struct MaterialJson material = {0};
+	
+	struct Blob material_json_file = file_read_entire_file(source_path);
+	struct json_value_s* root = json_parse_ex(material_json_file.data, material_json_file.size, COOKER_JSON_PARSE_FLAGS , NULL, NULL, NULL);
+	assert(root->type == json_type_object);
+	struct json_object_s* object = (struct json_object_s*)root->payload;
+	for (struct json_object_element_s* it = object->start; it != NULL; it = it->next) {
+		if (strcmp(it->name->string, "vertex_shader") == 0) {
+			struct json_string_s *value = json_value_as_string(it->value);
+			assert(value != NULL);
+			material.vertex_shader = value->string;
+			material.vertex_shader_length = value->string_size;
+		}
+		if (strcmp(it->name->string, "pixel_shader") == 0) {
+			struct json_string_s *value = json_value_as_string(it->value);
+			assert(value != NULL);
+			material.pixel_shader = value->string;
+			material.pixel_shader_length = value->string_size;
+		}
+		if (strcmp(it->name->string, "render_pass") == 0) {
+			struct json_string_s *value = json_value_as_string(it->value);
+			assert(value != NULL);
+			for (uint32_t ipass = 0; ipass < RENDER_PASSES_COUNT; ++ipass) {
+				if (strcmp(RENDER_PASSES[ipass].name, value->string) == 0) {
+					material.render_pass_id = ipass;
+					break;
+				}
+			}
+			assert(material.render_pass_id < RENDER_PASSES_COUNT);
+		}
+	}
+
+	return material;
+}
+
+struct SkeletalMeshJson
+{
+	const char* source_file;
+	const char* anim_skeleton;
+	const char* mesh;
+	uint32_t source_file_length;
+	uint32_t anim_skeleton_length;
+	uint32_t mesh_length;
+};
+
+struct SkeletalMeshJson parse_skeletal_mesh_json(const char* source_path)
+{
+	struct SkeletalMeshJson skeletal_mesh = {0};
+	
+	struct Blob skeletal_mesh_json_file = file_read_entire_file(source_path);
+	struct json_value_s* root = json_parse_ex(skeletal_mesh_json_file.data, skeletal_mesh_json_file.size, COOKER_JSON_PARSE_FLAGS , NULL, NULL, NULL);
+	assert(root->type == json_type_object);
+	struct json_object_s* object = (struct json_object_s*)root->payload;
+	for (struct json_object_element_s* it = object->start; it != NULL; it = it->next) {
+		if (strcmp(it->name->string, "source_file") == 0) {
+			struct json_string_s *value = json_value_as_string(it->value);
+			assert(value != NULL);
+			skeletal_mesh.source_file = value->string;
+			skeletal_mesh.source_file_length = value->string_size;
+		}
+		if (strcmp(it->name->string, "anim_skeleton") == 0) {
+			struct json_string_s *value = json_value_as_string(it->value);
+			assert(value != NULL);
+			skeletal_mesh.anim_skeleton = value->string;
+			skeletal_mesh.anim_skeleton_length = value->string_size;
+		}
+		if (strcmp(it->name->string, "mesh") == 0) {
+			struct json_string_s *value = json_value_as_string(it->value);
+			assert(value != NULL);
+			skeletal_mesh.mesh = value->string;
+			skeletal_mesh.mesh_length = value->string_size;
+		}
+	}
+
+	return skeletal_mesh;
+}
+
 int cook_material()
 {
 	char source_path[512];
@@ -34,34 +135,9 @@ int cook_material()
 	// Parse JSON
 	char vertex_shader_path[512] = {0};
 	char pixel_shader_path[512] = {0};
-	uint32_t render_pass_id = ~0u;
-	struct Blob material_json_file = file_read_entire_file(source_path);
-	struct json_value_s* root = json_parse_ex(material_json_file.data, material_json_file.size, json_parse_flags_allow_trailing_comma , NULL, NULL, NULL);
-	assert(root->type == json_type_object);
-	struct json_object_s* object = (struct json_object_s*)root->payload;
-	for (struct json_object_element_s* it = object->start; it != NULL; it = it->next) {
-		if (strcmp(it->name->string, "vertex_shader") == 0) {
-			struct json_string_s *value = json_value_as_string(it->value);
-			assert(value != NULL);
-			snprintf(vertex_shader_path, sizeof(vertex_shader_path), "%s%s", source_dir, value->string);
-		}
-		if (strcmp(it->name->string, "pixel_shader") == 0) {
-			struct json_string_s *value = json_value_as_string(it->value);
-			assert(value != NULL);
-			snprintf(pixel_shader_path, sizeof(pixel_shader_path), "%s%s", source_dir, value->string);
-		}
-		if (strcmp(it->name->string, "render_pass") == 0) {
-			struct json_string_s *value = json_value_as_string(it->value);
-			assert(value != NULL);
-			for (uint32_t ipass = 0; ipass < RENDER_PASSES_COUNT; ++ipass) {
-				if (strcmp(RENDER_PASSES[ipass].name, value->string) == 0) {
-					render_pass_id = ipass;
-					break;
-				}
-			}
-			assert(render_pass_id < RENDER_PASSES_COUNT);
-		}
-	}
+	struct MaterialJson json = parse_material_json(source_path);
+	snprintf(vertex_shader_path, sizeof(vertex_shader_path), "%s%.*s", source_dir, json.vertex_shader_length, json.vertex_shader);
+	snprintf(pixel_shader_path, sizeof(pixel_shader_path), "%s%.*s", source_dir, json.pixel_shader_length, json.pixel_shader);
 
 	// Compile shaders
 	struct Blob vshader_file = file_read_entire_file(vertex_shader_path);
@@ -95,12 +171,12 @@ int cook_material()
 
 	// Save material to disk
 	struct MaterialAsset material = {0};
-	
+	material.id = string_to_id(relative_path, strlen(relative_path));
 	material.vertex_shader_bytecode.size = shaderc_result_get_length(vshader_result);
 	material.vertex_shader_bytecode.data = (char*)shaderc_result_get_bytes(vshader_result);
 	material.pixel_shader_bytecode.size = shaderc_result_get_length(pshader_result);
 	material.pixel_shader_bytecode.data = (char*)shaderc_result_get_bytes(pshader_result);
-	material.render_pass_id = render_pass_id;
+	material.render_pass_id = json.render_pass_id;
 
 	uint32_t serializer_capacity = (4 << 10) + material.vertex_shader_bytecode.size + material.pixel_shader_bytecode.size;
 	Serializer serializer = serialize_begin_write_file(serializer_capacity);
@@ -121,12 +197,6 @@ int cook_material()
 	return 0;
 }
 
-uint32_t ufbx_string_to_id(ufbx_string s)
-{
-	XXH64_hash_t hash = XXH64(s.data, s.length, 0);
-	return (uint32_t)hash;
-}
-
 int cook_fbx()
 {
 	char source_path[512];
@@ -134,49 +204,72 @@ int cook_fbx()
 	snprintf(source_path, sizeof(source_path), "%s%s", source_dir, relative_path);
 	snprintf(dep_path, sizeof(dep_path), "%s%s.dep", cooking_dir, relative_path);
 
+	// parse json
+	char fbx_file_path[512];
+	struct SkeletalMeshJson json = parse_skeletal_mesh_json(source_path);
+	snprintf(fbx_file_path, sizeof(fbx_file_path), "%s%.*s", source_dir, (int)json.source_file_length, json.source_file);
+	// parse FBX
 	ufbx_load_opts opts = { 0 }; // Optional, pass NULL for defaults
         opts.target_axes = ufbx_axes_right_handed_y_up;
         opts.target_unit_meters = 1.0f;
 	ufbx_error error; // Optional, pass NULL if you don't care about errors
-	ufbx_scene *scene = ufbx_load_file(source_path, &opts, &error);
+	ufbx_scene *scene = ufbx_load_file(fbx_file_path, &opts, &error);
 	if (!scene) {
 		fprintf(stderr, "Failed to load: %s\n", error.description.data);
 		return 1;
 	}
 
 	// Import skeleton from the nodes hierarchy
-	ufbx_node *root_bone = NULL;
-	ufbx_pose *bind_pose = NULL;
-	ufbx_node *bones[MAX_BONES_PER_MESH] = {0};
-	uint32_t bones_length = 0;
-	uint32_t scene_bone_count = 0;
+	ufbx_node *anim_skeleton_node = NULL;
+	ufbx_node *mesh_node = NULL;
+	
 	for (size_t i = 0; i < scene->nodes.count; i++) {
-		if (scene->nodes.data[i]->bone != NULL) {
-			scene_bone_count += 1;
+		ufbx_string name = scene->nodes.data[i]->name;
+		if (name.length == json.anim_skeleton_length && strncmp(name.data, json.anim_skeleton, name.length) == 0) {
+			assert(anim_skeleton_node == NULL);
+			anim_skeleton_node = scene->nodes.data[i];
+		}
+		if (name.length == json.mesh_length && strncmp(name.data, json.mesh, name.length) == 0) {
+			assert(mesh_node == NULL);
+			mesh_node = scene->nodes.data[i];
+			assert(mesh_node->mesh != NULL);
 		}
 	}
-	for (size_t i = 0; i < scene->nodes.count; i++) {
-		ufbx_node *node = scene->nodes.data[i];
-		if (root_bone != NULL && node->node_depth <= root_bone->node_depth) {
+	assert(anim_skeleton_node != NULL);
+	assert(mesh_node != NULL);
+	fprintf(stderr, "Found anim skeleton: %s\n", anim_skeleton_node->name.data);
+	fprintf(stderr, "Found mesh: %s\n", mesh_node->name.data);
+	uint32_t skeleton_id = ufbx_string_to_id(anim_skeleton_node->name);
+	uint32_t skeletal_mesh_id = ufbx_string_to_id(mesh_node->name);
+	// get root bone
+	ufbx_node *root_bone = NULL;
+	for (size_t i = 0; i < anim_skeleton_node->children.count; i++) {
+		if (anim_skeleton_node->children.data[i]->bone != NULL) {
+			root_bone = anim_skeleton_node->children.data[i];
 			break;
 		}
+	}
+	assert(root_bone != NULL);
+	// get bind pose
+	ufbx_pose *bind_pose = root_bone->bind_pose;
+	assert(bind_pose != NULL);
+	// get all bones
+	ufbx_node *bones[MAX_BONES_PER_MESH] = {root_bone};
+	uint32_t bones_length = 1;
+	for (size_t i = root_bone->typed_id + 1; i < scene->nodes.count; i++) {
+		ufbx_node *node = scene->nodes.data[i];
+		if (node->node_depth <= root_bone->node_depth) {
+			break;
+		}
+		
 		if (node->bone) {
-			bool is_root_bone = node->bone->is_root || node->parent->bone == NULL;
-			if (is_root_bone) {
-				assert(root_bone == NULL);
-				assert(node->bind_pose != NULL);
-				root_bone = node;
-				bind_pose = node->bind_pose;
-			} else {
-				assert(root_bone != NULL);
-			}
 			assert(bones_length < MAX_BONES_PER_MESH);
 			bones[bones_length++] = node;
 			fprintf(stderr, "Importing bone %s\n", node->name.data);
 		}
 	}
 	fprintf(stderr, "Imported %u bones\n", bones_length);
-	assert(bones_length == scene_bone_count);
+	// get bone parent indices
 	uint8_t bones_parent[MAX_BONES_PER_MESH] = {0};
 	for (uint32_t ibone = 1; ibone < bones_length; ++ibone) {
 		uint32_t iparent = 0;
@@ -188,7 +281,6 @@ int cook_fbx()
 		assert(iparent < ibone);
 		bones_parent[ibone] = iparent;
 	}
-
 	// Import animations
 	struct Animation animations[MAX_ANIMATIONS_PER_ASSET];
 	assert(scene->anim_stacks.count < MAX_ANIMATIONS_PER_ASSET);
@@ -200,6 +292,8 @@ int cook_fbx()
 		ufbx_baked_anim *bake = ufbx_bake_anim(scene, anim, &opts, NULL);
 		assert(bake);
 		fprintf(stderr, "Importing anim: %s\n", stack->name.data);
+		animations[istack].id = ufbx_string_to_id(stack->name);
+		animations[istack].skeleton_id = skeleton_id;
 		for (size_t inode = 0; inode < bake->nodes.count; inode++) {
 			ufbx_baked_node *baked_node = &bake->nodes.data[inode];
 			ufbx_node *node = scene->nodes.data[baked_node->typed_id];
@@ -246,14 +340,11 @@ int cook_fbx()
 				scales.data[itrans].z = baked_scales.data[itrans].value.z;
 			}
 		}
-		ufbx_free_baked_anim(bake);
 	}
 
 	// Import the character mesh
-	assert(scene->meshes.count == 1);
-	ufbx_mesh *mesh = scene->meshes.data[0];
-	assert(mesh->skin_deformers.count == 1);
-	ufbx_skin_deformer *skin = mesh->skin_deformers.data[0];
+	assert(mesh_node->mesh->skin_deformers.count == 1);
+	ufbx_skin_deformer *skin = mesh_node->mesh->skin_deformers.data[0];
 	assert(skin->clusters.count <= MAX_BONES_PER_MESH);
 	uint32_t clusters_bone_identifier[MAX_BONES_PER_MESH] = {0};
 	ufbx_matrix clusters_geometry_to_bone[MAX_BONES_PER_MESH] = {0};
@@ -265,7 +356,7 @@ int cook_fbx()
 		fprintf(stderr, "Importing mesh skinned bone %s\n", cluster->bone_node->name.data);
 	}
 	fprintf(stderr, "Imported %u mesh skinned bones\n", clusters_length);
-	uint32_t mesh_indices_length = mesh->num_faces * 3;
+	uint32_t mesh_indices_length = mesh_node->mesh->num_faces * 3;
 	uint32_t mesh_vertices_length = mesh_indices_length; // TODO
 	uint32_t *indices = calloc(mesh_indices_length, sizeof(uint32_t));
 	Float3 *vertices_positions = calloc(mesh_vertices_length, sizeof(Float3));
@@ -277,16 +368,16 @@ int cook_fbx()
 	uint32_t *vertices_bone_weights = calloc(mesh_vertices_length, sizeof(uint32_t));
 	uint32_t ivertex = 0;
 	uint32_t iindex = 0;
-	for (uint32_t iface = 0; iface < mesh->num_faces; ++iface) {
-		ufbx_face face = mesh->faces.data[iface];
+	for (uint32_t iface = 0; iface < mesh_node->mesh->num_faces; ++iface) {
+		ufbx_face face = mesh_node->mesh->faces.data[iface];
 		assert(face.num_indices == 3);
 		for (uint32_t corner = 0; corner < face.num_indices; ++corner) {
 			uint32_t index = face.index_begin + corner;
-			ufbx_vec3 position = ufbx_get_vertex_vec3(&mesh->vertex_position, index);
-			ufbx_vec3 normal = ufbx_get_vertex_vec3(&mesh->vertex_normal, index);
-			ufbx_vec2 uv = ufbx_get_vertex_vec2(&mesh->vertex_uv, index);
-			// ufbx_vec3 tangent = ufbx_get_vertex_vec3(&mesh->vertex_tangent, index);
-			// ufbx_vec4 color = ufbx_get_vertex_vec4(&mesh->vertex_color, index);
+			ufbx_vec3 position = ufbx_get_vertex_vec3(&mesh_node->mesh->vertex_position, index);
+			ufbx_vec3 normal = ufbx_get_vertex_vec3(&mesh_node->mesh->vertex_normal, index);
+			ufbx_vec2 uv = ufbx_get_vertex_vec2(&mesh_node->mesh->vertex_uv, index);
+			// ufbx_vec3 tangent = ufbx_get_vertex_vec3(&mesh_node->mesh->vertex_tangent, index);
+			// ufbx_vec4 color = ufbx_get_vertex_vec4(&mesh_node->mesh->vertex_color, index);
 			indices[iindex++] = index;
 			vertices_positions[ivertex].x = position.x;
 			vertices_positions[ivertex].y = position.y;
@@ -305,7 +396,7 @@ int cook_fbx()
 			uint32_t vertex_bones_index[MAX_WEIGHTS] = {0};
 			float vertex_bones_weight[MAX_WEIGHTS] = {0};
 			uint32_t vertex_bones_normalized_weight[MAX_WEIGHTS] = {0};
-			uint32_t vertex = mesh->vertex_indices.data[index];
+			uint32_t vertex = mesh_node->mesh->vertex_indices.data[index];
 			ufbx_skin_vertex skin_vertex = skin->vertices.data[vertex];
 			assert(skin_vertex.num_weights < MAX_WEIGHTS);
 			float total_weight = 0.0f;
@@ -322,12 +413,10 @@ int cook_fbx()
 				
 				vertex_bones_normalized_weight[i] = (uint32_t)(w* 255.0f);
 			}
-
 			vertices_bone_indices[ivertex] = (vertex_bones_index[0] & 0xff)
 				| ((vertex_bones_index[1] & 0xff) << 8)
 				| ((vertex_bones_index[2] & 0xff) << 16)
 				| ((vertex_bones_index[3] & 0xff) << 24);
-			
 			vertices_bone_weights[ivertex] = (vertex_bones_normalized_weight[0] & 0xff)
 				| ((vertex_bones_normalized_weight[1] & 0xff) << 8)
 				| ((vertex_bones_normalized_weight[2] & 0xff) << 16)
@@ -343,6 +432,7 @@ int cook_fbx()
 	for (uint32_t ianim = 0; ianim < scene->anim_stacks.count; ++ianim) {
 		skeletal_mesh_with_animations.animations[ianim] = animations[ianim];
 	}
+	skeletal_mesh_with_animations.anim_skeleton.id = skeleton_id;
 	skeletal_mesh_with_animations.anim_skeleton.bones_length = bones_length;
 	for (uint32_t ibone = 0; ibone < bones_length; ++ibone) {
 		ufbx_bone_pose *bone_pose = ufbx_get_bone_pose(bind_pose, bones[ibone]);
@@ -356,6 +446,7 @@ int cook_fbx()
 		skeletal_mesh_with_animations.anim_skeleton.bones_parent[ibone] = bones_parent[ibone];
 		skeletal_mesh_with_animations.anim_skeleton.bones_identifier[ibone] = ufbx_string_to_id(bones[ibone]->name);
 	}
+	skeletal_mesh_with_animations.skeletal_mesh.id = skeletal_mesh_id;
 	skeletal_mesh_with_animations.skeletal_mesh.indices = indices;
 	skeletal_mesh_with_animations.skeletal_mesh.indices_length = mesh_indices_length;
 	skeletal_mesh_with_animations.skeletal_mesh.vertices_length = mesh_vertices_length;
@@ -376,8 +467,6 @@ int cook_fbx()
 		skeletal_mesh_with_animations.skeletal_mesh.bones_identifier[icluster] = clusters_bone_identifier[icluster];
 	}
 	
-	ufbx_free_scene(scene);
-
 	uint32_t serializer_capacity = (16 << 20);
 	Serializer serializer = serialize_begin_write_file(serializer_capacity);
 	Serialize_SkeletalMeshWithAnimationsAsset(&serializer, &skeletal_mesh_with_animations);
@@ -414,7 +503,7 @@ int main(int argc, char *argv[])
 
 	if (strcmp(asset_type, "mat") == 0) {
 		return cook_material();
-	} else if (strcmp(asset_type, "fbx") == 0) {
+	} else if (strcmp(asset_type, "skeletalmesh") == 0) {
 		return cook_fbx();
 	}
 	
@@ -422,4 +511,5 @@ int main(int argc, char *argv[])
 }
 
 #include "asset.c"
+#include "anim.c"
 #include <ufbx.c>

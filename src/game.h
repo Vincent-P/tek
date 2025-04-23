@@ -1,5 +1,6 @@
 #pragma once
 #include "tek.h"
+#include "game_components.h"
 
 #define INPUT_BUFFER_SIZE 20
 
@@ -27,34 +28,43 @@ struct GameInputs
 	GameInput player2;
 };
 
-struct PlayerState
+struct TekPlayerComponent
 {
 	uint32_t character_id;
-	Float3 position;
 	tek_PlayerState status;
 	GameInput input_buffer[INPUT_BUFFER_SIZE];
 	uint32_t input_buffer_frame_start[INPUT_BUFFER_SIZE];
 	uint32_t current_input_index;
 };
 
+struct PlayerEntity
+{
+	struct SpatialComponent spatial;
+	struct SkeletonComponent anim_skeleton;
+	struct AnimationComponent animation;
+	struct SkeletalMeshComponent mesh;
+	struct TekPlayerComponent tek;
+};
+
 struct GameState
 {
 	uint32_t frame_number;
-	
-	struct PlayerState player1;
-	struct PlayerState player2;
+	struct PlayerEntity player1_entity;
+	struct PlayerEntity player2_entity;
 };
 
 struct NonGameState
 {
+	struct AssetLibrary *assets;
 	// frame
 	uint32_t frame_number;
 	float dt;
 	float t;
 	// game
-	SkeletalMeshWithAnimationsAsset skeletal_mesh_with_animations;
-	struct AnimPose p1_pose;
-	struct SkeletalMeshInstance p1_mesh_instance;
+	struct AnimPose p1_pose; // technically is game state, but because it's computed each tick, it should be deterministic from the AnimationComponent
+	struct SkeletalMeshInstance p1_mesh_instance; // created from the renderer during init
+	struct AnimPose p2_pose;
+	struct SkeletalMeshInstance p2_mesh_instance;
 	// rendering
 	Renderer *renderer;
 	Camera camera;

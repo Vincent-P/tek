@@ -15,6 +15,7 @@
 #include "inputs.h"
 #include "game.h"
 #include "debugdraw.h"
+#include "file.h"
 
 struct Game
 {
@@ -26,6 +27,7 @@ struct Application
 {
 	SDL_Window *window;
 	struct Inputs inputs;
+	struct AssetLibrary assets;
 	struct Game game;
 	Renderer *renderer;
 
@@ -33,6 +35,43 @@ struct Application
 	uint64_t accumulator;
 	uint64_t t;
 };
+
+static void load_assets(struct AssetLibrary *assets, struct Renderer *renderer)
+{
+	Serializer s = {0};
+
+	s = serialize_begin_read_file("cooking/661c0bdc25fdb3b8");
+	SkeletalMeshWithAnimationsAsset skeletal_mesh_with_animations;
+	Serialize_SkeletalMeshWithAnimationsAsset(&s, &skeletal_mesh_with_animations);
+	serialize_end_read_file(&s);
+
+	AssetId anim_skeleton_id = asset_library_add_anim_skeleton(assets, skeletal_mesh_with_animations.anim_skeleton);
+	asset_library_add_skeletal_mesh(assets, skeletal_mesh_with_animations.skeletal_mesh);
+	for (uint32_t ianim = 0; ianim < skeletal_mesh_with_animations.animations_length; ++ianim) {
+		asset_library_add_animation(assets, skeletal_mesh_with_animations.animations[ianim]);
+	}
+
+	#if 0
+	skeletal_mesh_create_instance(&skeletal_mesh_with_animations.skeletal_mesh,
+			   &p1_mesh_instance,
+			   &state->skeletal_mesh_with_animations.anim_skeleton);	
+	renderer_create_render_skeletal_mesh(renderer, &skeletal_mesh_with_animations.skeletal_mesh, 0);
+	#endif
+
+	const char* materials[] = {
+		"cooking/bf8bce50da43cf2f",
+		"cooking/4dd315c5bebd8fc9",
+		"cooking/8c2a43f7925ad2a5",
+		"cooking/3cdd8b2d119ee92b",
+	};
+	for (uint32_t i = 0; i < ARRAY_LENGTH(materials); ++i) {
+		struct MaterialAsset material = {0};
+		s = serialize_begin_read_file(materials[i]);
+		Serialize_MaterialAsset(&s, &material);
+		serialize_end_read_file(&s);
+		asset_library_add_material(assets, material);
+	}
+}
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
@@ -43,12 +82,17 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 	SDL_Init(SDL_INIT_VIDEO);
 	application->window = SDL_CreateWindow("tek", 1280, 1280, SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
 
+	// load all assets
+	load_assets(&application->assets, application->renderer);
+	
 	// renderer and imgui init
 	ImGui_CreateContext(NULL);
 	application->renderer = calloc(1, renderer_get_size());
-	renderer_init(application->renderer, application->window);
+	renderer_init(application->renderer, &application->assets, application->window);
+
 
 	// game init
+	application->game.ngs.assets = &application->assets;
 	game_state_init(&application->game.gs);
 	game_non_state_init(&application->game.ngs, application->renderer);
 	

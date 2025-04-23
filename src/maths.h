@@ -132,7 +132,11 @@ SerializeSimpleType(Float4x4);
 typedef struct Float3x4 Float3x4;
 struct Float3x4
 {
-	float values[12];
+	union
+	{
+		float values[12];
+		Float3 cols[4];
+	};
 };
 SerializeSimpleType(Float3x4);
 

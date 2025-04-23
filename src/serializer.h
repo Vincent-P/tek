@@ -22,9 +22,11 @@ enum SerializerVersions
 };
 
 
-#define SV_ADD(revision, type, field) if (serializer->version>=revision) Serialize_##type(serializer, &value->field);
-#define SV_REM(added, removed, type, field, default) type field=default; if (serializer->version>=added && serializer->version<removed) Serialize_##type(serializer, field);
-
+#define SV_ADD_IMPL(revision, type, field) if (serializer->version>=revision) Serialize_##type(serializer, &value->field);
+#define SV_REM_IMPL(added, removed, type, field, default) type field=default; if (serializer->version>=added && serializer->version<removed) Serialize_##type(serializer, field);
+// Use 2 macros to force macro expansion when calling SV_ADD
+#define SV_ADD(revision, type, field) SV_ADD_IMPL(revision, type, field)
+#define SV_REM(added, removed, type, field, default) SV_REM(added, removed, type, field, default)
 #define SerializeSimpleType(T) \
 void Serialize_##T(Serializer *serializer, T *value) \
 { \

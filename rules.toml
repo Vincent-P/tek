@@ -1,7 +1,7 @@
 [[Rule]]
 Name = "Material"
 Priority = 1
-Version = 1
+Version = 2
 InputFilters = [
     { Repo = "assets", PathPattern = "*.mat.json" }
 ]
@@ -11,9 +11,9 @@ CommandLine = 'cooker.exe mat "{ Path }" "{ Repo:assets }" "{ Repo:cooking }"'
 [[Rule]]
 Name = "3D"
 Priority = 1
-Version = 0
+Version = 2
 InputFilters = [
-    { Repo = "assets", PathPattern = "*.fbx" }
+    { Repo = "assets", PathPattern = "*.skeletalmesh.json" }
 ]
 DepFile = { Path = '{ Repo:cooking }{ Path }.dep', Format = 'AssetCooker' }
-CommandLine = 'cooker.exe fbx "{ Path }" "{ Repo:assets }" "{ Repo:cooking }"'
+CommandLine = 'cooker.exe skeletalmesh "{ Path }" "{ Repo:assets }" "{ Repo:cooking }"'

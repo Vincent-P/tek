@@ -79,7 +79,7 @@ uint32_t renderer_get_size(void)
 	return sizeof(Renderer);
 }
 
-void renderer_init(Renderer *renderer, SDL_Window *window)
+void renderer_init(Renderer *renderer, struct AssetLibrary *assets, SDL_Window *window)
 {
 	renderer->device = calloc(1, vulkan_get_device_size());
 
@@ -105,11 +105,8 @@ void renderer_init(Renderer *renderer, SDL_Window *window)
 	renderer->imgui_fontatlas = 0;
 	renderer->imgui_ibuffer = 0;
 	renderer->imgui_vbuffer = 1;
-	struct MaterialAsset imgui_material = {0};
-	Serializer s = serialize_begin_read_file("cooking/bf8bce50da43cf2f");
-	Serialize_MaterialAsset(&s, &imgui_material);
-	serialize_end_read_file(&s);
-	new_graphics_program(renderer->device, renderer->imgui_pso, imgui_material);
+	struct MaterialAsset *imgui_material = asset_library_get_material(assets, 3661877039);
+	new_graphics_program(renderer->device, renderer->imgui_pso, *imgui_material);
 	new_index_buffer(renderer->device, renderer->imgui_ibuffer, (64 << 10));
 	new_storage_buffer(renderer->device, renderer->imgui_vbuffer, (64 << 10));
 	unsigned char *pixels = NULL;
@@ -128,13 +125,10 @@ void renderer_init(Renderer *renderer, SDL_Window *window)
 	renderer->dd_line_pso = 2;
 	renderer->dd_ibuffer = 2;
 	renderer->dd_vbuffer = 3;
-	struct MaterialAsset dd_material = {0};
-	s = serialize_begin_read_file("cooking/4dd315c5bebd8fc9");
-	Serialize_MaterialAsset(&s, &dd_material);
-	serialize_end_read_file(&s);
-	new_graphics_program_ex(renderer->device, renderer->dd_pso, dd_material, pso_spec);
+	struct MaterialAsset *dd_material = asset_library_get_material(assets, 3200094153);
+	new_graphics_program_ex(renderer->device, renderer->dd_pso, *dd_material, pso_spec);
 	pso_spec.topology = VULKAN_TOPOLOGY_LINE_LIST;
-	new_graphics_program_ex(renderer->device, renderer->dd_line_pso, dd_material, pso_spec);
+	new_graphics_program_ex(renderer->device, renderer->dd_line_pso, *dd_material, pso_spec);
 	new_index_buffer(renderer->device, renderer->dd_ibuffer, (64 << 10));
 	new_storage_buffer(renderer->device, renderer->dd_vbuffer, (64 << 10));
 
@@ -149,11 +143,8 @@ void renderer_init(Renderer *renderer, SDL_Window *window)
 	renderer->mesh_vbuffer = 5;
 	new_index_buffer(renderer->device, renderer->mesh_ibuffer, RENDERER_MESH_INDEX_CAPACITY * sizeof(uint32_t));
 	new_storage_buffer(renderer->device, renderer->mesh_vbuffer, RENDERER_MESH_VERTEX_CAPACITY * sizeof(struct MeshVert));
-	struct MaterialAsset mesh_material = {0};
-	s = serialize_begin_read_file("cooking/8c2a43f7925ad2a5");
-	Serialize_MaterialAsset(&s, &mesh_material);
-	serialize_end_read_file(&s);
-	new_graphics_program(renderer->device, renderer->mesh_pso, mesh_material);
+	struct MaterialAsset *mesh_material = asset_library_get_material(assets, 2455425701);
+	new_graphics_program(renderer->device, renderer->mesh_pso, *mesh_material);
 
 	memset(buffer_get_mapped_pointer(renderer->device, renderer->mesh_vbuffer), 0, buffer_get_size(renderer->device, renderer->mesh_vbuffer));
 	memset(buffer_get_mapped_pointer(renderer->device, renderer->mesh_ibuffer), 0, buffer_get_size(renderer->device, renderer->mesh_ibuffer));
@@ -162,12 +153,9 @@ void renderer_init(Renderer *renderer, SDL_Window *window)
 	new_storage_buffer(renderer->device, renderer->constant_buffer, (64 << 10));
 
 	// shader bg
-	struct MaterialAsset bg0_material = {0};
-	s = serialize_begin_read_file("cooking/3cdd8b2d119ee92b");
-	Serialize_MaterialAsset(&s, &bg0_material);
-	serialize_end_read_file(&s);
+	struct MaterialAsset *bg0_material = asset_library_get_material(assets, 295627051);
 	renderer->bg0_pso = 4;
-	new_graphics_program(renderer->device, renderer->bg0_pso, bg0_material);
+	new_graphics_program(renderer->device, renderer->bg0_pso, *bg0_material);
 }
 
 void renderer_set_time(Renderer *renderer, float t)
@@ -175,7 +163,7 @@ void renderer_set_time(Renderer *renderer, float t)
 	renderer->time = t;
 }
 
-void renderer_create_skeletal_mesh(Renderer *renderer, struct SkeletalMeshAsset *asset, uint32_t handle)
+void renderer_create_render_skeletal_mesh(Renderer *renderer, struct SkeletalMeshAsset *asset, uint32_t handle)
 {
 	oa_allocation_t vbuffer_allocation = {0};
 	int alloc_res = oa_allocate(&renderer->mesh_vbuffer_allocator, asset->vertices_length, &vbuffer_allocation);

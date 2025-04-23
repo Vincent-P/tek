@@ -3,34 +3,19 @@
 #include "maths.h"
 #include "anim.h"
 
+#define AssetId uint32_t
+
 typedef struct MaterialAsset MaterialAsset;
 struct MaterialAsset
 {
 	struct Blob vertex_shader_bytecode;
 	struct Blob pixel_shader_bytecode;
 	uint32_t render_pass_id;
+	AssetId id;
 };
 
 void Serialize_MaterialAsset(Serializer *serializer, MaterialAsset *value);
-
-#define MAX_WEIGHTS  4
-typedef struct SkeletalMeshAsset SkeletalMeshAsset;
-struct SkeletalMeshAsset
-{
-	uint32_t *indices;
-	uint32_t indices_length;
-	uint32_t vertices_length;
-	Float3 *vertices_positions;
-	Float3 *vertices_normals;
-	Float3 *vertices_tangents;
-	Float2 *vertices_uvs;
-	uint32_t *vertices_colors;
-	uint32_t *vertices_bone_indices;
-	uint32_t *vertices_bone_weights;
-	uint32_t bones_identifier[MAX_BONES_PER_MESH];
-	Float3x4 bones_local_from_bind[MAX_BONES_PER_MESH]; // inverse bind pose
-	uint32_t bones_length;
-};
+;
 
 typedef struct SkeletalMeshWithAnimationsAsset SkeletalMeshWithAnimationsAsset;
 struct SkeletalMeshWithAnimationsAsset
@@ -41,3 +26,34 @@ struct SkeletalMeshWithAnimationsAsset
 	uint32_t animations_length;
 };
 void Serialize_SkeletalMeshWithAnimationsAsset(Serializer *serializer, SkeletalMeshWithAnimationsAsset *value);
+
+#define ASSET_MATERIAL_CAPACITY 4
+#define ASSET_SKELETAL_MESH_CAPACITY 4
+#define ASSET_ANIM_SKELETON_CAPACITY 4
+#define ASSET_ANIMATIONS_CAPACITY 4
+
+struct AssetLibrary
+{
+	MaterialAsset materials[ASSET_MATERIAL_CAPACITY];
+	AssetId materials_id[ASSET_MATERIAL_CAPACITY];
+	SkeletalMeshAsset skeletal_meshes[ASSET_SKELETAL_MESH_CAPACITY];
+	AssetId skeletal_meshes_id[ASSET_SKELETAL_MESH_CAPACITY];
+	AnimSkeleton anim_skeletons[ASSET_ANIM_SKELETON_CAPACITY];
+	AssetId anim_skeletons_id[ASSET_ANIM_SKELETON_CAPACITY];
+	Animation animations[ASSET_ANIMATIONS_CAPACITY];
+	AssetId animations_id[ASSET_ANIMATIONS_CAPACITY];
+
+	AssetId material_generation;
+	AssetId skeletal_mesh_generation;
+	AssetId anim_skeleton_generation;
+	AssetId animation_generation;
+};
+
+MaterialAsset *asset_library_get_material(struct AssetLibrary *assets, AssetId id);
+SkeletalMeshAsset *asset_library_get_skeletal_mesh(struct AssetLibrary *assets, AssetId id);
+AnimSkeleton *asset_library_get_anim_skeleton(struct AssetLibrary *assets, AssetId id);
+Animation *asset_library_get_animation(struct AssetLibrary *assets, AssetId id);
+AssetId asset_library_add_material(struct AssetLibrary *assets, struct MaterialAsset material);
+AssetId asset_library_add_skeletal_mesh(struct AssetLibrary *assets, struct SkeletalMeshAsset skeletal_mesh);
+AssetId asset_library_add_anim_skeleton(struct AssetLibrary *assets, struct AnimSkeleton anim_skeleton);
+AssetId asset_library_add_animation(struct AssetLibrary *assets, struct Animation animation);
