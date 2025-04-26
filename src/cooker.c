@@ -181,9 +181,8 @@ int cook_material()
 	uint32_t serializer_capacity = (4 << 10) + material.vertex_shader_bytecode.size + material.pixel_shader_bytecode.size;
 	Serializer serializer = serialize_begin_write_file(serializer_capacity);
 	Serialize_MaterialAsset(&serializer, &material);
-	XXH64_hash_t hash = XXH64(relative_path, strlen(relative_path), 0);
-	char dest_path[512];
-	snprintf(dest_path, sizeof(dest_path), "%s%llx", cooking_dir, hash);
+	char dest_path[512] = {0};
+	snprintf(dest_path, sizeof(dest_path), "%s%u", cooking_dir, material.id);
 	serialize_end_write_file(&serializer, dest_path);
 
 	// Save dep file to disk
@@ -470,9 +469,8 @@ int cook_fbx()
 	uint32_t serializer_capacity = (16 << 20);
 	Serializer serializer = serialize_begin_write_file(serializer_capacity);
 	Serialize_SkeletalMeshWithAnimationsAsset(&serializer, &skeletal_mesh_with_animations);
-	XXH64_hash_t hash = XXH64(relative_path, strlen(relative_path), 0);
 	char dest_path[512];
-	snprintf(dest_path, sizeof(dest_path), "%s%llx", cooking_dir, hash);
+	snprintf(dest_path, sizeof(dest_path), "%s%u", cooking_dir, skeletal_mesh_with_animations.skeletal_mesh.id);
 	serialize_end_write_file(&serializer, dest_path);
 	// Save dep file to disk
 	char dep_content[512] = {0};

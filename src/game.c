@@ -108,7 +108,7 @@ void game_simulate_frame(struct NonGameState *ngs, struct GameState *state, stru
 
 // -- Game state
 
-void game_state_init(struct GameState *state)
+void game_state_init(struct GameState *state, struct NonGameState *nonstate, Renderer *renderer)
 {
 	// initial game state
 	state->player1_entity.spatial.world_transform.cols[3].x = -1.0f;
@@ -119,21 +119,24 @@ void game_state_init(struct GameState *state)
 
 	state->player1_entity.animation.animation_id = 3108588149;
 	state->player2_entity.animation.animation_id = 3108588149;
-}
 
-void game_non_state_init(struct NonGameState *state, Renderer *renderer)
-{
-	state->renderer = renderer;
+	// initial non game state
+	nonstate->renderer = renderer;
+	SkeletalMeshAsset *skeletal_mesh = asset_library_get_skeletal_mesh(nonstate->assets, 1812931262);
+	AnimSkeleton *anim_skeleton = asset_library_get_anim_skeleton(nonstate->assets, 3189085727);
+	
+	// create an instance to hold the render pose
+	skeletal_mesh_create_instance(skeletal_mesh, &nonstate->p1_mesh_instance, anim_skeleton);
+	skeletal_mesh_create_instance(skeletal_mesh, &nonstate->p2_mesh_instance, anim_skeleton);
+	// upload the skeletal mesh to the renderer at slot 0
+	renderer_create_render_skeletal_mesh(renderer, skeletal_mesh, 0);
 
-	state->camera.position.y = 0.8f;
-	state->camera.position.z = 6.0f;
-	state->camera.lookat.y = 0.8f;
-	state->camera.vertical_fov = 40.0f;
 
-	skeletal_mesh_create_instance(&skeletal_mesh_with_animations.skeletal_mesh,
-				      &p1_mesh_instance,
-				      &state->skeletal_mesh_with_animations.anim_skeleton);	
-
+	
+	nonstate->camera.position.y = 0.8f;
+	nonstate->camera.position.z = 6.0f;
+	nonstate->camera.lookat.y = 0.8f;
+	nonstate->camera.vertical_fov = 40.0f;
 }
 
 void game_state_update(struct NonGameState *nonstate, struct GameState *state, struct GameInputs inputs)
@@ -255,4 +258,5 @@ void game_render(struct NonGameState *nonstate, struct GameState *state)
 	ImGui_End();
 
 	renderer_submit_skeletal_instance(nonstate->renderer, &nonstate->p1_mesh_instance);
+	renderer_submit_skeletal_instance(nonstate->renderer, &nonstate->p2_mesh_instance);
 }

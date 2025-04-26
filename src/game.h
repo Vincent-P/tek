@@ -76,8 +76,7 @@ struct NonGameState
 struct GameInputs game_read_input(struct Inputs *inputs);
 void game_simulate_frame(struct NonGameState *ngs, struct GameState *state, struct GameInputs input);
 
-void game_state_init(struct GameState *state);
-void game_non_state_init(struct NonGameState *state, Renderer *renderer);
+void game_state_init(struct GameState *state, struct NonGameState *nonstate, Renderer *renderer);
 
 // Called by the game during a rollback or a frame.
 void game_state_update(struct NonGameState *nonstate, struct GameState *state, struct GameInputs input);

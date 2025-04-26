@@ -40,7 +40,7 @@ static void load_assets(struct AssetLibrary *assets, struct Renderer *renderer)
 {
 	Serializer s = {0};
 
-	s = serialize_begin_read_file("cooking/661c0bdc25fdb3b8");
+	s = serialize_begin_read_file("cooking/1812931262");
 	SkeletalMeshWithAnimationsAsset skeletal_mesh_with_animations;
 	Serialize_SkeletalMeshWithAnimationsAsset(&s, &skeletal_mesh_with_animations);
 	serialize_end_read_file(&s);
@@ -51,18 +51,11 @@ static void load_assets(struct AssetLibrary *assets, struct Renderer *renderer)
 		asset_library_add_animation(assets, skeletal_mesh_with_animations.animations[ianim]);
 	}
 
-	#if 0
-	skeletal_mesh_create_instance(&skeletal_mesh_with_animations.skeletal_mesh,
-			   &p1_mesh_instance,
-			   &state->skeletal_mesh_with_animations.anim_skeleton);	
-	renderer_create_render_skeletal_mesh(renderer, &skeletal_mesh_with_animations.skeletal_mesh, 0);
-	#endif
-
 	const char* materials[] = {
-		"cooking/bf8bce50da43cf2f",
-		"cooking/4dd315c5bebd8fc9",
-		"cooking/8c2a43f7925ad2a5",
-		"cooking/3cdd8b2d119ee92b",
+		"cooking/3661877039",
+		"cooking/3200094153",
+		"cooking/2455425701",
+		"cooking/295627051",
 	};
 	for (uint32_t i = 0; i < ARRAY_LENGTH(materials); ++i) {
 		struct MaterialAsset material = {0};
@@ -93,8 +86,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 
 	// game init
 	application->game.ngs.assets = &application->assets;
-	game_state_init(&application->game.gs);
-	game_non_state_init(&application->game.ngs, application->renderer);
+	game_state_init(&application->game.gs, &application->game.ngs, application->renderer);
 	
 	return SDL_APP_CONTINUE;
 }
