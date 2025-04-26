@@ -66,6 +66,18 @@ static void load_assets(struct AssetLibrary *assets, struct Renderer *renderer)
 	}
 }
 
+static void postload_assets(struct AssetLibrary *assets, struct Renderer *renderer)
+{
+	for (uint32_t iskeletal_mesh = 0; iskeletal_mesh < ASSET_SKELETAL_MESH_CAPACITY; ++iskeletal_mesh) {
+		if (assets->skeletal_meshes_id[iskeletal_mesh] == 0) {
+			break;
+		}
+
+		SkeletalMeshAsset *skeletal_mesh = assets->skeletal_meshes + iskeletal_mesh;
+		renderer_create_render_skeletal_mesh(renderer, skeletal_mesh, iskeletal_mesh);
+	}
+}
+
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
 	struct Application *application = calloc(1, sizeof(struct Application));
@@ -83,6 +95,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 	application->renderer = calloc(1, renderer_get_size());
 	renderer_init(application->renderer, &application->assets, application->window);
 
+	postload_assets(&application->assets, application->renderer);
 
 	// game init
 	application->game.ngs.assets = &application->assets;
@@ -226,3 +239,5 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 #include "inputs.c"
 #include "anim.c"
 #include <ufbx.c>
+
+#include "editor.c"

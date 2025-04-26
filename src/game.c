@@ -2,6 +2,7 @@
 #include "inputs.h"
 #include "debugdraw.h"
 #include "renderer.h"
+#include "editor.h"
 
 // -- Game Inputs
 
@@ -91,6 +92,7 @@ struct GameInputs game_read_input(struct Inputs *inputs)
 }
 
 // -- Game
+void game_state_update(struct NonGameState *nonstate, struct GameState *state, struct GameInputs inputs);
 
 void game_simulate_frame(struct NonGameState *ngs, struct GameState *state, struct GameInputs inputs)
 {
@@ -110,29 +112,40 @@ void game_simulate_frame(struct NonGameState *ngs, struct GameState *state, stru
 
 void game_state_init(struct GameState *state, struct NonGameState *nonstate, Renderer *renderer)
 {
-	// initial game state
+	// Initial game state
+	state->player1_entity.spatial.world_transform.cols[0].z = -1.0f;
+	state->player1_entity.spatial.world_transform.cols[1].y = 1.0f;
+	state->player1_entity.spatial.world_transform.cols[2].x = 1.0f;
 	state->player1_entity.spatial.world_transform.cols[3].x = -1.0f;
+	state->player2_entity.spatial.world_transform.cols[0].x = 1.0f;
+	state->player2_entity.spatial.world_transform.cols[1].y = 1.0f;
+	state->player2_entity.spatial.world_transform.cols[2].z = 1.0f;
 	state->player2_entity.spatial.world_transform.cols[3].x = 1.0f;
-
 	state->player1_entity.anim_skeleton.anim_skeleton_id = 3189085727;
 	state->player2_entity.anim_skeleton.anim_skeleton_id = 3189085727;
-
 	state->player1_entity.animation.animation_id = 3108588149;
 	state->player2_entity.animation.animation_id = 3108588149;
 
 	// initial non game state
 	nonstate->renderer = renderer;
-	SkeletalMeshAsset *skeletal_mesh = asset_library_get_skeletal_mesh(nonstate->assets, 1812931262);
-	AnimSkeleton *anim_skeleton = asset_library_get_anim_skeleton(nonstate->assets, 3189085727);
-	
+
+	// Init players
+	SkeletalMeshAsset const *skeletal_mesh = asset_library_get_skeletal_mesh(nonstate->assets, 1812931262);
+	AnimSkeleton const *anim_skeleton = asset_library_get_anim_skeleton(nonstate->assets, 3189085727);
 	// create an instance to hold the render pose
 	skeletal_mesh_create_instance(skeletal_mesh, &nonstate->p1_mesh_instance, anim_skeleton);
 	skeletal_mesh_create_instance(skeletal_mesh, &nonstate->p2_mesh_instance, anim_skeleton);
-	// upload the skeletal mesh to the renderer at slot 0
-	renderer_create_render_skeletal_mesh(renderer, skeletal_mesh, 0);
-
-
+	// create render instances
+	struct SkeletalMeshInstanceData render_instance_data = {0};
+	render_instance_data.mesh = skeletal_mesh;
+	render_instance_data.dynamic_data_mesh = &nonstate->p1_mesh_instance;
+	render_instance_data.dynamic_data_spatial = &state->player1_entity.spatial;
+	renderer_register_skeletal_mesh_instance(renderer, render_instance_data);	
+	render_instance_data.dynamic_data_mesh = &nonstate->p2_mesh_instance;
+	render_instance_data.dynamic_data_spatial = &state->player2_entity.spatial;
+	renderer_register_skeletal_mesh_instance(renderer, render_instance_data);
 	
+	// Init camera
 	nonstate->camera.position.y = 0.8f;
 	nonstate->camera.position.z = 6.0f;
 	nonstate->camera.lookat.y = 0.8f;
@@ -172,9 +185,15 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 	state->frame_number += 1;
 
 	// Evaluate anims
-	struct AnimSkeleton *anim_skeleton = asset_library_get_anim_skeleton(nonstate->assets,
+	Float3 average_pos = float3_add(p1_root->world_transform.cols[3], p2_root->world_transform.cols[3]);
+	average_pos.x *= 0.5f;
+	average_pos.y *= 0.5f;
+	average_pos.z *= 0.5f;
+	nonstate->camera.lookat = average_pos;
+
+	struct AnimSkeleton const *anim_skeleton = asset_library_get_anim_skeleton(nonstate->assets,
 									     state->player1_entity.anim_skeleton.anim_skeleton_id);
-	struct Animation *animation = asset_library_get_animation(nonstate->assets, state->player1_entity.animation.animation_id);
+	struct Animation const *animation = asset_library_get_animation(nonstate->assets, state->player1_entity.animation.animation_id);
 	if (animation != NULL) {
 		anim_evaluate_animation(anim_skeleton, animation, &nonstate->p1_pose, (float)state->frame_number);
 		anim_pose_compute_global_transforms(anim_skeleton, &nonstate->p1_pose);
@@ -186,6 +205,7 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 			p.x = F34(nonstate->p1_pose.global_transforms[ibone], 0, 3);
 			p.y = F34(nonstate->p1_pose.global_transforms[ibone], 1, 3);
 			p.z = F34(nonstate->p1_pose.global_transforms[ibone], 2, 3);
+			p = float3_add(p, state->player1_entity.spatial.world_transform.cols[3]);
 			debug_draw_point(p);
 		}
 	}
@@ -249,6 +269,8 @@ void game_render(struct NonGameState *nonstate, struct GameState *state)
 		}
 	}
 	ImGui_End();
+	ed_display_player_entity("Player 1", &state->player1_entity);
+	ed_display_player_entity("Player 2", &state->player2_entity);
 
 	if (ImGui_Begin("Game", NULL, 0)) {
 		ImGui_DragFloat3Ex("camera position", &nonstate->camera.position.x, 0.1f, 0.0f, 0.0f, "%.3f", 0);
@@ -256,7 +278,4 @@ void game_render(struct NonGameState *nonstate, struct GameState *state)
 		ImGui_DragFloat("camera fov", &nonstate->camera.vertical_fov);
 	}
 	ImGui_End();
-
-	renderer_submit_skeletal_instance(nonstate->renderer, &nonstate->p1_mesh_instance);
-	renderer_submit_skeletal_instance(nonstate->renderer, &nonstate->p2_mesh_instance);
 }

@@ -72,14 +72,11 @@ struct NonGameState
 	// session connection
 };
 
+void game_state_init(struct GameState *state, struct NonGameState *nonstate, Renderer *renderer);
+
 // GGPO requires a function to simulate 1 frame with specified inputs for rollback.
 struct GameInputs game_read_input(struct Inputs *inputs);
 void game_simulate_frame(struct NonGameState *ngs, struct GameState *state, struct GameInputs input);
-
-void game_state_init(struct GameState *state, struct NonGameState *nonstate, Renderer *renderer);
-
-// Called by the game during a rollback or a frame.
-void game_state_update(struct NonGameState *nonstate, struct GameState *state, struct GameInputs input);
 
 // Update renderer with the latest game state.
 void game_render(struct NonGameState *nonstate, struct GameState *state);

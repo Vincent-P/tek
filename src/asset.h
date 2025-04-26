@@ -49,10 +49,10 @@ struct AssetLibrary
 	AssetId animation_generation;
 };
 
-MaterialAsset *asset_library_get_material(struct AssetLibrary *assets, AssetId id);
-SkeletalMeshAsset *asset_library_get_skeletal_mesh(struct AssetLibrary *assets, AssetId id);
-AnimSkeleton *asset_library_get_anim_skeleton(struct AssetLibrary *assets, AssetId id);
-Animation *asset_library_get_animation(struct AssetLibrary *assets, AssetId id);
+MaterialAsset const *asset_library_get_material(struct AssetLibrary *assets, AssetId id);
+SkeletalMeshAsset const *asset_library_get_skeletal_mesh(struct AssetLibrary *assets, AssetId id);
+AnimSkeleton const *asset_library_get_anim_skeleton(struct AssetLibrary *assets, AssetId id);
+Animation const *asset_library_get_animation(struct AssetLibrary *assets, AssetId id);
 AssetId asset_library_add_material(struct AssetLibrary *assets, struct MaterialAsset material);
 AssetId asset_library_add_skeletal_mesh(struct AssetLibrary *assets, struct SkeletalMeshAsset skeletal_mesh);
 AssetId asset_library_add_anim_skeleton(struct AssetLibrary *assets, struct AnimSkeleton anim_skeleton);

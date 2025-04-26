@@ -80,14 +80,14 @@ struct SkeletalMeshAsset
 	uint32_t bones_identifier[MAX_BONES_PER_MESH];
 	Float3x4 bones_local_from_bind[MAX_BONES_PER_MESH]; // inverse bind pose
 	uint32_t bones_length;
+	uint32_t render_handle;
 };
 	
 struct SkeletalMeshInstance
 {
 	uint32_t render_bone_from_anim_bone[MAX_BONES_PER_MESH]; // mapping from anim skeleton to render skeleton
 	Float3x4 pose[MAX_BONES_PER_MESH]; // global_from_local * local_from_bind
-	struct SkeletalMeshAsset *asset;
-	uint32_t skeletal_mesh_render_handle;
+	struct SkeletalMeshAsset const *asset;
 };
 
 void Serialize_AnimTrack(Serializer *serializer, AnimTrack *value);
@@ -95,8 +95,8 @@ void Serialize_Animation(Serializer *serializer, Animation *value);
 void Serialize_AnimSkeleton(Serializer *serializer, AnimSkeleton *value);
 void Serialize_SkeletalMeshAsset(Serializer *serializer, SkeletalMeshAsset *value);
 
-void anim_evaluate_animation(struct AnimSkeleton *skeleton, Animation const* anim, struct AnimPose *out_pose, float t);
-void anim_pose_compute_global_transforms(struct AnimSkeleton *skeleton, struct AnimPose *pose);
+void anim_evaluate_animation(struct AnimSkeleton const *skeleton, Animation const* anim, struct AnimPose *out_pose, float t);
+void anim_pose_compute_global_transforms(struct AnimSkeleton const *skeleton, struct AnimPose *pose);
 
-void skeletal_mesh_create_instance(struct SkeletalMeshAsset *asset, struct SkeletalMeshInstance *instance, struct AnimSkeleton *skeleton);
+void skeletal_mesh_create_instance(struct SkeletalMeshAsset const *asset, struct SkeletalMeshInstance *instance, struct AnimSkeleton const *skeleton);
 void skeletal_mesh_apply_pose(struct SkeletalMeshInstance *instance, struct AnimPose *pose);

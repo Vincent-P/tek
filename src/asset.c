@@ -20,7 +20,7 @@ void Serialize_SkeletalMeshWithAnimationsAsset(Serializer *serializer, SkeletalM
 	}
 }
 
-MaterialAsset *asset_library_get_material(struct AssetLibrary *assets, AssetId id)
+MaterialAsset const *asset_library_get_material(struct AssetLibrary *assets, AssetId id)
 {
 	for (uint32_t i = 0; i < ASSET_MATERIAL_CAPACITY; ++i) {
 		if (assets->materials_id[i] == id) {
@@ -31,7 +31,7 @@ MaterialAsset *asset_library_get_material(struct AssetLibrary *assets, AssetId i
 	return NULL;
 }
 
-SkeletalMeshAsset *asset_library_get_skeletal_mesh(struct AssetLibrary *assets, AssetId id)
+SkeletalMeshAsset const *asset_library_get_skeletal_mesh(struct AssetLibrary *assets, AssetId id)
 {
 	for (uint32_t i = 0; i < ASSET_SKELETAL_MESH_CAPACITY; ++i) {
 		if (assets->skeletal_meshes_id[i] == id) {
@@ -42,7 +42,7 @@ SkeletalMeshAsset *asset_library_get_skeletal_mesh(struct AssetLibrary *assets, 
 	return NULL;
 }
 
-AnimSkeleton *asset_library_get_anim_skeleton(struct AssetLibrary *assets, AssetId id)
+AnimSkeleton const *asset_library_get_anim_skeleton(struct AssetLibrary *assets, AssetId id)
 {
 	for (uint32_t i = 0; i < ASSET_ANIM_SKELETON_CAPACITY; ++i) {
 		if (assets->anim_skeletons_id[i] == id) {
@@ -53,7 +53,7 @@ AnimSkeleton *asset_library_get_anim_skeleton(struct AssetLibrary *assets, Asset
 	return NULL;
 }
 
-Animation *asset_library_get_animation(struct AssetLibrary *assets, AssetId id)
+Animation const *asset_library_get_animation(struct AssetLibrary *assets, AssetId id)
 {
 	for (uint32_t i = 0; i < ASSET_ANIMATIONS_CAPACITY; ++i) {
 		if (assets->animations_id[i] == id) {

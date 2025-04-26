@@ -23,6 +23,7 @@ layout(scalar, buffer_reference, buffer_reference_align=8) readonly buffer BoneM
 layout(scalar, push_constant) uniform uPushConstant {
     mat4 proj;
     mat4x3 view;
+    mat4x3 transform;
     BoneMatricesBuffer bones_buffer;
     MeshVertexBuffer vbuffer;
 } c_;
@@ -104,8 +105,8 @@ void main()
     vec3 skinned_p = float34_mul(bone_matrix, vertex.position).xyz;
 #endif
 
-    vec4 pos = c_.proj * float34_mul(c_.view, skinned_p);
+    vec4 pos = c_.proj * float34_mul(c_.view, float34_mul(c_.transform, skinned_p).xyz);
 
-    g_out.normal = adjugate(bone_matrix) * vertex.normal;
+    g_out.normal = adjugate(c_.transform) * (adjugate(bone_matrix) * vertex.normal);
     gl_Position = pos;
 }

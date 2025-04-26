@@ -23,6 +23,20 @@ struct MeshVert
 	// uint32_t colors
 };
 
+struct SkeletalMeshCBuffer
+{
+	Float3x4 bone_matrices[MAX_BONES_PER_MESH];
+};
+
+struct SkeletalMeshConstants
+{
+	Float4x4 proj;
+	Float3x4 view;
+	Float3x4 transform;
+	uint64_t bones_matrices_buffer;
+	uint64_t vbuffer;
+};
+
 struct RenderSkeletalMesh
 {
 	oa_allocation_t vbuffer_allocation;
@@ -30,13 +44,6 @@ struct RenderSkeletalMesh
 	uint32_t index_count;
 	uint32_t first_index;
 	int32_t vertex_offset;
-};
-
-struct RenderSkeletalMeshInstance
-{
-	uint32_t render_skeletal_mesh_handle;
-	// instance?
-	// ?????
 };
 
 struct Renderer
@@ -61,7 +68,8 @@ struct Renderer
 	uint32_t mesh_vbuffer;
 	uint32_t mesh_ibuffer;
 	RenderSkeletalMesh skeletal_meshes[RENDERER_SKELETAL_MESH_CAPACITY];
-	struct SkeletalMeshInstance* skeletal_instances_to_draw[4];
+	struct SkeletalMeshInstanceData skeletal_mesh_instances[2];
+	uint32_t skeletal_mesh_instances_length;
 	// background shaders
 	uint32_t bg0_pso;
 	// context
@@ -105,7 +113,7 @@ void renderer_init(Renderer *renderer, struct AssetLibrary *assets, SDL_Window *
 	renderer->imgui_fontatlas = 0;
 	renderer->imgui_ibuffer = 0;
 	renderer->imgui_vbuffer = 1;
-	struct MaterialAsset *imgui_material = asset_library_get_material(assets, 3661877039);
+	struct MaterialAsset const *imgui_material = asset_library_get_material(assets, 3661877039);
 	new_graphics_program(renderer->device, renderer->imgui_pso, *imgui_material);
 	new_index_buffer(renderer->device, renderer->imgui_ibuffer, (64 << 10));
 	new_storage_buffer(renderer->device, renderer->imgui_vbuffer, (64 << 10));
@@ -125,7 +133,7 @@ void renderer_init(Renderer *renderer, struct AssetLibrary *assets, SDL_Window *
 	renderer->dd_line_pso = 2;
 	renderer->dd_ibuffer = 2;
 	renderer->dd_vbuffer = 3;
-	struct MaterialAsset *dd_material = asset_library_get_material(assets, 3200094153);
+	struct MaterialAsset const *dd_material = asset_library_get_material(assets, 3200094153);
 	new_graphics_program_ex(renderer->device, renderer->dd_pso, *dd_material, pso_spec);
 	pso_spec.topology = VULKAN_TOPOLOGY_LINE_LIST;
 	new_graphics_program_ex(renderer->device, renderer->dd_line_pso, *dd_material, pso_spec);
@@ -143,7 +151,7 @@ void renderer_init(Renderer *renderer, struct AssetLibrary *assets, SDL_Window *
 	renderer->mesh_vbuffer = 5;
 	new_index_buffer(renderer->device, renderer->mesh_ibuffer, RENDERER_MESH_INDEX_CAPACITY * sizeof(uint32_t));
 	new_storage_buffer(renderer->device, renderer->mesh_vbuffer, RENDERER_MESH_VERTEX_CAPACITY * sizeof(struct MeshVert));
-	struct MaterialAsset *mesh_material = asset_library_get_material(assets, 2455425701);
+	struct MaterialAsset const *mesh_material = asset_library_get_material(assets, 2455425701);
 	new_graphics_program(renderer->device, renderer->mesh_pso, *mesh_material);
 
 	memset(buffer_get_mapped_pointer(renderer->device, renderer->mesh_vbuffer), 0, buffer_get_size(renderer->device, renderer->mesh_vbuffer));
@@ -153,7 +161,7 @@ void renderer_init(Renderer *renderer, struct AssetLibrary *assets, SDL_Window *
 	new_storage_buffer(renderer->device, renderer->constant_buffer, (64 << 10));
 
 	// shader bg
-	struct MaterialAsset *bg0_material = asset_library_get_material(assets, 295627051);
+	struct MaterialAsset const *bg0_material = asset_library_get_material(assets, 295627051);
 	renderer->bg0_pso = 4;
 	new_graphics_program(renderer->device, renderer->bg0_pso, *bg0_material);
 }
@@ -190,24 +198,24 @@ void renderer_create_render_skeletal_mesh(Renderer *renderer, struct SkeletalMes
 	for (uint32_t i = 0; i < asset->indices_length; ++i) {
 		gpu_indices[ibuffer_allocation.offset + i] = asset->indices[i];
 	}
+
+	asset->render_handle = handle;
 }
 
-struct SkeletalMeshCBuffer
+void renderer_register_skeletal_mesh_instance(Renderer *renderer, struct SkeletalMeshInstanceData data)
 {
-	Float3x4 bone_matrices[MAX_BONES_PER_MESH];
-};
+	uint32_t iinstance = renderer->skeletal_mesh_instances_length;
+	assert(iinstance < ARRAY_LENGTH(renderer->skeletal_mesh_instances));
 
-struct SkeletalMeshConstants
-{
-	Float4x4 proj;
-	Float3x4 view;
-	uint64_t bones_matrices_buffer;
-	uint64_t vbuffer;
-};
+	data.mesh_render_handle = data.mesh->render_handle;
+	
+	renderer->skeletal_mesh_instances[iinstance] = data;
+	renderer->skeletal_mesh_instances_length += 1;
+}
 
-void renderer_submit_skeletal_instance(Renderer *renderer, struct SkeletalMeshInstance* instance)
+void renderer_clear_skeletal_mesh_instances(Renderer *renderer)
 {
-	renderer->skeletal_instances_to_draw[0] = instance;
+	renderer->skeletal_mesh_instances_length = 0;
 }
 
 static void renderer_debug_draw_pass(Renderer *renderer, VulkanFrame *frame, VulkanRenderPass *pass)
@@ -464,36 +472,38 @@ void renderer_render(Renderer *renderer, struct Camera* camera)
 		vulkan_draw_not_indexed(renderer->device, &pass, 3);
 	}
 
-	struct SkeletalMeshInstance *instance = renderer->skeletal_instances_to_draw[0];
-	if (instance) {
-		struct RenderSkeletalMesh *render_mesh = &renderer->skeletal_meshes[instance->skeletal_mesh_render_handle];
-		uint32_t mesh_handle = instance->skeletal_mesh_render_handle;
+	vulkan_insert_debug_label(renderer->device, &pass, "skeletal meshes");
+	vulkan_bind_index_buffer(renderer->device, &pass, renderer->mesh_ibuffer);
+	vulkan_bind_graphics_pso(renderer->device, &pass, renderer->mesh_pso);
+	for (uint32_t iinstance = 0; iinstance < renderer->skeletal_mesh_instances_length; ++iinstance){
+		struct RenderSkeletalMesh *render_mesh = &renderer->skeletal_meshes[renderer->skeletal_mesh_instances[iinstance].mesh_render_handle];
+		struct SkeletalMeshInstance const *dynamic_data_mesh = renderer->skeletal_mesh_instances[iinstance].dynamic_data_mesh;
+		Float3x4 const* dynamic_data_transform = &renderer->skeletal_mesh_instances[iinstance].dynamic_data_spatial->world_transform;
 		// upload bone matrices
 		char *gpu_data = buffer_get_mapped_pointer(renderer->device, renderer->constant_buffer);
 		gpu_data += renderer->constant_offset;
 		assert(renderer->constant_offset + sizeof(struct SkeletalMeshCBuffer) <= buffer_get_size(renderer->device, renderer->constant_buffer));
 		struct SkeletalMeshCBuffer *gpu_cbuffer = (struct SkeletalMeshCBuffer*)gpu_data;
-		memcpy(gpu_cbuffer, instance->pose, sizeof(instance->pose));
+		memcpy(gpu_cbuffer, dynamic_data_mesh->pose, sizeof(dynamic_data_mesh->pose));
 		// prepare constants
 		struct SkeletalMeshConstants constants = {0};
 		constants.proj = renderer->proj;
 		constants.view = renderer->view;
-		constants.bones_matrices_buffer = buffer_get_gpu_address(renderer->device, renderer->constant_buffer);
-		constants.vbuffer = buffer_get_gpu_address(renderer->device, renderer->mesh_vbuffer);
-	
+		constants.transform = *dynamic_data_transform;
+		constants.bones_matrices_buffer = buffer_get_gpu_address(renderer->device, renderer->constant_buffer) + renderer->constant_offset;
+		constants.vbuffer = buffer_get_gpu_address(renderer->device, renderer->mesh_vbuffer);	
 		vulkan_push_constants(renderer->device, &pass, &constants, sizeof(constants));
-		vulkan_bind_index_buffer(renderer->device, &pass, renderer->mesh_ibuffer);
-		vulkan_bind_graphics_pso(renderer->device, &pass, renderer->mesh_pso);
-		vulkan_insert_debug_label(renderer->device, &pass, "skeletal meshes");
+		// draw
 		struct VulkanDraw draw = {render_mesh->index_count,
 					  1,
 					  render_mesh->first_index,
 					  render_mesh->vertex_offset,
 					  0};
 		vulkan_draw(renderer->device, &pass, draw);
-		
-		renderer->constant_offset = 0;
+		renderer->constant_offset += sizeof(struct SkeletalMeshCBuffer);
+
 	}
+	renderer->constant_offset = 0;
 	end_render_pass(renderer->device, &pass);
 
 	struct VulkanBeginPassInfo dd_pass_info = (struct VulkanBeginPassInfo){RENDER_PASSES_DEBUG_DRAW, {renderer->output_rt}, 1};

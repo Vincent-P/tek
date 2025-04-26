@@ -73,7 +73,7 @@ void Serialize_SkeletalMeshAsset(Serializer *serializer, SkeletalMeshAsset *valu
 	}
 }
 
-void anim_evaluate_animation(struct AnimSkeleton *skeleton, Animation const* anim, struct AnimPose *out_pose, float t)
+void anim_evaluate_animation(struct AnimSkeleton const *skeleton, Animation const* anim, struct AnimPose *out_pose, float t)
 {
 	uint32_t count = anim->tracks[0].translations.length;
 	uint32_t iframe = (uint32_t)t % count;
@@ -93,7 +93,7 @@ void anim_evaluate_animation(struct AnimSkeleton *skeleton, Animation const* ani
 	}
 }
 
-void anim_pose_compute_global_transforms(struct AnimSkeleton *skeleton, struct AnimPose *pose)
+void anim_pose_compute_global_transforms(struct AnimSkeleton const *skeleton, struct AnimPose *pose)
 {
 	pose->global_transforms[0] = float3x4_mul(skeleton->bones_global_transforms[0], pose->local_transforms[0]);
 	for (uint32_t i = 1; i < skeleton->bones_length; ++i) {
@@ -103,13 +103,12 @@ void anim_pose_compute_global_transforms(struct AnimSkeleton *skeleton, struct A
 	}
 }
 
-void skeletal_mesh_create_instance(struct SkeletalMeshAsset *asset, struct SkeletalMeshInstance *instance, struct AnimSkeleton *skeleton)
+void skeletal_mesh_create_instance(struct SkeletalMeshAsset const *asset, struct SkeletalMeshInstance *instance, struct AnimSkeleton const *skeleton)
 {
 	instance->asset = asset;
-	
+	// create mapping from anim bone to render bone
 	for (uint32_t ianimbone = 0; ianimbone < skeleton->bones_length; ++ianimbone) {
-		instance->render_bone_from_anim_bone[ianimbone] = MAX_BONES_PER_MESH;
-		
+		instance->render_bone_from_anim_bone[ianimbone] = MAX_BONES_PER_MESH;		
 		for (uint32_t irenderbone = 0; irenderbone < asset->bones_length; ++irenderbone) {
 			if (asset->bones_identifier[irenderbone] == skeleton->bones_identifier[ianimbone]) {
 				instance->render_bone_from_anim_bone[ianimbone] = irenderbone;
@@ -117,6 +116,17 @@ void skeletal_mesh_create_instance(struct SkeletalMeshAsset *asset, struct Skele
 			}
 		}
 	}
+	// apply bind pose
+	for (uint32_t ianimbone = 0; ianimbone < skeleton->bones_length; ++ianimbone) {
+		uint32_t irenderbone = instance->render_bone_from_anim_bone[ianimbone];
+		if (irenderbone < instance->asset->bones_length) {
+			instance->pose[irenderbone] = float3x4_mul(
+								   skeleton->bones_global_transforms[ianimbone],
+								   instance->asset->bones_local_from_bind[irenderbone]
+								   );
+		}
+	}
+
 }
 
 void skeletal_mesh_apply_pose(struct SkeletalMeshInstance *instance, struct AnimPose *pose)
