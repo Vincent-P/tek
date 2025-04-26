@@ -172,7 +172,7 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	device->my_vkDestroyDebugUtilsMessengerEXT = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(device->instance, "vkDestroyDebugUtilsMessengerEXT");
 	device->my_vkCmdInsertDebugUtilsLabelEXT = (PFN_vkCmdInsertDebugUtilsLabelEXT)vkGetInstanceProcAddr(device->instance, "vkCmdInsertDebugUtilsLabelEXT");
 
-	if (device->my_vkCreateDebugUtilsMessengerEXT){
+	if (device->my_vkCreateDebugUtilsMessengerEXT && false) {
 		VkDebugUtilsMessengerCreateInfoEXT ci	= {.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
 		ci.flags				= 0;
 		ci.messageSeverity			= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
@@ -436,13 +436,11 @@ static void create_swapchain(VulkanDevice *device, void *hwnd)
 		height = swapchainExtent.height;
 	}
 	// The FIFO present mode is guaranteed by the spec to be supported
-	VkPresentModeKHR swapchainPresentMode = VK_PRESENT_MODE_FIFO_KHR;
+	VkPresentModeKHR swapchainPresentMode = VK_PRESENT_MODE_FIFO_RELAXED_KHR;
 	uint32_t images_count = surfCapabilities.minImageCount;
-	if (images_count < 3 && surfCapabilities.maxImageCount >= 3) {
-		images_count = 3;
-	}
 	assert(images_count < MAX_BACKBUFFER_COUNT);
-		
+	printf("swapchain backbuffer count %u\n", images_count);
+
 	VkSurfaceTransformFlagBitsKHR preTransform = surfCapabilities.currentTransform;
 	if (surfCapabilities.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR) {
 		preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
@@ -906,14 +904,17 @@ static void set_image_layout(VkCommandBuffer cmd, VkImage image, VkImageLayout o
 
 void begin_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t *out_swapchain_w, uint32_t *out_swapchain_h)
 {
+	TracyCZoneN(f, "Vulkan begin frame", true);
 	frame->iframe = device->current_frame % FRAME_COUNT;
 	
 	VkResult res = VK_SUCCESS;
 	// -- wait for command buffer to finish
+	TracyCZoneN(wait, "wait for GPU", true);
 	res = vkWaitForFences(device->device, 1, &device->command_fence[frame->iframe], VK_TRUE, -1);
 	assert(res == VK_SUCCESS);
 	res = vkResetFences(device->device, 1, &device->command_fence[frame->iframe]);
 	assert(res == VK_SUCCESS);
+	TracyCZoneEnd(wait);
 
 	// -- recreate swapchain if needed
 #if defined(__linux__)
@@ -978,11 +979,14 @@ void begin_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t *out_swapcha
 			device->textures[itexture].upload_size = 0;
 		}
 	}
+	TracyCZoneEnd(f);
 }
 
 void end_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t output_rt_handle)
 {
+	TracyCZoneN(f, "Vulkan end frame", true);
 	// -- get swapchain image
+	TracyCZoneN(acquire, "AcquireNextImage", true);
 	uint32_t ibackbuffer = 0;
 	VkResult res = vkAcquireNextImageKHR(device->device,
 				    device->swapchain,
@@ -990,11 +994,13 @@ void end_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t output_rt_hand
 				    device->swapchain_acquire_semaphore[frame->iframe],
 				    VK_NULL_HANDLE,
 				    &ibackbuffer);
+	TracyCZoneEnd(acquire);
 	assert(res == VK_SUCCESS || res == VK_SUBOPTIMAL_KHR);
 	if (res == VK_SUBOPTIMAL_KHR)
 		device->should_recreate_swapchain = 1;
-
+	
 	// -- prepare present
+	TracyCZoneN(blit, "Blit to backbuffer", true);
 	if (output_rt_handle < ARRAY_LENGTH(device->rts) && device->rts[output_rt_handle].image != VK_NULL_HANDLE) {
 		VulkanRenderTarget *output_rt = device->rts + output_rt_handle;
 		
@@ -1034,12 +1040,14 @@ void end_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t output_rt_hand
 				 VK_ACCESS_NONE , VK_PIPELINE_STAGE_NONE,
 				 VK_PIPELINE_STAGE_NONE);
 	}
+	TracyCZoneEnd(blit);
 
 	// -- end
 	res = vkEndCommandBuffer(frame->cmd);
 	assert(res == VK_SUCCESS);
 
 	// -- submit
+	TracyCZoneN(submit, "Submit", true);
 	VkSemaphoreSubmitInfo wait_semaphore_info = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO};
 	wait_semaphore_info.semaphore = device->swapchain_acquire_semaphore[frame->iframe];
 	wait_semaphore_info.stageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
@@ -1057,8 +1065,10 @@ void end_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t output_rt_hand
 	submit_info.pSignalSemaphoreInfos = &signal_semaphore_info;
 	res = vkQueueSubmit2(device->graphics_queue, 1, &submit_info, device->command_fence[frame->iframe]);
 	assert(res == VK_SUCCESS);
+	TracyCZoneEnd(submit);
 
 	// -- present
+	TracyCZoneN(present, "Present", true);
 	VkPresentInfoKHR present_info = {.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
 	present_info.pNext = NULL;
 	present_info.swapchainCount = 1;
@@ -1071,6 +1081,9 @@ void end_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t output_rt_hand
 	assert(res == VK_SUCCESS || res == VK_SUBOPTIMAL_KHR);
 	if (res == VK_SUBOPTIMAL_KHR)
 		device->should_recreate_swapchain = 1;
+	TracyCZoneEnd(present);
+	
+	TracyCZoneEnd(f);
 }
 
 static void begin_render_pass_internal(VulkanDevice *device, VulkanFrame *frame, VulkanRenderPass *pass, struct VulkanBeginPassInfo pass_info, VkImageLayout color_layout, VkImageLayout depth_layout)

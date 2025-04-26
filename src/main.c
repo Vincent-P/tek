@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <math.h>
 #include <dcimgui.h>
+#include <tracy/tracy/TracyC.h>
 
 #define ARRAY_LENGTH(x) (sizeof(x)/sizeof(*x))
 
@@ -34,6 +35,7 @@ struct Application
 	uint64_t current_time;
 	uint64_t accumulator;
 	uint64_t t;
+	uint64_t f;
 };
 
 static void load_assets(struct AssetLibrary *assets, struct Renderer *renderer)
@@ -157,6 +159,8 @@ bool imgui_process_event(struct Application *application, SDL_Event* event)
 
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 {
+	TracyCZoneN(f, "AppEvent", true);
+	
 	struct Application *application = appstate;
 	if (event->type == SDL_EVENT_QUIT) {
 		return SDL_APP_SUCCESS;
@@ -165,11 +169,13 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 	imgui_process_event(application, event);
 	inputs_process_event(event, &application->inputs);
 	
+	TracyCZoneEnd(f);	
 	return SDL_APP_CONTINUE;
 }
 
 static void game_run_frame(struct Application *application)
 {
+	TracyCZoneN(f, "RunFrame", true);
 	struct GameInputs inputs = game_read_input(&application->inputs);
 	// ggpo_add_local_input
 
@@ -178,10 +184,13 @@ static void game_run_frame(struct Application *application)
 
 	application->game.ngs.t += 0.1f;
 	application->game.ngs.frame_number += 1;
+	TracyCZoneEnd(f);
 }
 
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
+	TracyCZoneN(appiterate, "MainLoop", true);
+	
 	struct Application *application = appstate;
 
 	// Setup display size (every frame to accommodate for window resizing)
@@ -211,6 +220,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 	if (ImGui_Begin("Application", NULL, 0)) {
 		ImGui_Text("current time: %llu", application->current_time);
 		ImGui_Text("time: %llu", application->t);
+		ImGui_Text("frame: %llu", application->f);
 		ImGui_Text("frame_time: %llu", frame_time);
 		ImGui_Text("accumulator: %llu", application->accumulator);
 	}
@@ -227,7 +237,10 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 	game_render(&application->game.ngs, &application->game.gs);
 	renderer_set_time(application->renderer, ((float)application->current_time) / 1000.0f);
 	renderer_render(application->renderer, &application->game.ngs.camera);
-
+	
+	application->f += 1;
+	TracyCZoneEnd(appiterate);
+	TracyCFrameMark;	
 	return SDL_APP_CONTINUE;
 }
 

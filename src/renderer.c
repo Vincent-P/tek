@@ -115,8 +115,8 @@ void renderer_init(Renderer *renderer, struct AssetLibrary *assets, SDL_Window *
 	renderer->imgui_vbuffer = 1;
 	struct MaterialAsset const *imgui_material = asset_library_get_material(assets, 3661877039);
 	new_graphics_program(renderer->device, renderer->imgui_pso, *imgui_material);
-	new_index_buffer(renderer->device, renderer->imgui_ibuffer, (64 << 10));
-	new_storage_buffer(renderer->device, renderer->imgui_vbuffer, (64 << 10));
+	new_index_buffer(renderer->device, renderer->imgui_ibuffer, (1 << 20));
+	new_storage_buffer(renderer->device, renderer->imgui_vbuffer, (1 << 20));
 	unsigned char *pixels = NULL;
 	int width = 0;
 	int height = 0;
@@ -426,6 +426,8 @@ static void renderer_imgui_pass(Renderer *renderer, VulkanFrame *frame, VulkanRe
 
 void renderer_render(Renderer *renderer, struct Camera* camera)
 {
+	TracyCZoneN(f, "Renderer render", true);
+	
 	VulkanFrame frame = {0};
 
 	uint32_t swapchain_width = 0;
@@ -517,4 +519,6 @@ void renderer_render(Renderer *renderer, struct Camera* camera)
 	end_render_pass(renderer->device, &pass);
 
 	end_frame(renderer->device, &frame, renderer->output_rt);
+
+	TracyCZoneEnd(f);
 }

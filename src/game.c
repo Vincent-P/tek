@@ -96,6 +96,7 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 
 void game_simulate_frame(struct NonGameState *ngs, struct GameState *state, struct GameInputs inputs)
 {
+	TracyCZoneN(f, "SimulateFrame", true);
 	debug_draw_reset();
 
 	game_state_update(ngs, state, inputs);
@@ -106,6 +107,7 @@ void game_simulate_frame(struct NonGameState *ngs, struct GameState *state, stru
 	// ggpo_advance_frame
 
 	// ggpoutil_perfmon_update
+	TracyCZoneEnd(f);
 }
 
 // -- Game state
@@ -154,6 +156,8 @@ void game_state_init(struct GameState *state, struct NonGameState *nonstate, Ren
 
 void game_state_update(struct NonGameState *nonstate, struct GameState *state, struct GameInputs inputs)
 {
+	TracyCZoneN(f, "StateUpdate", true);
+	
 	// register input in the input buffer
 	struct TekPlayerComponent *p1 = &state->player1_entity.tek;
 	if (inputs.player1 != p1->input_buffer[p1->current_input_index % INPUT_BUFFER_SIZE]) {
@@ -238,12 +242,16 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 		debug_draw_line((Float3){-width, 0.0f, i}, (Float3){width, 0.0f, i}, DD_WHITE & DD_QUARTER_ALPHA);
 		debug_draw_line((Float3){-width, 0.0f, -i}, (Float3){width, 0.0f, -i}, DD_WHITE & DD_QUARTER_ALPHA);
 	}
+	
+	TracyCZoneEnd(f);
 }
 
 // -- Render
 
 void game_render(struct NonGameState *nonstate, struct GameState *state)
 {
+	TracyCZoneN(f, "GameRender", true);
+	
 	struct TekPlayerComponent const *p1 = &state->player1_entity.tek;
 	if (ImGui_Begin("Player 1 inputs", NULL, 0)) {
 		if (ImGui_BeginTable("inputs", 2, ImGuiTableFlags_Borders)) {
@@ -278,4 +286,6 @@ void game_render(struct NonGameState *nonstate, struct GameState *state)
 		ImGui_DragFloat("camera fov", &nonstate->camera.vertical_fov);
 	}
 	ImGui_End();
+
+	TracyCZoneEnd(f);
 }
