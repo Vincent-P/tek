@@ -1,0 +1,34 @@
+{
+    "name": "michel",
+    "skeletal_mesh": "Michel_GEO",
+    "anim_skeleton": "rig",
+    "stances": [
+	{
+	    "name": "standing",
+	    "moves": [
+		{
+		    "name": "jab",
+		    "animation": "rig|Jab",
+		    "startup": 10,
+		    "active": 1,
+		    "recovery": 20,
+		    "hitstun": 29,
+		    "blockstun": 21,
+		    "base_damage": 10,
+		    "motion_input": 0,
+		    "action_input": 4, // LP(4) RP(5) LK(6) RK(7)
+		    "transition_input": 0,
+		    "transition_stance_id": 0,
+		},
+	    ],
+	},
+    ],
+    "hurtboxes": [
+	{
+	    "radius": 0.1,
+	    "height": 0.1,
+	    "bone": "DEF.spine",
+	}
+    ],
+    "hitboxes": [],
+}

@@ -66,6 +66,9 @@ static void load_assets(struct AssetLibrary *assets, struct Renderer *renderer)
 		serialize_end_read_file(&s);
 		asset_library_add_material(assets, material);
 	}
+
+	// tek
+	tek_read_character_json();
 }
 
 static void postload_assets(struct AssetLibrary *assets, struct Renderer *renderer)
@@ -455,6 +458,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 #include "inputs.c"
 #include "anim.c"
 #include "game_components.c"
+#include "tek.c"
 #include <ufbx.c>
 
 #include "editor.c"

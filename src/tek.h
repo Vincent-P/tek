@@ -40,6 +40,7 @@ enum tek_AttackType
 
 struct tek_Move
 {
+	uint32_t id;
 	// animation
 	uint32_t animation_id;
 	// frame data
@@ -47,7 +48,7 @@ struct tek_Move
 	uint8_t active; // how long is the move active
 	uint8_t recovery; // how long is the recovery
 	uint8_t hitstun; // stun the opponent for X frames on hit
-	uint8_t blockstuck; // stun the opponent for X frames on block
+	uint8_t blockstun; // stun the opponent for X frames on block
 	// gameplay
 	uint8_t base_damage;
 	tek_MotionInput motion_input;
@@ -66,11 +67,22 @@ struct tek_Stance
 
 struct tek_Character
 {
+	uint32_t id;
+	uint32_t skeletal_mesh_id;
+	uint32_t anim_skeleton_id;
+	// moves
 	struct tek_Stance stances[8];
 	uint32_t stances_length;
-	// 3d model
+	// hurtboxes, 0 or 1 per bone
+	float hurtboxes_radius[MAX_BONES_PER_MESH];
+	float hurtboxes_height[MAX_BONES_PER_MESH];
+	uint32_t hurtboxes_bone_id[MAX_BONES_PER_MESH];
+	uint32_t hurtboxes_length;
 };
 
 
 // ====
-struct tek_Character characters[1] = {0};
+struct tek_Character tek_characters[1] = {0};
+const char* tek_characters_filename[1] = {"michel.character.json"};
+
+void tek_read_character_json();

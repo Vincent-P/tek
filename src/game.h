@@ -46,11 +46,17 @@ struct PlayerEntity
 	struct TekPlayerComponent tek;
 };
 
+struct PlayerNonEntity
+{
+	struct AnimPose pose; // technically is game state, but because it's computed each tick, it should be deterministic from the AnimationComponent
+	struct SkeletalMeshInstance mesh_instance; // created from the renderer during init
+};
+
 struct GameState
 {
 	uint32_t frame_number;
-	struct PlayerEntity player1_entity;
-	struct PlayerEntity player2_entity;
+	struct PlayerEntity p1_entity;
+	struct PlayerEntity p2_entity;
 };
 
 struct NonGameState
@@ -61,10 +67,8 @@ struct NonGameState
 	float dt;
 	float t;
 	// game
-	struct AnimPose p1_pose; // technically is game state, but because it's computed each tick, it should be deterministic from the AnimationComponent
-	struct SkeletalMeshInstance p1_mesh_instance; // created from the renderer during init
-	struct AnimPose p2_pose;
-	struct SkeletalMeshInstance p2_mesh_instance;
+	struct PlayerNonEntity p1_nonentity;
+	struct PlayerNonEntity p2_nonentity;
 	// rendering
 	Renderer *renderer;
 	Camera camera;
