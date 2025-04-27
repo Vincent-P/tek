@@ -2,6 +2,9 @@
 
 void _display_spatial_component(struct SpatialComponent *spatial)
 {
+            ImGui_InputFloat3("x", &spatial->world_transform.cols[0].x);
+            ImGui_InputFloat3("y", &spatial->world_transform.cols[1].x);
+            ImGui_InputFloat3("z", &spatial->world_transform.cols[2].x);
             ImGui_InputFloat3("position", &spatial->world_transform.cols[3].x);
 }
 void _display_skeleton_component(struct SkeletonComponent *skeleton)

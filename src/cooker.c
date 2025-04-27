@@ -209,7 +209,11 @@ int cook_fbx()
 	snprintf(fbx_file_path, sizeof(fbx_file_path), "%s%.*s", source_dir, (int)json.source_file_length, json.source_file);
 	// parse FBX
 	ufbx_load_opts opts = { 0 }; // Optional, pass NULL for defaults
-        opts.target_axes = ufbx_axes_right_handed_y_up;
+        // opts.target_axes = ufbx_axes_right_handed_y_up;
+	opts.target_axes.right = UFBX_COORDINATE_AXIS_POSITIVE_X;
+        opts.target_axes.up = UFBX_COORDINATE_AXIS_POSITIVE_Y;
+	opts.target_axes.front = UFBX_COORDINATE_AXIS_NEGATIVE_Z;
+
         opts.target_unit_meters = 1.0f;
 	ufbx_error error; // Optional, pass NULL if you don't care about errors
 	ufbx_scene *scene = ufbx_load_file(fbx_file_path, &opts, &error);
@@ -475,6 +479,7 @@ int cook_fbx()
 	// Save dep file to disk
 	char dep_content[512] = {0};
 	int32_t dep_cursor = 0;
+	dep_cursor += snprintf(dep_content + dep_cursor, (512 - dep_cursor), "INPUT: %s\n", fbx_file_path);
 	dep_cursor += snprintf(dep_content + dep_cursor, (512 - dep_cursor), "INPUT: %s\n", source_path);
 	dep_cursor += snprintf(dep_content + dep_cursor, (512 - dep_cursor), "OUTPUT: %s\n", dest_path);
 	file_write_entire_file(dep_path, (struct Blob){dep_content, dep_cursor});

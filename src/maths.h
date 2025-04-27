@@ -41,6 +41,15 @@ Float3 float3_sub(Float3 a, Float3 b)
 	return r;
 }
 
+Float3 float3_mul_scalar(Float3 a, float s)
+{
+	Float3 r;
+	r.x = s*a.x;
+	r.y = s*a.y;
+	r.z = s*a.z;
+	return r;
+}
+
 Float3 float3_normalize(Float3 v)
 {
 	float norm = sqrtf(v.x*v.x + v.y*v.y + v.z*v.z);
@@ -59,6 +68,14 @@ Float3 float3_cross(Float3 a, Float3 b)
 	r.y = a.z * b.x - b.z * a.x;
 	r.z = a.x * b.y - b.x * a.y;
 	return r;
+}
+
+float float3_distance(Float3 a, Float3 b)
+{
+	float x = a.x - b.x;
+	float y = a.y - b.y;
+	float z = a.z - b.z;
+	return sqrtf(x*x + y*y + z*z);
 }
 
 typedef union Quat Quat;
@@ -286,4 +303,13 @@ Float3x4 float3x4_from_transform(Float3 translation, Quat rotation, Float3 scale
 	F34(m,1,3) = translation.y;
 	F34(m,2,3) = translation.z;
 	return m;
+}
+
+Float3 float3x4_transform_point(Float3x4 m, Float3 p)
+{
+	Float3 result;
+	result.x = F34(m,0,0)*p.x + F34(m,0,1)*p.y + F34(m,0,2)*p.z + F34(m,0,3);
+	result.y = F34(m,1,0)*p.x + F34(m,1,1)*p.y + F34(m,1,2)*p.z + F34(m,1,3);
+	result.z = F34(m,2,0)*p.x + F34(m,2,1)*p.y + F34(m,2,2)*p.z + F34(m,2,3);
+	return result;
 }

@@ -29,3 +29,7 @@ struct SkeletonComponent
 {
 	AssetId anim_skeleton_id;
 };
+
+
+void spatial_component_set_position(struct SpatialComponent *cpnt, Float3 pos);
+void spatial_component_target(struct SpatialComponent *cpnt, Float3 target_pos);

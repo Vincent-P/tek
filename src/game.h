@@ -68,6 +68,8 @@ struct NonGameState
 	// rendering
 	Renderer *renderer;
 	Camera camera;
+	float camera_distance;
+	bool camera_focus; // false == p1, true == p2
 	// player handles
 	// session connection
 };
