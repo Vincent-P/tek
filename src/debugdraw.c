@@ -40,3 +40,30 @@ void debug_draw_line(Float3 from, Float3 to, uint32_t color)
 	
 	}
 }
+
+void debug_draw_cylinder(Float3 center, float radius, float height, uint32_t color)
+{
+	uint32_t CIRCLE_SEGMENTS = 8;
+	for (uint32_t i = 0; i < CIRCLE_SEGMENTS; ++i) {
+		float angle = 2 * 3.14 * (float)i / (float)CIRCLE_SEGMENTS;
+		float next_angle = 2 * 3.14 * (float)(i+1) / (float)CIRCLE_SEGMENTS;
+
+		Float3 point_top;
+		point_top.x = center.x + cosf(angle) * radius;
+		point_top.y = center.y + height * 0.5f;
+		point_top.z = center.z + sinf(angle) * radius;
+		Float3 point_bottom = point_top;
+		point_bottom.y = center.y - height * 0.5f;
+		
+		Float3 next_point_top;
+		next_point_top.x = center.x + cosf(next_angle) * radius;
+		next_point_top.y = center.y + height * 0.5f;
+		next_point_top.z = center.z + sinf(next_angle) * radius;
+		Float3 next_point_bottom = next_point_top;
+		next_point_bottom.y = center.y - height * 0.5f;
+		
+		debug_draw_line(point_top, next_point_top, color);
+		debug_draw_line(point_top, point_bottom, color);
+		debug_draw_line(point_bottom, next_point_bottom, color);
+	}
+}

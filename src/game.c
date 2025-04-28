@@ -171,7 +171,9 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 
 	// match inputs
 
-	// gameplay update
+	// -- gameplay update
+
+	// update transforms
 	struct SpatialComponent *p1_root = &state->p1_entity.spatial;
 	struct SpatialComponent *p2_root = &state->p2_entity.spatial;
 	float speed = 0.1f;
@@ -230,17 +232,42 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 		anim_evaluate_animation(anim_skeleton, animation, &np1->pose, (float)state->frame_number);
 		anim_pose_compute_global_transforms(anim_skeleton, &np1->pose);
 		skeletal_mesh_apply_pose(&np1->mesh_instance, &np1->pose);
+	}
 
-		// debug draw animated pose
-		for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ibone++) {
-			Float3 p;
-			p.x = F34(np1->pose.global_transforms[ibone], 0, 3);
-			p.y = F34(np1->pose.global_transforms[ibone], 1, 3);
-			p.z = F34(np1->pose.global_transforms[ibone], 2, 3);
-			p = float3x4_transform_point(p1->spatial.world_transform, p);
-			debug_draw_point(p);
+	// update hurtboxes positions
+	struct tek_Character *c1 = tek_characters + p1->tek.character_id;
+	{
+		// Apply the bone pose to the hurtboxes
+		for (uint32_t ihurtbox = 0; ihurtbox < c1->hurtboxes_length; ++ihurtbox) {
+			uint32_t hurtbox_bone_id = c1->hurtboxes_bone_id[ihurtbox];
+			for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ++ibone){
+				if (anim_skeleton->bones_identifier[ibone] == hurtbox_bone_id) {
+					np1->hurtboxes_position[ihurtbox] = float3x4_transform_point(
+										       p1->spatial.world_transform,
+										       np1->pose.global_transforms[ibone].cols[3]);
+					break;
+				}
+			}
 		}
 	}
+	
+	// debug draw animated pose
+	for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ibone++) {
+		Float3 p;
+		p.x = F34(np1->pose.global_transforms[ibone], 0, 3);
+		p.y = F34(np1->pose.global_transforms[ibone], 1, 3);
+		p.z = F34(np1->pose.global_transforms[ibone], 2, 3);
+		p = float3x4_transform_point(p1->spatial.world_transform, p);
+		debug_draw_point(p);
+	}
+	// debug draw hurtboxes cylinders
+	for (uint32_t ihurtbox = 0; ihurtbox < c1->hurtboxes_length; ++ihurtbox) {
+		Float3 center = np1->hurtboxes_position[ihurtbox];
+		float radius = c1->hurtboxes_radius[ihurtbox];
+		float height = c1->hurtboxes_height[ihurtbox];
+		debug_draw_cylinder(center, radius, height, DD_GREEN);
+	}
+	
 	// draw local axis for P1
 	Float3 origin = {0};
 	Float3 x_axis = (Float3){0.1f, 0.0f, 0.0f};
@@ -253,7 +280,7 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 	debug_draw_line(p1_o, p1_x, DD_RED);
 	debug_draw_line(p1_o, p1_y, DD_GREEN);
 	debug_draw_line(p1_o, p1_z, DD_BLUE);
-
+	// draw local axis for P2
 	Float3 p2_o = float3x4_transform_point(p2_root->world_transform, origin);
 	Float3 p2_x = float3x4_transform_point(p2_root->world_transform, x_axis);
 	Float3 p2_y = float3x4_transform_point(p2_root->world_transform, y_axis);
@@ -261,7 +288,6 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 	debug_draw_line(p2_o, p2_x, DD_RED);
 	debug_draw_line(p2_o, p2_y, DD_GREEN);
 	debug_draw_line(p2_o, p2_z, DD_BLUE);
-
 	// debug draw skeleton at P2
 	for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ibone++) {
 		Float3 p;

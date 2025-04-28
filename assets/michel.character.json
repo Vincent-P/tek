@@ -25,10 +25,85 @@
     ],
     "hurtboxes": [
 	{
+	    "radius": 0.2,
+	    "height": 0.5,
+	    "bone": "DEF.spine",
+	},
+	{
+	    "radius": 0.2,
+	    "height": 0.5,
+	    "bone": "DEF.Neck",
+	},
+	{
+	    "radius": 0.2,
+	    "height": 0.1,
+	    "bone": "DEF.upper_arm.L.001",
+	},
+	{
+	    "radius": 0.2,
+	    "height": 0.1,
+	    "bone": "DEF.forearm.L.001",
+	},
+	{
+	    "radius": 0.2,
+	    "height": 0.1,
+	    "bone": "DEF.hand.L",
+	},
+	{
 	    "radius": 0.1,
 	    "height": 0.1,
-	    "bone": "DEF.spine",
-	}
+	    "bone": "DEF.thigh.L.001",
+	},
+	{
+	    "radius": 0.1,
+	    "height": 0.1,
+	    "bone": "DEF.shin.L",
+	},
+	{
+	    "radius": 0.1,
+	    "height": 0.2,
+	    "bone": "DEF.shin.L.001",
+	},
+	{
+	    "radius": 0.2,
+	    "height": 0.1,
+	    "bone": "DEF.toe.L",
+	},
+	{
+	    "radius": 0.2,
+	    "height": 0.1,
+	    "bone": "DEF.upper_arm.R.001",
+	},
+	{
+	    "radius": 0.2,
+	    "height": 0.1,
+	    "bone": "DEF.forearm.R.001",
+	},
+	{
+	    "radius": 0.2,
+	    "height": 0.1,
+	    "bone": "DEF.hand.R",
+	},
+	{
+	    "radius": 0.1,
+	    "height": 0.1,
+	    "bone": "DEF.thigh.R.001",
+	},
+	{
+	    "radius": 0.1,
+	    "height": 0.1,
+	    "bone": "DEF.shin.R",
+	},
+	{
+	    "radius": 0.1,
+	    "height": 0.2,
+	    "bone": "DEF.shin.R.001",
+	},
+	{
+	    "radius": 0.2,
+	    "height": 0.1,
+	    "bone": "DEF.toe.R",
+	},
     ],
     "hitboxes": [],
 }

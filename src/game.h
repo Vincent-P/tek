@@ -48,8 +48,9 @@ struct PlayerEntity
 
 struct PlayerNonEntity
 {
-	struct AnimPose pose; // technically is game state, but because it's computed each tick, it should be deterministic from the AnimationComponent
 	struct SkeletalMeshInstance mesh_instance; // created from the renderer during init
+	struct AnimPose pose; // technically is game state, but because it's computed each tick, it should be deterministic from the AnimationComponent
+	Float3 hurtboxes_position[MAX_BONES_PER_MESH];
 };
 
 struct GameState

@@ -13,3 +13,4 @@
 void debug_draw_reset(void);
 void debug_draw_point(Float3 p);
 void debug_draw_line(Float3 from, Float3 to, uint32_t color);
+void debug_draw_cylinder(Float3 center, float radius, float height, uint32_t color);
