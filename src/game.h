@@ -30,8 +30,11 @@ struct GameInputs
 
 struct TekPlayerComponent
 {
+	// character
 	uint32_t character_id;
-	tek_PlayerState status;
+	// status
+	struct tek_ActionState action_state;
+	// input buffer
 	GameInput input_buffer[INPUT_BUFFER_SIZE];
 	uint32_t input_buffer_frame_start[INPUT_BUFFER_SIZE];
 	uint32_t current_input_index;

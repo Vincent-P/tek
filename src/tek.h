@@ -1,5 +1,23 @@
 #pragma once
 
+// -- Runtime data
+
+enum tek_ActionStateType
+{
+	TEK_ACTION_STATE_NONE     = 0, // no action
+	TEK_ACTION_STATE_STARTUP  = 1, // startup, transition to active
+	TEK_ACTION_STATE_ACTIVE   = 2, // active, transition to recovery
+	TEK_ACTION_STATE_RECOVERY = 3, // recovery, transition to none
+};
+
+struct tek_ActionState
+{
+	uint8_t type; // current state
+	uint8_t end;  // last frame of the effect if not 0
+};
+
+// -- Static data
+
 enum tek_MotionInputBits
 {
 	TEK_MOTION_INPUT_NONE  = 0,
@@ -16,19 +34,6 @@ enum tek_MotionInputBits
 	TEK_MOTION_INPUT_QCB   = 11,
 };
 typedef uint8_t tek_MotionInput;
-
-enum tek_PlayerStatesBits
-{
-	TEK_PLAYER_STATE_INTANGIBLE  = (1 << 0), // nothing can hit
-	TEK_PLAYER_STATE_HIGH_CRUSH  = (1 << 1), // highs can't hit
-	TEK_PLAYER_STATE_LOW_CRUSH   = (1 << 2), // lows can't hit
-	TEK_PLAYER_STATE_AIRBORNE    = (1 << 3), // hits float player
-	TEK_PLAYER_STATE_POWER_CRUSH = (1 << 4), // highs and mids are absorbed, but still deal damage
-	TEK_PLAYER_STATE_PARRY       = (1 << 5), // specific attacks are absorbed
-	TEK_PLAYER_STATE_RAGE_ARMOR  = (1 << 6), // all attacks are absorbed
-	TEK_PLAYER_STATE_ARMOR       = (1 << 7), // powercrush?
-};
-typedef uint8_t tek_PlayerState;
 
 enum tek_AttackType
 {

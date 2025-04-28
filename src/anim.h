@@ -95,7 +95,7 @@ void Serialize_Animation(Serializer *serializer, Animation *value);
 void Serialize_AnimSkeleton(Serializer *serializer, AnimSkeleton *value);
 void Serialize_SkeletalMeshAsset(Serializer *serializer, SkeletalMeshAsset *value);
 
-void anim_evaluate_animation(struct AnimSkeleton const *skeleton, Animation const* anim, struct AnimPose *out_pose, float t);
+bool anim_evaluate_animation(struct AnimSkeleton const *skeleton, Animation const* anim, struct AnimPose *out_pose, float t);
 void anim_pose_compute_global_transforms(struct AnimSkeleton const *skeleton, struct AnimPose *pose);
 
 void skeletal_mesh_create_instance(struct SkeletalMeshAsset const *asset, struct SkeletalMeshInstance *instance, struct AnimSkeleton const *skeleton);

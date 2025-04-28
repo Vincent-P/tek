@@ -159,19 +159,58 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 	TracyCZoneN(f, "StateUpdate", true);
 	
 	// register input in the input buffer
-	{
-	struct TekPlayerComponent *p1 = &state->p1_entity.tek;
-	if (inputs.player1 != p1->input_buffer[p1->current_input_index % INPUT_BUFFER_SIZE]) {
-		p1->current_input_index += 1;
-		uint32_t input_index = p1->current_input_index % INPUT_BUFFER_SIZE;
-		p1->input_buffer[input_index] = inputs.player1;
-		p1->input_buffer_frame_start[input_index] = state->frame_number;
+	struct PlayerEntity *p1 = &state->p1_entity;
+	struct tek_Character *c1 = tek_characters + p1->tek.character_id;
+	if (inputs.player1 != p1->tek.input_buffer[p1->tek.current_input_index % INPUT_BUFFER_SIZE]) {
+		p1->tek.current_input_index += 1;
+		uint32_t input_index = p1->tek.current_input_index % INPUT_BUFFER_SIZE;
+		p1->tek.input_buffer[input_index] = inputs.player1;
+		p1->tek.input_buffer_frame_start[input_index] = state->frame_number;
 	}
-	}
-
 	// match inputs
+	struct tek_Stance *current_stance = &c1->stances[0];
+	struct tek_Move *move_request = NULL;
+	for (uint32_t imove = 0; imove < current_stance->moves_length; ++imove) {
+		struct tek_Move *move = &current_stance->moves[imove];
+		if (move->action_input == inputs.player1) {
+			move_request = move;
+			break;
+		}
+	}
 
 	// -- gameplay update
+	
+	// move request
+	if (move_request != NULL) {
+		// A player can only do a move if they are not in active, recovery, or startup
+		if (p1->tek.action_state.type == TEK_ACTION_STATE_NONE) {
+			printf("p1 wants to do move %u\n", move_request->id);
+			printf("play anim %u\n", move_request->animation_id);
+
+			p1->animation.animation_id = move_request->animation_id;
+			p1->animation.frame = 0;
+			
+			p1->tek.action_state.type = TEK_ACTION_STATE_STARTUP;
+			p1->tek.action_state.end = state->frame_number + move_request->startup;
+		}
+	}
+
+	// update player state
+	
+	if (p1->tek.action_state.type != TEK_ACTION_STATE_NONE) {
+		struct tek_ActionState action_state = p1->tek.action_state;
+		if (action_state.type == TEK_ACTION_STATE_STARTUP) {
+			if (state->frame_number >= action_state.end) {
+				
+			}
+		} else if (action_state.type == TEK_ACTION_STATE_ACTIVE) {
+			
+		} else if (action_state.type == TEK_ACTION_STATE_RECOVERY) {
+		}
+	}
+	
+	
+
 
 	// update transforms
 	struct SpatialComponent *p1_root = &state->p1_entity.spatial;
@@ -224,18 +263,28 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 	}
 
 	// Evaluate anims
-	struct PlayerEntity *p1 = &state->p1_entity;
 	struct PlayerNonEntity *np1 = &nonstate->p1_nonentity;
 	struct AnimSkeleton const *anim_skeleton = asset_library_get_anim_skeleton(nonstate->assets, p1->anim_skeleton.anim_skeleton_id);
 	struct Animation const *animation = asset_library_get_animation(nonstate->assets, p1->animation.animation_id);
 	if (animation != NULL) {
-		anim_evaluate_animation(anim_skeleton, animation, &np1->pose, (float)state->frame_number);
+		bool has_ended = anim_evaluate_animation(anim_skeleton, animation, &np1->pose, (float)p1->animation.frame);
+		if (has_ended) {
+			// HACK: reset to none state
+			p1->tek.action_state.type = TEK_ACTION_STATE_NONE;
+
+			
+			p1->animation.animation_id = 3108588149;
+			p1->animation.frame = 0;
+		}
+		
 		anim_pose_compute_global_transforms(anim_skeleton, &np1->pose);
 		skeletal_mesh_apply_pose(&np1->mesh_instance, &np1->pose);
 	}
 
+	// Update anims
+	p1->animation.frame += 1;
+
 	// update hurtboxes positions
-	struct tek_Character *c1 = tek_characters + p1->tek.character_id;
 	{
 		// Apply the bone pose to the hurtboxes
 		for (uint32_t ihurtbox = 0; ihurtbox < c1->hurtboxes_length; ++ihurtbox) {

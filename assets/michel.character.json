@@ -8,7 +8,7 @@
 	    "moves": [
 		{
 		    "name": "jab",
-		    "animation": "rig|Jab",
+		    "animation": "rig|jab",
 		    "startup": 10,
 		    "active": 1,
 		    "recovery": 20,

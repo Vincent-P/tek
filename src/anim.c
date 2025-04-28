@@ -73,24 +73,30 @@ void Serialize_SkeletalMeshAsset(Serializer *serializer, SkeletalMeshAsset *valu
 	}
 }
 
-void anim_evaluate_animation(struct AnimSkeleton const *skeleton, Animation const* anim, struct AnimPose *out_pose, float t)
+bool anim_evaluate_animation(struct AnimSkeleton const *skeleton, Animation const* anim, struct AnimPose *out_pose, float t)
 {
 	uint32_t count = anim->tracks[0].translations.length;
-	uint32_t iframe = (uint32_t)t % count;
+	uint32_t iframe = (uint32_t)t;
+	bool has_ended = iframe >= count;
 
+	if (iframe >= count) {
+		iframe = count - 1;
+	}
 	out_pose->bones_length = skeleton->bones_length;
 	for (uint32_t ibone = 0; ibone < anim->tracks_length; ++ibone) {
 		assert(anim->tracks[ibone].translations.length == count);
 		assert(anim->tracks[ibone].rotations.length == count);
 		assert(anim->tracks[ibone].scales.length == count);
 		assert(anim->tracks_identifier[ibone] == skeleton->bones_identifier[ibone]);
-		
+
 		Float3 translation = anim->tracks[ibone].translations.data[iframe];
 		Quat rotation = anim->tracks[ibone].rotations.data[iframe];
 		Float3 scale = anim->tracks[ibone].scales.data[iframe];
 		
 		out_pose->local_transforms[ibone] = float3x4_from_transform(translation, rotation, scale);
 	}
+
+	return has_ended;
 }
 
 void anim_pose_compute_global_transforms(struct AnimSkeleton const *skeleton, struct AnimPose *pose)
