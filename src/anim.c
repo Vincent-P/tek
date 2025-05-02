@@ -22,7 +22,7 @@ void Serialize_AnimTrack(Serializer *serializer, AnimTrack *value)
 {
 	SV_ADD(SV_INITIAL, Float3List, translations);
 	SV_ADD(SV_INITIAL, QuatList, rotations);
-	SV_ADD(SV_INITIAL, Float3List, scales);
+	SV_ADD(SV_INITIAL, FloatList, scales);
 }
 
 void Serialize_Animation(Serializer *serializer, Animation *value)
@@ -73,14 +73,13 @@ void Serialize_SkeletalMeshAsset(Serializer *serializer, SkeletalMeshAsset *valu
 	}
 }
 
-bool anim_evaluate_animation(struct AnimSkeleton const *skeleton, Animation const* anim, struct AnimPose *out_pose, float t)
+bool anim_evaluate_animation(struct AnimSkeleton const *skeleton, Animation const* anim, struct AnimPose *out_pose, uint32_t frame)
 {
 	uint32_t count = anim->tracks[0].translations.length;
-	uint32_t iframe = (uint32_t)t;
-	bool has_ended = iframe >= count;
+	bool has_ended = frame >= count;
 
-	if (iframe >= count) {
-		iframe = count - 1;
+	if (frame >= count) {
+		frame = count - 1;
 	}
 	out_pose->bones_length = skeleton->bones_length;
 	for (uint32_t ibone = 0; ibone < anim->tracks_length; ++ibone) {
@@ -89,12 +88,23 @@ bool anim_evaluate_animation(struct AnimSkeleton const *skeleton, Animation cons
 		assert(anim->tracks[ibone].scales.length == count);
 		assert(anim->tracks_identifier[ibone] == skeleton->bones_identifier[ibone]);
 
-		Float3 translation = anim->tracks[ibone].translations.data[iframe];
-		Quat rotation = anim->tracks[ibone].rotations.data[iframe];
-		Float3 scale = anim->tracks[ibone].scales.data[iframe];
+		Float3 translation = anim->tracks[ibone].translations.data[frame];
+		Quat rotation = anim->tracks[ibone].rotations.data[frame];
+		float scale = anim->tracks[ibone].scales.data[frame];
 		
-		out_pose->local_transforms[ibone] = float3x4_from_transform(translation, rotation, scale);
+		out_pose->local_transforms[ibone] = float3x4_from_transform(translation, rotation, float3_from_float(scale));
 	}
+
+	if (frame > 0) {
+		assert(anim->root_motion_track.translations.length == count);
+		Float3 prev_local_translation = anim->root_motion_track.translations.data[frame-1];
+		Float3 current_local_translation = anim->root_motion_track.translations.data[frame];
+		Float3 prev_global_translation = float3x4_transform_point(skeleton->bones_global_transforms[0], prev_local_translation);
+		Float3 current_global_translation = float3x4_transform_point(skeleton->bones_global_transforms[0], current_local_translation);
+		out_pose->root_motion_delta_translation = float3_sub(current_global_translation, prev_global_translation);
+	} else { 
+		out_pose->root_motion_delta_translation = (Float3){0};
+        }
 
 	return has_ended;
 }

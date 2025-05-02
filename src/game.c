@@ -137,8 +137,14 @@ void game_state_init(struct GameState *state, struct NonGameState *nonstate, Ren
 	Float3 p1_initial_pos = (Float3){-1.0f, 0.f, 0.f};
 	Float3 p2_initial_pos = (Float3){ 1.0f, 0.f, 0.f};
 	spatial_component_set_position(&state->p1_entity.spatial, p1_initial_pos);
+	state->p1_entity.spatial.world_transform.cols[0] = (Float3){1.0f, 0.0f, 0.0f};
+	state->p1_entity.spatial.world_transform.cols[1] = (Float3){0.0f, 1.0f, 0.0f};
+	state->p1_entity.spatial.world_transform.cols[2] = (Float3){0.0f, 0.0f, 1.0f};
 	spatial_component_target(&state->p1_entity.spatial, (Float3){0});//p2_initial_pos);
 	spatial_component_set_position(&state->p2_entity.spatial, p2_initial_pos);
+	state->p2_entity.spatial.world_transform.cols[0] = (Float3){1.0f, 0.0f, 0.0f};
+	state->p2_entity.spatial.world_transform.cols[1] = (Float3){0.0f, 1.0f, 0.0f};
+	state->p2_entity.spatial.world_transform.cols[2] = (Float3){0.0f, 0.0f, 1.0f};
 	spatial_component_target(&state->p2_entity.spatial, (Float3){0});//p1_initial_pos);
 
 	// initial non game state
@@ -148,9 +154,7 @@ void game_state_init(struct GameState *state, struct NonGameState *nonstate, Ren
 	game_state_init_player(&state->p2_entity, &nonstate->p2_nonentity, nonstate);
 	// Init camera
 	nonstate->camera_distance = 3.0f;
-	nonstate->camera.position.y = 0.8f;
-	nonstate->camera.position.z = 2.0f;
-	nonstate->camera.lookat.y = 0.8f;
+	nonstate->camera.position = (Float3){1.0f, -5.0f, 1.0f};
 	nonstate->camera.vertical_fov = 40.0f;
 }
 
@@ -233,7 +237,7 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 	
 
 	// Camera follow
-	if (1)
+	if (nonstate->camera_focus != 0)
 	{
 		Float3 target_pos = float3_add(p1_root->world_transform.cols[3], p2_root->world_transform.cols[3]);
 		target_pos.x *= 0.5f;
@@ -254,12 +258,16 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 			ideal_distance = ideal_width / width_from_dist;
 		//}
 
+			Float3 camera_dir = p1_root->world_transform.cols[0];
+			if (nonstate->camera_focus == 2) {
+				camera_dir = p2_root->world_transform.cols[0];
+			}
 		nonstate->camera_distance = ideal_distance;
-		nonstate->camera.position = float3_add(target_pos, float3_mul_scalar(p1_root->world_transform.cols[0], ideal_distance));
+		nonstate->camera.position = float3_add(target_pos, float3_mul_scalar(camera_dir, ideal_distance));
 		nonstate->camera.lookat = target_pos;
 		
-		nonstate->camera.position.y += 1.0f;
-		nonstate->camera.lookat.y += 1.0f;
+		nonstate->camera.position.z += 1.0f;
+		nonstate->camera.lookat.z += 1.0f;
 	}
 
 	// Evaluate anims
@@ -267,7 +275,7 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 	struct AnimSkeleton const *anim_skeleton = asset_library_get_anim_skeleton(nonstate->assets, p1->anim_skeleton.anim_skeleton_id);
 	struct Animation const *animation = asset_library_get_animation(nonstate->assets, p1->animation.animation_id);
 	if (animation != NULL) {
-		bool has_ended = anim_evaluate_animation(anim_skeleton, animation, &np1->pose, (float)p1->animation.frame);
+		bool has_ended = anim_evaluate_animation(anim_skeleton, animation, &np1->pose, p1->animation.frame);
 		if (has_ended) {
 			// HACK: reset to none state
 			p1->tek.action_state.type = TEK_ACTION_STATE_NONE;
@@ -276,9 +284,12 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 			p1->animation.animation_id = 3108588149;
 			p1->animation.frame = 0;
 		}
-		
+		// update render skeleton
 		anim_pose_compute_global_transforms(anim_skeleton, &np1->pose);
 		skeletal_mesh_apply_pose(&np1->mesh_instance, &np1->pose);
+		// use root motion
+		Float3 root_translation = float3x4_transform_direction(p1->spatial.world_transform, np1->pose.root_motion_delta_translation);
+		p1->spatial.world_transform.cols[3] = float3_add(p1->spatial.world_transform.cols[3], root_translation);
 	}
 
 	// Update anims
@@ -316,6 +327,40 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 		float height = c1->hurtboxes_height[ihurtbox];
 		debug_draw_cylinder(center, radius, height, DD_GREEN);
 	}
+	// debug draw skeleton at P2
+	for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ibone++) {
+		Float3 p;
+		p.x = F34(anim_skeleton->bones_global_transforms[ibone], 0, 3);
+		p.y = F34(anim_skeleton->bones_global_transforms[ibone], 1, 3);
+		p.z = F34(anim_skeleton->bones_global_transforms[ibone], 2, 3);
+		p = float3x4_transform_point(state->p2_entity.spatial.world_transform, p);
+		debug_draw_point(p);
+	}
+	// debug draw grid
+	float width = 24.0f;
+	if (1) {
+		for (float i = 1.0f; i <= width; i += 1.0f) {
+			debug_draw_line((Float3){i, -width, 0.0f}, (Float3){i, width, 0.0f}, DD_WHITE & DD_HALF_ALPHA);
+			debug_draw_line((Float3){-i, -width, 0.0f}, (Float3){-i, width, 0.0f}, DD_WHITE & DD_HALF_ALPHA);
+			debug_draw_line((Float3){-width, i, 0.0f}, (Float3){width, i, 0.0f}, DD_WHITE & DD_HALF_ALPHA);
+			debug_draw_line((Float3){-width, -i, 0.0f}, (Float3){width, -i, 0.0f}, DD_WHITE & DD_HALF_ALPHA);
+		}
+	}
+	debug_draw_line((Float3){-width, 0.0f, 0.0f}, (Float3){0, 0.0f, 0.0f}, DD_WHITE & DD_HALF_ALPHA);
+	debug_draw_line((Float3){0, 0.0f, 0.0f}, (Float3){width, 0.0f, 0.0f}, DD_RED);
+	debug_draw_line((Float3){0.0f, -width, 0.0f}, (Float3){0, 0.0f, 0.0f}, DD_WHITE & DD_HALF_ALPHA);
+	debug_draw_line((Float3){0, 0.0f, 0.0f}, (Float3){0.0f, width, 0.0f}, DD_GREEN);
+	debug_draw_line((Float3){0.0f, 0.0f, -width}, (Float3){0.0f, 0.0f, 0.0f}, DD_WHITE & DD_HALF_ALPHA);
+	debug_draw_line((Float3){0.0f, 0.0f, 0.0f}, (Float3){0.0f, 0.0f, width}, DD_BLUE);
+	if (1) {
+		width = 2.4f;
+		for (float i = 0.1f; i <= width; i += 0.1f) {
+			debug_draw_line((Float3){i, -width, 0.0f}, (Float3){i, width, 0.0f}, DD_WHITE & DD_QUARTER_ALPHA);
+			debug_draw_line((Float3){-i, -width, 0.0f}, (Float3){-i, width, 0.0f}, DD_WHITE & DD_QUARTER_ALPHA);
+			debug_draw_line((Float3){-width, i, 0.0f}, (Float3){width, i, 0.0f}, DD_WHITE & DD_QUARTER_ALPHA);
+			debug_draw_line((Float3){-width, -i, 0.0f}, (Float3){width, -i, 0.0f}, DD_WHITE & DD_QUARTER_ALPHA);
+		}
+	}
 	
 	// draw local axis for P1
 	Float3 origin = {0};
@@ -337,38 +382,6 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 	debug_draw_line(p2_o, p2_x, DD_RED);
 	debug_draw_line(p2_o, p2_y, DD_GREEN);
 	debug_draw_line(p2_o, p2_z, DD_BLUE);
-	// debug draw skeleton at P2
-	for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ibone++) {
-		Float3 p;
-		p.x = F34(anim_skeleton->bones_global_transforms[ibone], 0, 3);
-		p.y = F34(anim_skeleton->bones_global_transforms[ibone], 1, 3);
-		p.z = F34(anim_skeleton->bones_global_transforms[ibone], 2, 3);
-		p = float3x4_transform_point(state->p2_entity.spatial.world_transform, p);
-		debug_draw_point(p);
-	}
-	// debug draw grid
-	float width = 24.0f;
-	if (0) {
-		for (float i = 1.0f; i <= width; i += 1.0f) {
-			debug_draw_line((Float3){i, 0.0f, -width}, (Float3){i, 0.0f, width}, DD_WHITE & DD_HALF_ALPHA);
-			debug_draw_line((Float3){-i, 0.0f, -width}, (Float3){-i, 0.0f, width}, DD_WHITE & DD_HALF_ALPHA);
-			debug_draw_line((Float3){-width, 0.0f, i}, (Float3){width, 0.0f, i}, DD_WHITE & DD_HALF_ALPHA);
-			debug_draw_line((Float3){-width, 0.0f, -i}, (Float3){width, 0.0f, -i}, DD_WHITE & DD_HALF_ALPHA);
-		}
-	}
-	debug_draw_line((Float3){0.0f, 0.0f, -width}, (Float3){0.0f, 0.0f, 0.0f}, DD_WHITE & DD_HALF_ALPHA);
-	debug_draw_line((Float3){0.0f, 0.0f, 0.0f}, (Float3){0.0f, 0.0f, width}, DD_BLUE);
-	debug_draw_line((Float3){-width, 0.0f, 0.0f}, (Float3){0, 0.0f, 0.0f}, DD_WHITE & DD_HALF_ALPHA);
-	debug_draw_line((Float3){0, 0.0f, 0.0f}, (Float3){width, 0.0f, 0.0f}, DD_RED);
-	if (0) {
-		width = 2.4f;
-		for (float i = 0.1f; i <= width; i += 0.1f) {
-			debug_draw_line((Float3){i, 0.0f, -width}, (Float3){i, 0.0f, width}, DD_WHITE & DD_QUARTER_ALPHA);
-			debug_draw_line((Float3){-i, 0.0f, -width}, (Float3){-i, 0.0f, width}, DD_WHITE & DD_QUARTER_ALPHA);
-			debug_draw_line((Float3){-width, 0.0f, i}, (Float3){width, 0.0f, i}, DD_WHITE & DD_QUARTER_ALPHA);
-			debug_draw_line((Float3){-width, 0.0f, -i}, (Float3){width, 0.0f, -i}, DD_WHITE & DD_QUARTER_ALPHA);
-		}
-	}
 	
 	TracyCZoneEnd(f);
 }
@@ -411,6 +424,7 @@ void game_render(struct NonGameState *nonstate, struct GameState *state)
 		ImGui_DragFloat3Ex("camera position", &nonstate->camera.position.x, 0.1f, 0.0f, 0.0f, "%.3f", 0);
 		ImGui_DragFloat3Ex("camera lookat", &nonstate->camera.lookat.x, 0.1f, 0.0f, 0.0f, "%.3f", 0);
 		ImGui_DragFloat("camera fov", &nonstate->camera.vertical_fov);
+		ImGui_DragInt("camera focus", &nonstate->camera_focus);
 	}
 	ImGui_End();
 

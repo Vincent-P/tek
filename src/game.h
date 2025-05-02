@@ -66,10 +66,6 @@ struct GameState
 struct NonGameState
 {
 	struct AssetLibrary *assets;
-	// frame
-	uint32_t frame_number;
-	float dt;
-	float t;
 	// game
 	struct PlayerNonEntity p1_nonentity;
 	struct PlayerNonEntity p2_nonentity;
@@ -77,7 +73,7 @@ struct NonGameState
 	Renderer *renderer;
 	Camera camera;
 	float camera_distance;
-	bool camera_focus; // false == p1, true == p2
+	int camera_focus; // 0 = none, 1 = p1, 2 = p2
 	// player handles
 	// session connection
 };

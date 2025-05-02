@@ -31,7 +31,7 @@ struct AnimTrack
 {
 	struct Float3List translations;
 	struct QuatList rotations;
-	struct Float3List scales;
+	struct FloatList scales;
 };
 
 struct Animation
@@ -60,6 +60,7 @@ struct AnimPose
 	enum AnimPoseState state;
 	Float3x4 local_transforms[MAX_BONES_PER_MESH]; // bone space
 	Float3x4 global_transforms[MAX_BONES_PER_MESH]; // character space
+	Float3  root_motion_delta_translation;
 };
 
 #define MAX_WEIGHTS  4
@@ -95,7 +96,7 @@ void Serialize_Animation(Serializer *serializer, Animation *value);
 void Serialize_AnimSkeleton(Serializer *serializer, AnimSkeleton *value);
 void Serialize_SkeletalMeshAsset(Serializer *serializer, SkeletalMeshAsset *value);
 
-bool anim_evaluate_animation(struct AnimSkeleton const *skeleton, Animation const* anim, struct AnimPose *out_pose, float t);
+bool anim_evaluate_animation(struct AnimSkeleton const *skeleton, Animation const* anim, struct AnimPose *out_pose, uint32_t frame);
 void anim_pose_compute_global_transforms(struct AnimSkeleton const *skeleton, struct AnimPose *pose);
 
 void skeletal_mesh_create_instance(struct SkeletalMeshAsset const *asset, struct SkeletalMeshInstance *instance, struct AnimSkeleton const *skeleton);

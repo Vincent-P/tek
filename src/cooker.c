@@ -209,10 +209,7 @@ int cook_fbx()
 	snprintf(fbx_file_path, sizeof(fbx_file_path), "%s%.*s", source_dir, (int)json.source_file_length, json.source_file);
 	// parse FBX
 	ufbx_load_opts opts = { 0 }; // Optional, pass NULL for defaults
-        // opts.target_axes = ufbx_axes_right_handed_y_up;
-	opts.target_axes.right = UFBX_COORDINATE_AXIS_POSITIVE_X;
-        opts.target_axes.up = UFBX_COORDINATE_AXIS_POSITIVE_Y;
-	opts.target_axes.front = UFBX_COORDINATE_AXIS_NEGATIVE_Z;
+        opts.target_axes = ufbx_axes_right_handed_z_up;
 
         opts.target_unit_meters = 1.0f;
 	ufbx_error error; // Optional, pass NULL if you don't care about errors
@@ -314,18 +311,45 @@ int cook_fbx()
 			// fprintf(stderr, "baked node: %s importing at track %u\n", node->name.data, ibone);
 			animations[istack].tracks_length += 1;
 			animations[istack].tracks_identifier[ibone] = ufbx_string_to_id(node->name);
-			animations[istack].tracks[ibone].translations.length = baked_node->translation_keys.count;
-			animations[istack].tracks[ibone].translations.data = calloc(baked_node->translation_keys.count, sizeof(Float3));
-			struct Float3List translations = animations[istack].tracks[ibone].translations;
+
+			// extract the root motion track into a separate track
+			struct AnimTrack *out_track = &animations[istack].tracks[ibone];
+			if (node == root_bone) {
+				assert(ibone == 0);
+				out_track = &animations[istack].root_motion_track;
+
+				// set the regular track to identity
+				struct AnimTrack *out_regular_track = &animations[istack].tracks[ibone];
+				out_regular_track->translations.length = baked_node->translation_keys.count;
+				out_regular_track->translations.data = calloc(baked_node->translation_keys.count, sizeof(Float3));
+				out_regular_track->rotations.length = baked_node->rotation_keys.count;
+				out_regular_track->rotations.data = calloc(baked_node->rotation_keys.count, sizeof(Quat));
+				out_regular_track->scales.length = baked_node->scale_keys.count;
+				out_regular_track->scales.data = calloc(baked_node->scale_keys.count, sizeof(Float3));
+
+				for (uint32_t itrans = 0; itrans < baked_node->translation_keys.count; ++itrans) {
+					out_regular_track->translations.data[itrans] = (Float3){0};
+				}
+				for (uint32_t irot = 0; irot < baked_node->rotation_keys.count; ++irot) {
+					out_regular_track->rotations.data[irot] = (Quat){0.0f, 0.0f, 0.0f, 1.0f};
+				}
+				for (uint32_t iscale = 0; iscale < baked_node->scale_keys.count; ++iscale) {
+					out_regular_track->scales.data[iscale] = 1.0f;
+				}
+			}
+			
+			out_track->translations.length = baked_node->translation_keys.count;
+			out_track->translations.data = calloc(baked_node->translation_keys.count, sizeof(Float3));
+			struct Float3List translations = out_track->translations;
 			ufbx_baked_vec3_list baked_translations = baked_node->translation_keys;
 			for (uint32_t itrans = 0; itrans < baked_node->translation_keys.count; ++itrans) {
 				translations.data[itrans].x = baked_translations.data[itrans].value.x;
 				translations.data[itrans].y = baked_translations.data[itrans].value.y;
 				translations.data[itrans].z = baked_translations.data[itrans].value.z;
 			}
-			animations[istack].tracks[ibone].rotations.length = baked_node->rotation_keys.count;
-			animations[istack].tracks[ibone].rotations.data = calloc(baked_node->rotation_keys.count, sizeof(Quat));
-			struct QuatList rotations = animations[istack].tracks[ibone].rotations;
+			out_track->rotations.length = baked_node->rotation_keys.count;
+			out_track->rotations.data = calloc(baked_node->rotation_keys.count, sizeof(Quat));
+			struct QuatList rotations = out_track->rotations;
 			ufbx_baked_quat_list baked_rotations = baked_node->rotation_keys;
 			for (uint32_t itrans = 0; itrans < baked_node->rotation_keys.count; ++itrans) {
 				rotations.data[itrans].x = baked_rotations.data[itrans].value.x;
@@ -333,14 +357,19 @@ int cook_fbx()
 				rotations.data[itrans].z = baked_rotations.data[itrans].value.z;
 				rotations.data[itrans].w = baked_rotations.data[itrans].value.w;
 			}
-			animations[istack].tracks[ibone].scales.length = baked_node->scale_keys.count;
-			animations[istack].tracks[ibone].scales.data = calloc(baked_node->scale_keys.count, sizeof(Float3));
-			struct Float3List scales = animations[istack].tracks[ibone].scales;
+			out_track->scales.length = baked_node->scale_keys.count;
+			out_track->scales.data = calloc(baked_node->scale_keys.count, sizeof(Float3));
+			struct FloatList scales = out_track->scales;
 			ufbx_baked_vec3_list baked_scales = baked_node->scale_keys;
-			for (uint32_t itrans = 0; itrans < baked_node->scale_keys.count; ++itrans) {
-				scales.data[itrans].x = baked_scales.data[itrans].value.x;
-				scales.data[itrans].y = baked_scales.data[itrans].value.y;
-				scales.data[itrans].z = baked_scales.data[itrans].value.z;
+			for (uint32_t iscale = 0; iscale < baked_node->scale_keys.count; ++iscale) {
+				bool is_uniform = (fabs(baked_scales.data[iscale].value.x - baked_scales.data[iscale].value.y) < 0.001f);
+				is_uniform &= (fabs(baked_scales.data[iscale].value.y - baked_scales.data[iscale].value.z) < 0.001f);
+				if (!is_uniform) {
+					fprintf(stderr, "non uniform scale found in anim %s bone %s\n", stack->name.data, node->name.data);
+					assert(!"non uniform scale!");
+				}
+						 
+				scales.data[iscale] = baked_scales.data[iscale].value.x;
 			}
 		}
 	}

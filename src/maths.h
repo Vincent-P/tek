@@ -23,6 +23,15 @@ union Float3
 };
 SerializeSimpleType(Float3);
 
+Float3 float3_from_float(float a)
+{
+	Float3 r;
+	r.x = a;
+	r.y = a;
+	r.z = a;
+	return r;
+}
+
 Float3 float3_add(Float3 a, Float3 b)
 {
 	Float3 r;
@@ -180,37 +189,6 @@ Float4x4 float4x4_mul(Float4x4 a, Float4x4 b)
 	return result;
 }
 
-Float3 float4x4_transform_point(Float4x4 m, Float3 p)
-{
-	Float3 result;
-	result.x = F44(m,0,0)*p.x + F44(m,0,1)*p.y + F44(m,0,2)*p.z + F44(m,0,3);
-	result.y = F44(m,1,0)*p.x + F44(m,1,1)*p.y + F44(m,1,2)*p.z + F44(m,1,3);
-	result.z = F44(m,2,0)*p.x + F44(m,2,1)*p.y + F44(m,2,2)*p.z + F44(m,2,3);
-	float w  = F44(m,3,0)*p.x + F44(m,3,1)*p.y + F44(m,3,2)*p.z + F44(m,3,3);
-	return result;
-}
-
-Float3 float4x4_project_point(Float4x4 m, Float3 p)
-{
-	float w  = F44(m,3,0)*p.x + F44(m,3,1)*p.y + F44(m,3,2)*p.z + F44(m,3,3);
-	
-	Float3 result;
-	result.x = (F44(m,0,0)*p.x + F44(m,0,1)*p.y + F44(m,0,2)*p.z + F44(m,0,3)) / w;
-	result.y = (F44(m,1,0)*p.x + F44(m,1,1)*p.y + F44(m,1,2)*p.z + F44(m,1,3)) / w;
-	result.z = (F44(m,2,0)*p.x + F44(m,2,1)*p.y + F44(m,2,2)*p.z + F44(m,2,3)) / 2;
-	return result;
-}
-
-Float3 float4x4_project_vector(Float4x4 m, Float3 p)
-{
-	Float3 result;
-	result.x = F44(m,0,0)*p.x + F44(m,0,1)*p.y + F44(m,0,2)*p.z + F44(m,0,3);
-	result.y = F44(m,1,0)*p.x + F44(m,1,1)*p.y + F44(m,1,2)*p.z + F44(m,1,3);
-	result.z = F44(m,2,0)*p.x + F44(m,2,1)*p.y + F44(m,2,2)*p.z + F44(m,2,3);
-	float w  = F44(m,3,0)*p.x + F44(m,3,1)*p.y + F44(m,3,2)*p.z + F44(m,3,3);
-	return result;
-}
-
 Float4x4 perspective_projection(float vertical_fov, float aspect_ratio, float n, float f, Float4x4 *inverse)
 {
     float fov_rad = vertical_fov * 2.0f * 3.14f / 360.0f;
@@ -218,21 +196,21 @@ Float4x4 perspective_projection(float vertical_fov, float aspect_ratio, float n,
 
     float x  =  focal_length / aspect_ratio;
     float y  = -focal_length;
-    float A  = n / (f - n);
-    float B  = f * A;
+    float A  = n / (n-f);
+    float B  = -1.0f * f * A;
 
     Float4x4 p;
-    F44(p,0,0) =    x;	F44(p,0,1) = 0.0f;	F44(p,0,2) =  0.0f;	F44(p,0,3) = 0.0f;
-    F44(p,1,0) = 0.0f;	F44(p,1,1) =    y;	F44(p,1,2) =  0.0f;	F44(p,1,3) = 0.0f;
-    F44(p,2,0) = 0.0f;	F44(p,2,1) = 0.0f;	F44(p,2,2) =     A;	F44(p,2,3) =    B;
-    F44(p,3,0) = 0.0f;	F44(p,3,1) = 0.0f;	F44(p,3,2) = -1.0f;	F44(p,3,3) = 0.0f;
+    F44(p,0,0) =    x;	F44(p,0,1) = 0.0f;	F44(p,0,2) = 0.0f;	F44(p,0,3) = 0.0f;
+    F44(p,1,0) = 0.0f;	F44(p,1,1) = 0.0f;	F44(p,1,2) =    y;	F44(p,1,3) = 0.0f;
+    F44(p,2,0) = 0.0f;	F44(p,2,1) =    A;	F44(p,2,2) = 0.0f;	F44(p,2,3) =    B;
+    F44(p,3,0) = 0.0f;	F44(p,3,1) = 1.0f;	F44(p,3,2) = 0.0f;	F44(p,3,3) = 0.0f; 
 
     if (inverse) {
 	    Float4x4 ip;
-	    F44(ip,0,0) =  1/x;	F44(ip,0,1) = 0.0f;	F44(ip,0,2) =  0.0f;	F44(ip,0,3) =  0.0f;
-	    F44(ip,1,0) = 0.0f;	F44(ip,1,1) =  1/y;	F44(ip,1,2) =  0.0f;	F44(ip,1,3) =  0.0f;
-	    F44(ip,2,0) = 0.0f;	F44(ip,2,1) = 0.0f;	F44(ip,2,2) =  0.0f;	F44(ip,2,3) = -1.0f;
-	    F44(ip,3,0) = 0.0f;	F44(ip,3,1) = 0.0f;	F44(ip,3,2) =   1/B;	F44(ip,3,3) =   A/B;
+	    F44(ip,0,0) =  1/x;	F44(ip,0,1) = 0.0f;	F44(ip,0,2) =  0.0f;	F44(ip,0,3) = 0.0f;
+	    F44(ip,1,0) = 0.0f;	F44(ip,1,1) = 0.0f;	F44(ip,1,2) =  0.0f;	F44(ip,1,3) = 1.0f;
+	    F44(ip,2,0) = 0.0f;	F44(ip,2,1) =  1/y;	F44(ip,2,2) =  0.0f;	F44(ip,2,3) = 0.0f;
+	    F44(ip,3,0) = 0.0f;	F44(ip,3,1) = 0.0f;	F44(ip,3,2) =   1/B;	F44(ip,3,3) = -A/B;
 	    *inverse = ip;
     }
 
@@ -241,20 +219,22 @@ Float4x4 perspective_projection(float vertical_fov, float aspect_ratio, float n,
 
 Float3x4 lookat_view(Float3 from, Float3 to, Float3x4 *inverse)
 {
-	Float3 forward = float3_normalize(float3_sub(to, from)); // -Z
-	Float3 right = float3_normalize(float3_cross(forward, (Float3){0.0f, 1.0f, 0.0f})); // X
-	Float3 up = float3_normalize(float3_cross(right, forward)); // Y
+	Float3 UP_AXIS = (Float3){0.0f, 0.0f, 1.0f};
+	
+	Float3 forward = float3_normalize(float3_sub(to, from));
+	Float3 right = float3_normalize(float3_cross(forward, UP_AXIS));
+	Float3 up = float3_normalize(float3_cross(right, forward));
 
 	Float3x4 v;
-	F34(v,0,0) =    right.x;	F34(v,0,1) =    right.y;	F34(v,0,2) =    right.z;	F34(v,0,3) = -float3_dot(from, right);
-	F34(v,1,0) =       up.x;	F34(v,1,1) =       up.y;	F34(v,1,2) =       up.z;	F34(v,1,3) = -float3_dot(from, up);
-	F34(v,2,0) = -forward.x;	F34(v,2,1) = -forward.y;	F34(v,2,2) = -forward.z;	F34(v,2,3) =  float3_dot(from, forward);
+	F34(v,0,0) =   right.x;	F34(v,0,1) =   right.y;	F34(v,0,2) =   right.z;	F34(v,0,3) = -float3_dot(from, right);
+	F34(v,1,0) = forward.x;	F34(v,1,1) = forward.y;	F34(v,1,2) = forward.z;	F34(v,1,3) = -float3_dot(from, forward);
+	F34(v,2,0) =      up.x;	F34(v,2,1) =      up.y;	F34(v,2,2) =      up.z;	F34(v,2,3) = -float3_dot(from, up);
 
 	if (inverse) {
 	    Float3x4 iv;
-	    F34(iv,0,0) = right.x;	F34(iv,0,1) = up.x;	F34(iv,0,2) = -forward.x;	F34(iv,0,3) = from.x;
-	    F34(iv,1,0) = right.y;	F34(iv,1,1) = up.y;	F34(iv,1,2) = -forward.y;	F34(iv,1,3) = from.y;
-	    F34(iv,2,0) = right.z;	F34(iv,2,1) = up.z;	F34(iv,2,2) = -forward.z;	F34(iv,2,3) = from.z;
+	    F34(iv,0,0) = right.x;	F34(iv,0,1) = forward.x;	F34(iv,0,2) = up.x;	F34(iv,0,3) = from.x;
+	    F34(iv,1,0) = right.y;	F34(iv,1,1) = forward.y;	F34(iv,1,2) = up.y;	F34(iv,1,3) = from.y;
+	    F34(iv,2,0) = right.z;	F34(iv,2,1) = forward.z;	F34(iv,2,2) = up.z;	F34(iv,2,3) = from.z;
 	    *inverse = iv;
 	}
 	return v;
@@ -311,5 +291,14 @@ Float3 float3x4_transform_point(Float3x4 m, Float3 p)
 	result.x = F34(m,0,0)*p.x + F34(m,0,1)*p.y + F34(m,0,2)*p.z + F34(m,0,3);
 	result.y = F34(m,1,0)*p.x + F34(m,1,1)*p.y + F34(m,1,2)*p.z + F34(m,1,3);
 	result.z = F34(m,2,0)*p.x + F34(m,2,1)*p.y + F34(m,2,2)*p.z + F34(m,2,3);
+	return result;
+}
+
+Float3 float3x4_transform_direction(Float3x4 m, Float3 p)
+{
+	Float3 result;
+	result.x = F34(m,0,0)*p.x + F34(m,0,1)*p.y + F34(m,0,2)*p.z;
+	result.y = F34(m,1,0)*p.x + F34(m,1,1)*p.y + F34(m,1,2)*p.z;
+	result.z = F34(m,2,0)*p.x + F34(m,2,1)*p.y + F34(m,2,2)*p.z;
 	return result;
 }

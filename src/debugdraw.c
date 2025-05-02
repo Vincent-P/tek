@@ -50,17 +50,17 @@ void debug_draw_cylinder(Float3 center, float radius, float height, uint32_t col
 
 		Float3 point_top;
 		point_top.x = center.x + cosf(angle) * radius;
-		point_top.y = center.y + height * 0.5f;
-		point_top.z = center.z + sinf(angle) * radius;
+		point_top.y = center.y + sinf(angle) * radius;
+		point_top.z = center.z + height * 0.5f;
 		Float3 point_bottom = point_top;
-		point_bottom.y = center.y - height * 0.5f;
+		point_bottom.z = center.z - height * 0.5f;
 		
 		Float3 next_point_top;
 		next_point_top.x = center.x + cosf(next_angle) * radius;
-		next_point_top.y = center.y + height * 0.5f;
-		next_point_top.z = center.z + sinf(next_angle) * radius;
+		next_point_top.y = center.y + sinf(next_angle) * radius;
+		next_point_top.z = center.z + height * 0.5f;
 		Float3 next_point_bottom = next_point_top;
-		next_point_bottom.y = center.y - height * 0.5f;
+		next_point_bottom.z = center.z - height * 0.5f;
 		
 		debug_draw_line(point_top, next_point_top, color);
 		debug_draw_line(point_top, point_bottom, color);

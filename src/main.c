@@ -387,9 +387,6 @@ static void game_run_frame(struct Application *application)
 
 	// ggpo_synchronize_input
 	game_simulate_frame(&application->game.ngs, &application->game.gs, inputs);
-
-	application->game.ngs.t += 0.1f;
-	application->game.ngs.frame_number += 1;
 	TracyCZoneEnd(f);
 }
 
