@@ -66,7 +66,16 @@ Animation const *asset_library_get_animation(struct AssetLibrary *assets, AssetI
 
 AssetId asset_library_add_material(struct AssetLibrary *assets, struct MaterialAsset material)
 {
+	// support hot reload
+	for (uint32_t i = 0;  i  < ASSET_MATERIAL_CAPACITY; ++i) {
+		if (assets->materials_id[i] == material.id) {
+			assets->materials[i] = material;
+			return material.id;
+		}
+	}
+	
 	uint32_t i = assets->material_generation++;
+	assert(i < ASSET_MATERIAL_CAPACITY);
 	assets->materials[i] = material;
 	assets->materials_id[i] = material.id;
 	return material.id;
@@ -75,6 +84,7 @@ AssetId asset_library_add_material(struct AssetLibrary *assets, struct MaterialA
 AssetId asset_library_add_skeletal_mesh(struct AssetLibrary *assets, struct SkeletalMeshAsset skeletal_mesh)
 {
 	uint32_t i = assets->skeletal_mesh_generation++;
+	assert(i < ASSET_SKELETAL_MESH_CAPACITY);
 	assets->skeletal_meshes[i] = skeletal_mesh;
 	assets->skeletal_meshes_id[i] = skeletal_mesh.id;
 	return skeletal_mesh.id;
@@ -83,6 +93,7 @@ AssetId asset_library_add_skeletal_mesh(struct AssetLibrary *assets, struct Skel
 AssetId asset_library_add_anim_skeleton(struct AssetLibrary *assets, struct AnimSkeleton anim_skeleton)
 {
 	uint32_t i = assets->anim_skeleton_generation++;
+	assert(i < ASSET_ANIM_SKELETON_CAPACITY);
 	assets->anim_skeletons[i] = anim_skeleton;
 	assets->anim_skeletons_id[i] = anim_skeleton.id;
 	return anim_skeleton.id;
@@ -91,6 +102,7 @@ AssetId asset_library_add_anim_skeleton(struct AssetLibrary *assets, struct Anim
 AssetId asset_library_add_animation(struct AssetLibrary *assets, struct Animation animation)
 {
 	uint32_t i = assets->animation_generation++;
+	assert(i < ASSET_ANIMATIONS_CAPACITY);
 	assets->animations[i] = animation;
 	assets->animations_id[i] = animation.id;
 	return animation.id;

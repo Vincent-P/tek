@@ -17,6 +17,7 @@
 #include "game.h"
 #include "debugdraw.h"
 #include "file.h"
+#include "watcher.h"
 
 struct Game
 {
@@ -38,6 +39,26 @@ struct Application
 	uint64_t f;
 };
 
+static void load_assets_materials(struct AssetLibrary *assets, struct Renderer *renderer)
+{
+	Serializer s = {0};
+	
+	const char* materials[] = {
+		"cooking/3661877039",
+		"cooking/3200094153",
+		"cooking/2455425701",
+		"cooking/295627051",
+		"cooking/4245599685",
+	};
+	for (uint32_t i = 0; i < ARRAY_LENGTH(materials); ++i) {
+		struct MaterialAsset material = {0};
+		s = serialize_begin_read_file(materials[i]);
+		Serialize_MaterialAsset(&s, &material);
+		serialize_end_read_file(&s);
+		asset_library_add_material(assets, material);
+	}
+}
+
 static void load_assets(struct AssetLibrary *assets, struct Renderer *renderer)
 {
 	Serializer s = {0};
@@ -53,19 +74,7 @@ static void load_assets(struct AssetLibrary *assets, struct Renderer *renderer)
 		asset_library_add_animation(assets, skeletal_mesh_with_animations.animations[ianim]);
 	}
 
-	const char* materials[] = {
-		"cooking/3661877039",
-		"cooking/3200094153",
-		"cooking/2455425701",
-		"cooking/295627051",
-	};
-	for (uint32_t i = 0; i < ARRAY_LENGTH(materials); ++i) {
-		struct MaterialAsset material = {0};
-		s = serialize_begin_read_file(materials[i]);
-		Serialize_MaterialAsset(&s, &material);
-		serialize_end_read_file(&s);
-		asset_library_add_material(assets, material);
-	}
+	load_assets_materials(assets, renderer);
 
 	// tek
 	tek_read_character_json();
@@ -114,6 +123,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 	// game init
 	application->game.ngs.assets = &application->assets;
 	game_state_init(&application->game.gs, &application->game.ngs, application->renderer);
+
+	watcher_init("cooking");
 	
 	return SDL_APP_CONTINUE;
 }
@@ -396,6 +407,12 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 	
 	struct Application *application = appstate;
 
+	bool atleast_one_change = watcher_tick();
+	if (atleast_one_change) {
+		load_assets_materials(&application->assets, application->renderer);
+		renderer_init_materials(application->renderer, &application->assets);
+	}
+
 	// Setup display size (every frame to accommodate for window resizing)
 	ImGuiIO *io = ImGui_GetIO();
 	int w, h;
@@ -457,5 +474,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 #include "game_components.c"
 #include "tek.c"
 #include <ufbx.c>
+#include "watcher.c"
 
 #include "editor.c"

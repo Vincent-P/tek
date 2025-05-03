@@ -1,0 +1,5 @@
+{
+    "vertex_shader": "fullscreen.vert",
+    "pixel_shader": "compositing.frag",
+    "render_pass": "compositing",
+}

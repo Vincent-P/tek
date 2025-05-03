@@ -74,6 +74,8 @@ struct NonGameState
 	Camera camera;
 	float camera_distance;
 	int camera_focus; // 0 = none, 1 = p1, 2 = p2
+	bool draw_grid;
+	bool draw_hurtboxes;
 	// player handles
 	// session connection
 };

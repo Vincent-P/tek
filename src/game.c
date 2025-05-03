@@ -296,17 +296,15 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 	p1->animation.frame += 1;
 
 	// update hurtboxes positions
-	{
-		// Apply the bone pose to the hurtboxes
-		for (uint32_t ihurtbox = 0; ihurtbox < c1->hurtboxes_length; ++ihurtbox) {
-			uint32_t hurtbox_bone_id = c1->hurtboxes_bone_id[ihurtbox];
-			for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ++ibone){
-				if (anim_skeleton->bones_identifier[ibone] == hurtbox_bone_id) {
-					np1->hurtboxes_position[ihurtbox] = float3x4_transform_point(
-										       p1->spatial.world_transform,
-										       np1->pose.global_transforms[ibone].cols[3]);
-					break;
-				}
+	// Apply the bone pose to the hurtboxes
+	for (uint32_t ihurtbox = 0; ihurtbox < c1->hurtboxes_length; ++ihurtbox) {
+		uint32_t hurtbox_bone_id = c1->hurtboxes_bone_id[ihurtbox];
+		for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ++ibone){
+			if (anim_skeleton->bones_identifier[ibone] == hurtbox_bone_id) {
+				np1->hurtboxes_position[ihurtbox] = float3x4_transform_point(
+											     p1->spatial.world_transform,
+											     np1->pose.global_transforms[ibone].cols[3]);
+				break;
 			}
 		}
 	}
@@ -321,11 +319,13 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 		debug_draw_point(p);
 	}
 	// debug draw hurtboxes cylinders
+if (nonstate->draw_hurtboxes) {
 	for (uint32_t ihurtbox = 0; ihurtbox < c1->hurtboxes_length; ++ihurtbox) {
 		Float3 center = np1->hurtboxes_position[ihurtbox];
 		float radius = c1->hurtboxes_radius[ihurtbox];
 		float height = c1->hurtboxes_height[ihurtbox];
 		debug_draw_cylinder(center, radius, height, DD_GREEN);
+	}
 	}
 	// debug draw skeleton at P2
 	for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ibone++) {
@@ -337,22 +337,20 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 		debug_draw_point(p);
 	}
 	// debug draw grid
-	float width = 24.0f;
-	if (1) {
+	if (nonstate->draw_grid) {
+		float width = 24.0f;
 		for (float i = 1.0f; i <= width; i += 1.0f) {
 			debug_draw_line((Float3){i, -width, 0.0f}, (Float3){i, width, 0.0f}, DD_WHITE & DD_HALF_ALPHA);
 			debug_draw_line((Float3){-i, -width, 0.0f}, (Float3){-i, width, 0.0f}, DD_WHITE & DD_HALF_ALPHA);
 			debug_draw_line((Float3){-width, i, 0.0f}, (Float3){width, i, 0.0f}, DD_WHITE & DD_HALF_ALPHA);
 			debug_draw_line((Float3){-width, -i, 0.0f}, (Float3){width, -i, 0.0f}, DD_WHITE & DD_HALF_ALPHA);
 		}
-	}
-	debug_draw_line((Float3){-width, 0.0f, 0.0f}, (Float3){0, 0.0f, 0.0f}, DD_WHITE & DD_HALF_ALPHA);
-	debug_draw_line((Float3){0, 0.0f, 0.0f}, (Float3){width, 0.0f, 0.0f}, DD_RED);
-	debug_draw_line((Float3){0.0f, -width, 0.0f}, (Float3){0, 0.0f, 0.0f}, DD_WHITE & DD_HALF_ALPHA);
-	debug_draw_line((Float3){0, 0.0f, 0.0f}, (Float3){0.0f, width, 0.0f}, DD_GREEN);
-	debug_draw_line((Float3){0.0f, 0.0f, -width}, (Float3){0.0f, 0.0f, 0.0f}, DD_WHITE & DD_HALF_ALPHA);
-	debug_draw_line((Float3){0.0f, 0.0f, 0.0f}, (Float3){0.0f, 0.0f, width}, DD_BLUE);
-	if (1) {
+		debug_draw_line((Float3){-width, 0.0f, 0.0f}, (Float3){0, 0.0f, 0.0f}, DD_WHITE & DD_HALF_ALPHA);
+		debug_draw_line((Float3){0, 0.0f, 0.0f}, (Float3){width, 0.0f, 0.0f}, DD_RED);
+		debug_draw_line((Float3){0.0f, -width, 0.0f}, (Float3){0, 0.0f, 0.0f}, DD_WHITE & DD_HALF_ALPHA);
+		debug_draw_line((Float3){0, 0.0f, 0.0f}, (Float3){0.0f, width, 0.0f}, DD_GREEN);
+		debug_draw_line((Float3){0.0f, 0.0f, -width}, (Float3){0.0f, 0.0f, 0.0f}, DD_WHITE & DD_HALF_ALPHA);
+		debug_draw_line((Float3){0.0f, 0.0f, 0.0f}, (Float3){0.0f, 0.0f, width}, DD_BLUE);
 		width = 2.4f;
 		for (float i = 0.1f; i <= width; i += 0.1f) {
 			debug_draw_line((Float3){i, -width, 0.0f}, (Float3){i, width, 0.0f}, DD_WHITE & DD_QUARTER_ALPHA);
@@ -425,6 +423,8 @@ void game_render(struct NonGameState *nonstate, struct GameState *state)
 		ImGui_DragFloat3Ex("camera lookat", &nonstate->camera.lookat.x, 0.1f, 0.0f, 0.0f, "%.3f", 0);
 		ImGui_DragFloat("camera fov", &nonstate->camera.vertical_fov);
 		ImGui_DragInt("camera focus", &nonstate->camera_focus);
+		ImGui_Checkbox("draw grid", &nonstate->draw_grid);
+		ImGui_Checkbox("draw hurtboxes", &nonstate->draw_hurtboxes);
 	}
 	ImGui_End();
 

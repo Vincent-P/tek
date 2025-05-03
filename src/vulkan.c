@@ -324,9 +324,14 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	// -- Prepare descriptor layout
 	VkDescriptorSetLayoutBinding binding = {0};
 	binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	binding.descriptorCount = 1;
+	binding.descriptorCount = 3;
 	binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+	VkDescriptorBindingFlags binding_flags =  VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT;
+	VkDescriptorSetLayoutBindingFlagsCreateInfo binding_flags_info = {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO};
+	binding_flags_info.bindingCount = 1;
+	binding_flags_info.pBindingFlags = &binding_flags;
 	VkDescriptorSetLayoutCreateInfo desc_layout_info = {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+	desc_layout_info.pNext = &binding_flags_info;
 	desc_layout_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
 	desc_layout_info.bindingCount = 1;
 	desc_layout_info.pBindings = &binding;
@@ -1316,6 +1321,27 @@ void vulkan_bind_texture(VulkanDevice *device, VulkanFrame *frame, uint32_t text
 	VkDescriptorImageInfo image_info = {0};
 	image_info.sampler = device->default_sampler;
 	image_info.imageView = device->textures[texture_handle].image_view;
+	image_info.imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
+	
+	VkWriteDescriptorSet write = {.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+	write.dstArrayElement = slot;
+	write.descriptorCount = 1;
+	write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	write.pImageInfo = &image_info;
+
+	device->my_vkCmdPushDescriptorSetKHR(frame->cmd,
+			       VK_PIPELINE_BIND_POINT_GRAPHICS,
+			       device->pipeline_layout,
+			       0,
+			       1,
+			       &write);
+}
+
+void vulkan_bind_rt_as_texture(VulkanDevice *device, VulkanFrame *frame, uint32_t rt_handle, uint32_t slot)
+{
+	VkDescriptorImageInfo image_info = {0};
+	image_info.sampler = device->default_sampler;
+	image_info.imageView = device->rts[rt_handle].image_view;
 	image_info.imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
 	
 	VkWriteDescriptorSet write = {.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};

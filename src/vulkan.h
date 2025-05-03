@@ -11,6 +11,7 @@ enum ImageFormat
 	PG_FORMAT_R8G8B8A8_UNORM = 37,
 	PG_FORMAT_D32_SFLOAT = 126,
 	PG_FORMAT_B10G11R11_UFLOAT_PACK32 = 122,
+	PG_FORMAT_RGBA16F = 97,
 };
 
 struct RenderPass
@@ -25,17 +26,19 @@ struct RenderPass
 
 enum RenderPassesId
 {
-	RENDER_PASSES_UI = 0,
-	RENDER_PASSES_MESH,
+	RENDER_PASSES_MESH = 0,
 	RENDER_PASSES_DEBUG_DRAW,
+	RENDER_PASSES_UI,
+	RENDER_PASSES_COMPOSITING,
 	RENDER_PASSES_COUNT,
 };
 
 static struct RenderPass RENDER_PASSES[RENDER_PASSES_COUNT] =
 {
-	{"ui", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_NONE, false, false},
-	{"mesh", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_D32_SFLOAT, true, true},
+	{"mesh", {PG_FORMAT_RGBA16F}, 1, PG_FORMAT_D32_SFLOAT, true, true},
 	{"debugdraw", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_NONE, false, false},
+	{"ui", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_NONE, false, false},
+	{"compositing", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_NONE, false, false},
 };
 
 enum VulkanTopology

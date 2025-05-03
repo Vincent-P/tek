@@ -71,7 +71,7 @@ vec4 ray_march(vec2 clip_space, out float depth)
 	ray.pos = c_.invview[3].xyz;
 	ray.dir = normalize(mat3(c_.invview) * camera_dir.xyz);
 
-	vec4 background = vec4(ray.dir, 1.0);
+
 
 	int step = 0;
 	float h = 1.0;
@@ -83,6 +83,8 @@ vec4 ray_march(vec2 clip_space, out float depth)
 	}
 
 	depth = t;
+	
+	vec4 background = vec4(vec3(0.2, 0.5, 1.0), 1.0);
 	
 	return (h < 0.01) ? vec4(vec3(abs(h)), 1) : background;
 }

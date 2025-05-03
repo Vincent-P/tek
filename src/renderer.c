@@ -49,8 +49,11 @@ struct RenderSkeletalMesh
 struct Renderer
 {
 	VulkanDevice *device;
-	uint32_t output_rt;
+	// render targets
+	uint32_t hdr_rt;
 	uint32_t depth_rt;
+	uint32_t output_rt;
+	uint32_t final_rt;
 	// imgui
 	uint32_t imgui_pso;
 	uint32_t imgui_fontatlas;
@@ -72,6 +75,8 @@ struct Renderer
 	uint32_t skeletal_mesh_instances_length;
 	// background shaders
 	uint32_t bg0_pso;
+	// postfx shaders
+	uint32_t compositing_pso;
 	// context
 	Float4x4 proj;
 	Float4x4 invproj;
@@ -102,19 +107,28 @@ void renderer_init(Renderer *renderer, struct AssetLibrary *assets, SDL_Window *
 			  renderer->device->swapchain_height,
 			  PG_FORMAT_R8G8B8A8_UNORM);
 	
-	renderer->depth_rt = 1;
+	renderer->hdr_rt = 1;
+	new_render_target(renderer->device, renderer->hdr_rt,
+			  renderer->device->swapchain_width,
+			  renderer->device->swapchain_height,
+			  PG_FORMAT_RGBA16F);
+	
+	renderer->depth_rt = 2;
 	new_render_target(renderer->device, renderer->depth_rt,
 			  renderer->device->swapchain_width,
 			  renderer->device->swapchain_height,
 			  PG_FORMAT_D32_SFLOAT);
+	
+	renderer->final_rt = 3;
+	new_render_target(renderer->device, renderer->final_rt,
+			  renderer->device->swapchain_width,
+			  renderer->device->swapchain_height,
+			  PG_FORMAT_R8G8B8A8_UNORM);
 
 	// Create imgui resources
-	renderer->imgui_pso = 0;
 	renderer->imgui_fontatlas = 0;
 	renderer->imgui_ibuffer = 0;
 	renderer->imgui_vbuffer = 1;
-	struct MaterialAsset const *imgui_material = asset_library_get_material(assets, 3661877039);
-	new_graphics_program(renderer->device, renderer->imgui_pso, *imgui_material);
 	new_index_buffer(renderer->device, renderer->imgui_ibuffer, (1 << 20));
 	new_storage_buffer(renderer->device, renderer->imgui_vbuffer, (1 << 20));
 	unsigned char *pixels = NULL;
@@ -126,17 +140,8 @@ void renderer_init(Renderer *renderer, struct AssetLibrary *assets, SDL_Window *
 	new_texture(renderer->device, renderer->imgui_fontatlas, width, height, PG_FORMAT_R8G8B8A8_UNORM, pixels, width*height*bpp);
 	
 	// Create debug draw resources
-	struct VulkanGraphicsPsoSpec pso_spec = {0};
-	pso_spec.topology = VULKAN_TOPOLOGY_TRIANGLE_LIST;
-	pso_spec.fillmode = VULKAN_FILL_MODE_LINE;
-	renderer->dd_pso = 1;
-	renderer->dd_line_pso = 2;
 	renderer->dd_ibuffer = 2;
 	renderer->dd_vbuffer = 3;
-	struct MaterialAsset const *dd_material = asset_library_get_material(assets, 3200094153);
-	new_graphics_program_ex(renderer->device, renderer->dd_pso, *dd_material, pso_spec);
-	pso_spec.topology = VULKAN_TOPOLOGY_LINE_LIST;
-	new_graphics_program_ex(renderer->device, renderer->dd_line_pso, *dd_material, pso_spec);
 	new_index_buffer(renderer->device, renderer->dd_ibuffer, (64 << 10));
 	new_storage_buffer(renderer->device, renderer->dd_vbuffer, (64 << 10));
 
@@ -146,13 +151,10 @@ void renderer_init(Renderer *renderer, struct AssetLibrary *assets, SDL_Window *
 	assert(res == 0);
 	res = oa_create(&renderer->mesh_ibuffer_allocator, RENDERER_MESH_INDEX_CAPACITY, MAX_MESH_ALLOCATIONS);
 	assert(res == 0);
-	renderer->mesh_pso = 3;
 	renderer->mesh_ibuffer = 4;
 	renderer->mesh_vbuffer = 5;
 	new_index_buffer(renderer->device, renderer->mesh_ibuffer, RENDERER_MESH_INDEX_CAPACITY * sizeof(uint32_t));
 	new_storage_buffer(renderer->device, renderer->mesh_vbuffer, RENDERER_MESH_VERTEX_CAPACITY * sizeof(struct MeshVert));
-	struct MaterialAsset const *mesh_material = asset_library_get_material(assets, 2455425701);
-	new_graphics_program(renderer->device, renderer->mesh_pso, *mesh_material);
 
 	memset(buffer_get_mapped_pointer(renderer->device, renderer->mesh_vbuffer), 0, buffer_get_size(renderer->device, renderer->mesh_vbuffer));
 	memset(buffer_get_mapped_pointer(renderer->device, renderer->mesh_ibuffer), 0, buffer_get_size(renderer->device, renderer->mesh_ibuffer));
@@ -160,10 +162,37 @@ void renderer_init(Renderer *renderer, struct AssetLibrary *assets, SDL_Window *
 	renderer->constant_buffer = 6;
 	new_storage_buffer(renderer->device, renderer->constant_buffer, (64 << 10));
 
-	// shader bg
+	renderer_init_materials(renderer, assets);
+}
+
+void renderer_init_materials(Renderer *renderer, struct AssetLibrary *assets)
+{
+	struct MaterialAsset const *imgui_material = asset_library_get_material(assets, 3661877039);
+	struct MaterialAsset const *dd_material = asset_library_get_material(assets, 3200094153);
+	struct MaterialAsset const *mesh_material = asset_library_get_material(assets, 2455425701);
 	struct MaterialAsset const *bg0_material = asset_library_get_material(assets, 295627051);
+	struct MaterialAsset const *compositing_material = asset_library_get_material(assets, 4245599685);
+	
+	renderer->imgui_pso = 0;
+	new_graphics_program(renderer->device, renderer->imgui_pso, *imgui_material);
+	
+	renderer->dd_pso = 1;
+	renderer->dd_line_pso = 2;
+	struct VulkanGraphicsPsoSpec pso_spec = {0};
+	pso_spec.topology = VULKAN_TOPOLOGY_TRIANGLE_LIST;
+	pso_spec.fillmode = VULKAN_FILL_MODE_LINE;
+	new_graphics_program_ex(renderer->device, renderer->dd_pso, *dd_material, pso_spec);
+	pso_spec.topology = VULKAN_TOPOLOGY_LINE_LIST;
+	new_graphics_program_ex(renderer->device, renderer->dd_line_pso, *dd_material, pso_spec);
+	
+	renderer->mesh_pso = 3;
+	new_graphics_program(renderer->device, renderer->mesh_pso, *mesh_material);
+
 	renderer->bg0_pso = 4;
 	new_graphics_program(renderer->device, renderer->bg0_pso, *bg0_material);
+	
+	renderer->compositing_pso = 5;
+	new_graphics_program(renderer->device, renderer->compositing_pso, *compositing_material);
 }
 
 void renderer_set_time(Renderer *renderer, float t)
@@ -437,17 +466,18 @@ void renderer_render(Renderer *renderer, struct Camera* camera)
 	renderer->proj = perspective_projection(camera->vertical_fov, (float)swapchain_width / (float)swapchain_height, 1.0f, 100.0f, &renderer->invproj);
 	renderer->view = lookat_view(camera->position, camera->lookat, &renderer->invview);
 	
-	vulkan_bind_texture(renderer->device, &frame, renderer->imgui_fontatlas, 0);
-
 	if (renderer->device->rts[renderer->output_rt].width != swapchain_width || renderer->device->rts[renderer->output_rt].height != swapchain_height) {
 		resize_render_target(renderer->device, renderer->output_rt, swapchain_width, swapchain_height);
+		resize_render_target(renderer->device, renderer->hdr_rt, swapchain_width, swapchain_height);
 		resize_render_target(renderer->device, renderer->depth_rt, swapchain_width, swapchain_height);
+		resize_render_target(renderer->device, renderer->final_rt, swapchain_width, swapchain_height);
 	}
+	vulkan_bind_texture(renderer->device, &frame, renderer->imgui_fontatlas, 0);
 
 	VulkanRenderPass pass = {0};
 	union VulkanClearColor clear_color = {0};
 	
-	struct VulkanBeginPassInfo mesh_pass_info = (struct VulkanBeginPassInfo){RENDER_PASSES_MESH, {renderer->output_rt}, 1, renderer->depth_rt};
+	struct VulkanBeginPassInfo mesh_pass_info = (struct VulkanBeginPassInfo){RENDER_PASSES_MESH, {renderer->hdr_rt}, 1, renderer->depth_rt};
 	begin_render_pass_discard(renderer->device, &frame, &pass, mesh_pass_info);
 	vulkan_clear(renderer->device, &pass, &clear_color, 1, 0.0f);
 
@@ -509,7 +539,8 @@ void renderer_render(Renderer *renderer, struct Camera* camera)
 	end_render_pass(renderer->device, &pass);
 
 	struct VulkanBeginPassInfo dd_pass_info = (struct VulkanBeginPassInfo){RENDER_PASSES_DEBUG_DRAW, {renderer->output_rt}, 1};
-	begin_render_pass(renderer->device, &frame, &pass, dd_pass_info);
+	begin_render_pass_discard(renderer->device, &frame, &pass, dd_pass_info);
+	vulkan_clear(renderer->device, &pass, &clear_color, 1, 0.0f);
 	renderer_debug_draw_pass(renderer, &frame, &pass);
 	end_render_pass(renderer->device, &pass);
 	
@@ -517,8 +548,23 @@ void renderer_render(Renderer *renderer, struct Camera* camera)
 	begin_render_pass(renderer->device, &frame, &pass, ui_pass_info);
 	renderer_imgui_pass(renderer, &frame, &pass);
 	end_render_pass(renderer->device, &pass);
+	
+	vulkan_bind_rt_as_texture(renderer->device, &frame, renderer->hdr_rt, 1);
+	vulkan_bind_rt_as_texture(renderer->device, &frame, renderer->output_rt, 2);
+	struct VulkanBeginPassInfo compositing_pass_info = (struct VulkanBeginPassInfo){RENDER_PASSES_COMPOSITING, {renderer->final_rt}, 1};
+	begin_render_pass_discard(renderer->device, &frame, &pass, compositing_pass_info);
+	{
+		struct CompositingConstants
+		{
+		} constants;
+		vulkan_insert_debug_label(renderer->device, &pass, "compositing");
+		vulkan_bind_graphics_pso(renderer->device, &pass, renderer->compositing_pso);
+		vulkan_push_constants(renderer->device, &pass, &constants, sizeof(constants));
+		vulkan_draw_not_indexed(renderer->device, &pass, 3);
+	}
+	end_render_pass(renderer->device, &pass);
 
-	end_frame(renderer->device, &frame, renderer->output_rt);
+	end_frame(renderer->device, &frame, renderer->final_rt);
 
 	TracyCZoneEnd(f);
 }

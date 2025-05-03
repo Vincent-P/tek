@@ -53,6 +53,7 @@ struct SkeletalMeshInstanceData
 // init
 uint32_t renderer_get_size(void);
 void renderer_init(Renderer *renderer, struct AssetLibrary *assets, SDL_Window *window);
+void renderer_init_materials(Renderer *renderer, struct AssetLibrary *assets);
 void renderer_create_render_skeletal_mesh(Renderer *renderer, struct SkeletalMeshAsset *asset, uint32_t handle);
 // game init
 void renderer_register_skeletal_mesh_instance(Renderer *renderer, struct SkeletalMeshInstanceData data);
