@@ -447,7 +447,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 	ImGui_End();
 
 	// simulate in fixed-step increments from the accumulator
-	const uint64_t dt = 33;
+	const uint64_t dt = 16;
 	while (application->accumulator >= dt) {
 		game_run_frame(application);
 		application->t += dt;

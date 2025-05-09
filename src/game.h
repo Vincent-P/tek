@@ -33,7 +33,7 @@ struct TekPlayerComponent
 	// character
 	uint32_t character_id;
 	// status
-	struct tek_ActionState action_state;
+	uint32_t current_move_id;
 	// input buffer
 	GameInput input_buffer[INPUT_BUFFER_SIZE];
 	uint32_t input_buffer_frame_start[INPUT_BUFFER_SIZE];

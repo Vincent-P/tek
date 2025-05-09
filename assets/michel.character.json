@@ -2,25 +2,48 @@
     "name": "michel",
     "skeletal_mesh": "Michel_GEO",
     "anim_skeleton": "rig",
-    "stances": [
+    "moves": [
+	// generic moves
 	{
-	    "name": "standing",
-	    "moves": [
-		{
-		    "name": "jab",
-		    "animation": "rig|jab",
-		    "startup": 10,
-		    "active": 1,
-		    "recovery": 20,
-		    "hitstun": 29,
-		    "blockstun": 21,
-		    "base_damage": 10,
-		    "motion_input": 0,
-		    "action_input": 4, // LP(4) RP(5) LK(6) RK(7)
-		    "transition_input": 0,
-		    "transition_stance_id": 0,
-		},
-	    ],
+	    "name": "standing idle",
+	    "animation": "rig|idle",
+	},
+	{
+	    "name": "standing walk forward",
+	    "animation": "rig|walk_forward"
+	},
+	{
+	    "name": "standing walk backward",
+	    "animation": "rig|walk_backward"
+	},
+	{
+	    "name": "jab",
+	    "animation": "rig|jab",
+	    // frame data
+	    "startup": 10,
+	    "active": 1,
+	    "recovery": 20,
+	    // reaction
+	    "hitstun": 29,
+	    "blockstun": 21,
+	    "base_damage": 10,
+	},
+    ],
+    "cancels": [
+	{
+	    "from": "standing idle",
+	    "to": "standing walk forward",
+	    "motion_input": 6, // f
+	},
+	{
+	    "from": "standing idle",
+	    "to": "standing walk backward",
+	    "motion_input": 2, // b
+	},
+	{
+	    "from": "standing idle",
+	    "to": "jab",
+	    "action_input": 4, // LP(4) RP(5) LK(6) RK(7)
 	},
     ],
     "hurtboxes": [

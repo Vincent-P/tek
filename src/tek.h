@@ -52,22 +52,19 @@ struct tek_Move
 	uint8_t startup; // how long is the startup of the animation
 	uint8_t active; // how long is the move active
 	uint8_t recovery; // how long is the recovery
+	// hit reaction, TODO: reactions list to handle airborne, CH, etc
+	uint8_t base_damage;
 	uint8_t hitstun; // stun the opponent for X frames on hit
 	uint8_t blockstun; // stun the opponent for X frames on block
-	// gameplay
-	uint8_t base_damage;
-	tek_MotionInput motion_input;
-	uint8_t action_input;
-	// stance transitions
-	tek_MotionInput transition_input;
-	uint32_t transition_stance_id;
 };
 
-struct tek_Stance
+struct tek_Cancel
 {
-	uint32_t id;
-	struct tek_Move moves[128];
-	uint32_t moves_length;
+	uint32_t from_move_id;
+	uint32_t to_move_id;
+	tek_MotionInput motion_input;
+	uint8_t action_input;
+	// input window
 };
 
 struct tek_Character
@@ -76,8 +73,10 @@ struct tek_Character
 	uint32_t skeletal_mesh_id;
 	uint32_t anim_skeleton_id;
 	// moves
-	struct tek_Stance stances[8];
-	uint32_t stances_length;
+	struct tek_Move moves[128];
+	struct tek_Cancel cancels[128];
+	uint32_t moves_length;
+	uint32_t cancels_length;
 	// hurtboxes, 0 or 1 per bone
 	float hurtboxes_radius[MAX_BONES_PER_MESH];
 	float hurtboxes_height[MAX_BONES_PER_MESH];

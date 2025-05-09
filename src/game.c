@@ -158,6 +158,30 @@ void game_state_init(struct GameState *state, struct NonGameState *nonstate, Ren
 	nonstate->camera.vertical_fov = 40.0f;
 }
 
+static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel cancel)
+{
+	uint32_t input_index = (player.current_input_index + (INPUT_BUFFER_SIZE - 0)) % INPUT_BUFFER_SIZE;
+	enum GameInputBits frame_input = player.input_buffer[input_index];
+	
+	GameInput ACTION_MASK = (GAME_INPUT_LPUNCH | GAME_INPUT_RPUNCH | GAME_INPUT_LKICK | GAME_INPUT_RKICK);	
+	GameInput action_input = frame_input & ACTION_MASK;
+
+	tek_MotionInput current_motion = 0;
+	if ((frame_input & GAME_INPUT_BACK) != 0) {
+		current_motion = TEK_MOTION_INPUT_B;
+	} else if ((frame_input & GAME_INPUT_UP) != 0) {
+		current_motion = TEK_MOTION_INPUT_U;
+	} else if ((frame_input & GAME_INPUT_FORWARD) != 0) {
+		current_motion = TEK_MOTION_INPUT_F;
+	} else if ((frame_input & GAME_INPUT_DOWN) != 0) {
+		current_motion = TEK_MOTION_INPUT_D;
+	}
+	
+	bool match_dir = current_motion  == cancel.motion_input;
+	bool match_action = action_input == cancel.action_input;
+	return match_dir && match_action;
+}
+
 void game_state_update(struct NonGameState *nonstate, struct GameState *state, struct GameInputs inputs)
 {
 	TracyCZoneN(f, "StateUpdate", true);
@@ -171,36 +195,49 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 		p1->tek.input_buffer[input_index] = inputs.player1;
 		p1->tek.input_buffer_frame_start[input_index] = state->frame_number;
 	}
+	
 	// match inputs
-	struct tek_Stance *current_stance = &c1->stances[0];
-	struct tek_Move *move_request = NULL;
-	for (uint32_t imove = 0; imove < current_stance->moves_length; ++imove) {
-		struct tek_Move *move = &current_stance->moves[imove];
-		if (move->action_input == inputs.player1) {
-			move_request = move;
+	uint32_t request_move_id = 0;
+	if (p1->tek.current_move_id == 0) {
+		// default to idle move
+		request_move_id = c1->moves[0].id;
+	}
+	struct tek_Move *current_move = &c1->moves[0];
+	for (uint32_t imove = 0; imove < c1->moves_length; ++imove) {
+		if (c1->moves[imove].id == p1->tek.current_move_id) {
+			current_move = &c1->moves[imove];
+		}
+	}
+	for (uint32_t icancel = 0; icancel < c1->cancels_length; ++icancel) {
+		struct tek_Cancel *cancel = &c1->cancels[icancel];
+		if (cancel->from_move_id == p1->tek.current_move_id && match_cancel(p1->tek, *cancel)) {
+			printf("p1 canceling from %u to %u\n", cancel->from_move_id, cancel->to_move_id);
+			request_move_id = cancel->to_move_id;
 			break;
 		}
 	}
-
+	struct tek_Move *request_move = NULL;
+	for (uint32_t imove = 0; imove < c1->moves_length; ++imove) {
+		if (c1->moves[imove].id == request_move_id) {
+			request_move = &c1->moves[imove];
+		}
+	}
 	// -- gameplay update
-	
 	// move request
-	if (move_request != NULL) {
-		// A player can only do a move if they are not in active, recovery, or startup
-		if (p1->tek.action_state.type == TEK_ACTION_STATE_NONE) {
-			printf("p1 wants to do move %u\n", move_request->id);
-			printf("play anim %u\n", move_request->animation_id);
+	if (request_move != NULL) {
+		bool is_recovery = p1->animation.frame > (current_move->startup + current_move->active);
+		if (is_recovery) {
+			printf("do move %u\n", request_move->id);
+			printf("play anim %u\n", request_move->animation_id);
 
-			p1->animation.animation_id = move_request->animation_id;
+			p1->animation.animation_id = request_move->animation_id;
 			p1->animation.frame = 0;
-			
-			p1->tek.action_state.type = TEK_ACTION_STATE_STARTUP;
-			p1->tek.action_state.end = state->frame_number + move_request->startup;
+			p1->tek.current_move_id = request_move->id;
 		}
 	}
 
 	// update player state
-	
+	#if 0
 	if (p1->tek.action_state.type != TEK_ACTION_STATE_NONE) {
 		struct tek_ActionState action_state = p1->tek.action_state;
 		if (action_state.type == TEK_ACTION_STATE_STARTUP) {
@@ -212,6 +249,7 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 		} else if (action_state.type == TEK_ACTION_STATE_RECOVERY) {
 		}
 	}
+	#endif
 	
 	
 
@@ -219,22 +257,7 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 	// update transforms
 	struct SpatialComponent *p1_root = &state->p1_entity.spatial;
 	struct SpatialComponent *p2_root = &state->p2_entity.spatial;
-	float speed = 0.1f;
-	if ((inputs.player1 & GAME_INPUT_BACK) != 0) {
-		p1_root->world_transform.cols[3].x -= speed;
-	}
-	if ((inputs.player1 & GAME_INPUT_FORWARD) != 0) {
-		p1_root->world_transform.cols[3].x += speed;
-	}
-	if ((inputs.player2 & GAME_INPUT_BACK) != 0) {
-		p2_root->world_transform.cols[3].x -= speed;
-	}
-	if ((inputs.player2 & GAME_INPUT_FORWARD) != 0) {
-		p2_root->world_transform.cols[3].x += speed;
-	}
-
-	state->frame_number += 1;
-	
+	state->frame_number += 1;	
 
 	// Camera follow
 	if (nonstate->camera_focus != 0)
@@ -277,18 +300,17 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 	if (animation != NULL) {
 		bool has_ended = anim_evaluate_animation(anim_skeleton, animation, &np1->pose, p1->animation.frame);
 		if (has_ended) {
-			// HACK: reset to none state
-			p1->tek.action_state.type = TEK_ACTION_STATE_NONE;
-
-			
-			p1->animation.animation_id = 3108588149;
-			p1->animation.frame = 0;
+			// reset move? move has ended.
+			p1->tek.current_move_id = 0;
 		}
 		// update render skeleton
 		anim_pose_compute_global_transforms(anim_skeleton, &np1->pose);
 		skeletal_mesh_apply_pose(&np1->mesh_instance, &np1->pose);
 		// use root motion
 		Float3 root_translation = float3x4_transform_direction(p1->spatial.world_transform, np1->pose.root_motion_delta_translation);
+		if (root_translation.x != 0.0f || root_translation.y != 0.0f || root_translation.z != 0.0f) {
+			printf("root motion: %f %f %f\n", root_translation.x, root_translation.y, root_translation.z);
+		}
 		p1->spatial.world_transform.cols[3] = float3_add(p1->spatial.world_transform.cols[3], root_translation);
 	}
 

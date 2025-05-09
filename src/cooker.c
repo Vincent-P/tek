@@ -269,6 +269,7 @@ int cook_fbx()
 		}
 	}
 	fprintf(stderr, "Imported %u bones\n", bones_length);
+	fprintf(stderr, "Root bone: %s\n", root_bone->name.data);
 	// get bone parent indices
 	uint8_t bones_parent[MAX_BONES_PER_MESH] = {0};
 	for (uint32_t ibone = 1; ibone < bones_length; ++ibone) {

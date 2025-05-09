@@ -52,7 +52,7 @@ bool json_object_get_float(struct json_object_element_s *it, const char *field_n
 	return false;
 }
 
-static void tek_read_json_stance_move(struct tek_Stance *stance, struct json_object_s *obj)
+static void tek_read_json_move(struct tek_Character *character, struct json_object_s *obj)
 {
 	if (obj == NULL) {
 		return;
@@ -65,46 +65,36 @@ static void tek_read_json_stance_move(struct tek_Stance *stance, struct json_obj
 		json_object_get_u8(it, "startup", &move.startup);
 		json_object_get_u8(it, "active", &move.active);
 		json_object_get_u8(it, "recovery", &move.recovery);
+		json_object_get_u8(it, "base_damage", &move.base_damage);
 		json_object_get_u8(it, "hitstun", &move.hitstun);
 		json_object_get_u8(it, "blockstun", &move.blockstun);
-		json_object_get_u8(it, "base_damage", &move.base_damage);
-		json_object_get_u8(it, "motion_input", &move.motion_input);
-		if (json_object_get_u8(it, "action_input", &move.action_input)) {
-			move.action_input = (1 << move.action_input);
-		}
-		json_object_get_u8(it, "transition_input", &move.transition_input);
-		json_object_get_string_id(it, "transition_stance", &move.transition_stance_id);
 	}
-	uint32_t imove = stance->moves_length;
-	assert(imove < ARRAY_LENGTH(stance->moves));
-	stance->moves[imove] = move;
-	stance->moves_length += 1;
+	uint32_t imove = character->moves_length;
+	assert(imove < ARRAY_LENGTH(character->moves));
+	character->moves[imove] = move;
+	character->moves_length += 1;
 }
 
-static void tek_read_json_stance(struct tek_Character *character, struct json_object_s *obj)
+static void tek_read_json_cancel(struct tek_Character *character, struct json_object_s *obj)
 {
 	if (obj == NULL) {
 		return;
 	}
 	
-	struct tek_Stance stance = {0};
+	struct tek_Cancel cancel = {0};
 	for (struct json_object_element_s* it = obj->start; it != NULL; it = it->next) {
-		json_object_get_string_id(it, "name", &stance.id);
-		if (strcmp(it->name->string, "moves") == 0) {
-			struct json_array_s *moves = json_value_as_array(it->value);
-			if (moves != NULL) {
-				for (struct json_array_element_s* it = moves->start; it != NULL; it = it->next) {
-					struct json_object_s *move = json_value_as_object(it->value);
-					tek_read_json_stance_move(&stance, move);
-				}
-			}
+		json_object_get_string_id(it, "from", &cancel.from_move_id);
+		json_object_get_string_id(it, "to", &cancel.to_move_id);
+		
+		json_object_get_u8(it, "motion_input", &cancel.motion_input);
+		if (json_object_get_u8(it, "action_input", &cancel.action_input)) {
+			cancel.action_input = (1 << cancel.action_input);
 		}
 	}
-	
-	uint32_t istance = character->stances_length;
-	assert(istance < ARRAY_LENGTH(character->stances));
-	character->stances[istance] = stance;
-	character->stances_length += 1;
+	uint32_t icancel = character->cancels_length;
+	assert(icancel < ARRAY_LENGTH(character->cancels));
+	character->cancels[icancel] = cancel;
+	character->cancels_length += 1;
 }
 
 static void tek_read_json_hurtbox(struct tek_Character *character, struct json_object_s *obj)
@@ -140,7 +130,8 @@ void tek_read_character_json()
 	struct json_value_s* root = json_parse_ex(character_json_file.data, character_json_file.size, json_parse_flags_allow_c_style_comments | json_parse_flags_allow_trailing_comma , NULL, NULL, NULL);
 	assert(root->type == json_type_object);
 
-	struct json_array_s *stances = NULL;
+	struct json_array_s *moves = NULL;
+	struct json_array_s *cancels = NULL;
 	struct json_array_s *hurtboxes = NULL;
 	struct json_array_s *hitboxes = NULL;
 	
@@ -151,8 +142,11 @@ void tek_read_character_json()
 		json_object_get_string_id(it, "skeletal_mesh", &character.skeletal_mesh_id);
 		json_object_get_string_id(it, "anim_skeleton", &character.anim_skeleton_id);
 		
-		if (strcmp(it->name->string, "stances") == 0) {
-			stances = json_value_as_array(it->value);
+		if (strcmp(it->name->string, "moves") == 0) {
+			moves = json_value_as_array(it->value);
+		}
+		if (strcmp(it->name->string, "cancels") == 0) {
+			cancels = json_value_as_array(it->value);
 		}
 		if (strcmp(it->name->string, "hurtboxes") == 0) {
 			hurtboxes = json_value_as_array(it->value);
@@ -162,10 +156,16 @@ void tek_read_character_json()
 		}
 	}
 
-	if (stances != NULL) {
-		for (struct json_array_element_s* it = stances->start; it != NULL; it = it->next) {
-			struct json_object_s *stance = json_value_as_object(it->value);
-			tek_read_json_stance(&character, stance);
+	if (moves != NULL) {
+		for (struct json_array_element_s* it = moves->start; it != NULL; it = it->next) {
+			struct json_object_s *move = json_value_as_object(it->value);
+			tek_read_json_move(&character, move);
+		}
+	}
+	if (cancels != NULL) {
+		for (struct json_array_element_s* it = cancels->start; it != NULL; it = it->next) {
+			struct json_object_s *cancel = json_value_as_object(it->value);
+			tek_read_json_cancel(&character, cancel);
 		}
 	}
 	if (hurtboxes != NULL) {

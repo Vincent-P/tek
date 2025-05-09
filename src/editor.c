@@ -12,12 +12,16 @@ void _display_skeleton_component(struct SkeletonComponent *skeleton)
 }
 void _display_animation_component(struct AnimationComponent *animation)
 {
+	ImGui_InputScalar("frame", ImGuiDataType_U32, &animation->frame);
+	ImGui_InputScalar("animation_id", ImGuiDataType_U32, &animation->animation_id);
 }
 void _display_skeletal_mesh_component(struct SkeletalMeshComponent *mesh)
 {
 }
 void _display_tek_component(struct TekPlayerComponent *player)
 {
+	ImGui_InputScalar("character", ImGuiDataType_U32, &player->character_id);
+	ImGui_InputScalar("current move", ImGuiDataType_U32, &player->current_move_id);
 }
 
 void ed_display_player_entity(const char* id, struct PlayerEntity *player)
