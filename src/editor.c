@@ -39,11 +39,15 @@ void _display_tek_component(struct TekPlayerComponent *player)
 	ImGui_TextUnformatted("Moves:");
 	for (uint32_t imove = 0; imove < chara->moves_length; ++imove) {
 		struct tek_Move *move = &chara->moves[imove];
+		ImGui_PushID((const char*)move);
+		
 		ImGui_Text("Move[%u]: %u", imove, move->id);
 		ImGui_SameLine();
 		if (ImGui_Button("Do")) {
 			player->current_move_id = move->id;
 		}
+
+		ImGui_PopID();
 	}
 }
 

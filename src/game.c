@@ -134,21 +134,23 @@ void game_state_init_player(struct PlayerEntity *p, struct PlayerNonEntity *pn, 
 void game_state_init(struct GameState *state, struct NonGameState *nonstate, Renderer *renderer)
 {
 	// Initial game state
-	Float3 p1_initial_pos = (Float3){-10.0f, 0.f, 0.f};
-	Float3 p2_initial_pos = (Float3){ 1.0f, 0.f, 0.f};
+	Float3 p1_initial_pos = (Float3){-2.0f, 0.f, 0.f};
+	Float3 p2_initial_pos = (Float3){ 2.0f, 0.f, 0.f};
 	spatial_component_set_position(&state->p1_entity.spatial, p1_initial_pos);
 	state->p1_entity.spatial.world_transform.cols[0] = (Float3){1.0f, 0.0f, 0.0f};
 	state->p1_entity.spatial.world_transform.cols[1] = (Float3){0.0f, 1.0f, 0.0f};
 	state->p1_entity.spatial.world_transform.cols[2] = (Float3){0.0f, 0.0f, 1.0f};
-	spatial_component_target(&state->p1_entity.spatial, (Float3){0});//p2_initial_pos);
+	spatial_component_target(&state->p1_entity.spatial, p2_initial_pos);
 	spatial_component_set_position(&state->p2_entity.spatial, p2_initial_pos);
 	state->p2_entity.spatial.world_transform.cols[0] = (Float3){1.0f, 0.0f, 0.0f};
 	state->p2_entity.spatial.world_transform.cols[1] = (Float3){0.0f, 1.0f, 0.0f};
 	state->p2_entity.spatial.world_transform.cols[2] = (Float3){0.0f, 0.0f, 1.0f};
-	spatial_component_target(&state->p2_entity.spatial, (Float3){0});//p1_initial_pos);
-
+	spatial_component_target(&state->p2_entity.spatial, p1_initial_pos);
+	// default move
 	struct tek_Character *c1 = tek_characters + state->p1_entity.tek.character_id;
+	struct tek_Character *c2 = tek_characters + state->p2_entity.tek.character_id;
 	state->p1_entity.tek.current_move_id = c1->moves[0].id;
+	state->p2_entity.tek.current_move_id = c2->moves[0].id;
 
 	// initial non game state
 	nonstate->renderer = renderer;
@@ -196,62 +198,69 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 	TracyCZoneN(f, "StateUpdate", true);
 	
 	// register input in the input buffer
-	struct PlayerEntity *p1 = &state->p1_entity;
-	struct tek_Character *c1 = tek_characters + p1->tek.character_id;
-	if (inputs.player1 != p1->tek.input_buffer[p1->tek.current_input_index % INPUT_BUFFER_SIZE]) {
-		p1->tek.current_input_index += 1;
-		uint32_t input_index = p1->tek.current_input_index % INPUT_BUFFER_SIZE;
-		p1->tek.input_buffer[input_index] = inputs.player1;
-		p1->tek.input_buffer_frame_start[input_index] = state->frame_number;
+	struct PlayerEntity *players[] = {&state->p1_entity, &state->p2_entity};
+	struct tek_Character *characters[] = {
+		tek_characters + players[0]->tek.character_id,
+		tek_characters + players[1]->tek.character_id,
+	};
+	GameInput pinputs[] = {inputs.player1, inputs.player2}; 
+	
+	for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
+		struct PlayerEntity *p = players[iplayer];
+		if (pinputs[iplayer] != p->tek.input_buffer[p->tek.current_input_index % INPUT_BUFFER_SIZE]) {
+			p->tek.current_input_index += 1;
+			uint32_t input_index = p->tek.current_input_index % INPUT_BUFFER_SIZE;
+			p->tek.input_buffer[input_index] = pinputs[iplayer];
+			p->tek.input_buffer_frame_start[input_index] = state->frame_number;
+		}
 	}
 	
-	// match inputs
-	uint32_t request_move_id = 0;
-	for (uint32_t icancel = 0; icancel < c1->cancels_length; ++icancel) {
-		struct tek_Cancel *cancel = &c1->cancels[icancel];
-		if (cancel->from_move_id == p1->tek.current_move_id && match_cancel(p1->tek, *cancel, state->frame_number)) {
-			printf("p1 canceling from %u to %u\n", cancel->from_move_id, cancel->to_move_id);
-			request_move_id = cancel->to_move_id;
-			break;
-		}
-	}
 	// -- gameplay update
 	// move request
-	struct tek_Move *current_move = NULL;
-	for (uint32_t imove = 0; imove < c1->moves_length; ++imove) {
-		if (c1->moves[imove].id == p1->tek.current_move_id) {
-			current_move = &c1->moves[imove];
+	for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
+		uint32_t request_move_id = 0;
+		for (uint32_t icancel = 0; icancel < characters[iplayer]->cancels_length; ++icancel) {
+			struct tek_Cancel *cancel = &characters[iplayer]->cancels[icancel];
+			if (cancel->from_move_id == players[iplayer]->tek.current_move_id && match_cancel(players[iplayer]->tek, *cancel, state->frame_number)) {
+				printf("p%u canceling from %u to %u\n", iplayer, cancel->from_move_id, cancel->to_move_id);
+				request_move_id = cancel->to_move_id;
+				break;
+			}
+		}
+		struct tek_Move *current_move = NULL;
+		for (uint32_t imove = 0; imove < characters[iplayer]->moves_length; ++imove) {
+			if (characters[iplayer]->moves[imove].id == players[iplayer]->tek.current_move_id) {
+				current_move = &characters[iplayer]->moves[imove];
+			}
+		}
+		struct tek_Move *request_move = NULL;
+		for (uint32_t imove = 0; imove < characters[iplayer]->moves_length; ++imove) {
+			if (characters[iplayer]->moves[imove].id == request_move_id) {
+				request_move = &characters[iplayer]->moves[imove];
+			}
+		}
+		if (current_move != NULL && request_move != NULL) {
+			bool is_recovery = players[iplayer]->animation.frame > (current_move->startup + current_move->active);
+			bool can_cancel = is_recovery;
+			if (can_cancel) {
+				printf("do move %u\n", request_move->id);
+				printf("play anim %u\n", request_move->animation_id);
+				// perform the cancel
+				struct Animation const *animation = asset_library_get_animation(nonstate->assets, request_move->animation_id);
+				players[iplayer]->animation.animation_id = request_move->animation_id;
+				players[iplayer]->animation.frame = 0;
+				players[iplayer]->tek.current_move_id = request_move->id;
+				players[iplayer]->tek.current_move_last_frame = state->frame_number + animation->root_motion_track.translations.length;
+			}
 		}
 	}
-	struct tek_Move *request_move = NULL;
-	for (uint32_t imove = 0; imove < c1->moves_length; ++imove) {
-		if (c1->moves[imove].id == request_move_id) {
-			request_move = &c1->moves[imove];
-		}
-	}
-	if (current_move != NULL && request_move != NULL) {
-		bool is_recovery = p1->animation.frame > (current_move->startup + current_move->active);
-		bool can_cancel = is_recovery;
-		if (can_cancel) {
-			printf("do move %u\n", request_move->id);
-			printf("play anim %u\n", request_move->animation_id);
-			// perform the cancel
-			struct Animation const *animation = asset_library_get_animation(nonstate->assets, request_move->animation_id);
-			p1->animation.animation_id = request_move->animation_id;
-			p1->animation.frame = 0;
-			p1->tek.current_move_id = request_move->id;
-			p1->tek.current_move_last_frame = state->frame_number + animation->root_motion_track.translations.length;
-		}
-	}
-
-	// update transforms
-	struct SpatialComponent *p1_root = &state->p1_entity.spatial;
-	struct SpatialComponent *p2_root = &state->p2_entity.spatial;
-	state->frame_number += 1;	
 
 	// Camera follow
 	if (nonstate->camera_focus != 0)
 	{
+		struct SpatialComponent *p1_root = &state->p1_entity.spatial;
+		struct SpatialComponent *p2_root = &state->p2_entity.spatial;
+	
 		Float3 target_pos = float3_add(p1_root->world_transform.cols[3], p2_root->world_transform.cols[3]);
 		target_pos.x *= 0.5f;
 		target_pos.y *= 0.5f;
@@ -284,65 +293,63 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 	}
 
 	// Evaluate anims
-	struct PlayerNonEntity *np1 = &nonstate->p1_nonentity;
-	struct AnimSkeleton const *anim_skeleton = asset_library_get_anim_skeleton(nonstate->assets, p1->anim_skeleton.anim_skeleton_id);
-	struct Animation const *animation = asset_library_get_animation(nonstate->assets, p1->animation.animation_id);
-	if (animation != NULL) {
-		anim_evaluate_animation(anim_skeleton, animation, &np1->pose, p1->animation.frame);
-		// update render skeleton
-		anim_pose_compute_global_transforms(anim_skeleton, &np1->pose);
-		skeletal_mesh_apply_pose(&np1->mesh_instance, &np1->pose);
-		// use root motion
-		Float3 root_translation = float3x4_transform_direction(p1->spatial.world_transform, np1->pose.root_motion_delta_translation);
-		if (root_translation.x != 0.0f || root_translation.y != 0.0f || root_translation.z != 0.0f) {
-			printf("root motion: %f %f %f\n", root_translation.x, root_translation.y, root_translation.z);
+	struct PlayerNonEntity *nonplayers[] = {
+		&nonstate->p1_nonentity,
+		&nonstate->p2_nonentity,
+	};
+
+	for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
+		struct AnimSkeleton const *anim_skeleton = asset_library_get_anim_skeleton(nonstate->assets, players[iplayer]->anim_skeleton.anim_skeleton_id);
+		struct Animation const *animation = asset_library_get_animation(nonstate->assets, players[iplayer]->animation.animation_id);
+		// Evaluate animation and apply root motion
+		if (animation != NULL) {
+			anim_evaluate_animation(anim_skeleton, animation, &nonplayers[iplayer]->pose, players[iplayer]->animation.frame);
+			// update render skeleton
+			anim_pose_compute_global_transforms(anim_skeleton, &nonplayers[iplayer]->pose);
+			skeletal_mesh_apply_pose(&nonplayers[iplayer]->mesh_instance, &nonplayers[iplayer]->pose);
+			// use root motion
+			Float3 root_translation = float3x4_transform_direction(players[iplayer]->spatial.world_transform, nonplayers[iplayer]->pose.root_motion_delta_translation);
+			if (root_translation.x != 0.0f || root_translation.y != 0.0f || root_translation.z != 0.0f) {
+				printf("root motion: %f %f %f\n", root_translation.x, root_translation.y, root_translation.z);
+			}
+			players[iplayer]->spatial.world_transform.cols[3] = float3_add(players[iplayer]->spatial.world_transform.cols[3], root_translation);
 		}
-		p1->spatial.world_transform.cols[3] = float3_add(p1->spatial.world_transform.cols[3], root_translation);
-	}
-
-	// Update anims
-	p1->animation.frame += 1;
-
-	// update hurtboxes positions
-	// Apply the bone pose to the hurtboxes
-	for (uint32_t ihurtbox = 0; ihurtbox < c1->hurtboxes_length; ++ihurtbox) {
-		uint32_t hurtbox_bone_id = c1->hurtboxes_bone_id[ihurtbox];
-		for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ++ibone){
-			if (anim_skeleton->bones_identifier[ibone] == hurtbox_bone_id) {
-				np1->hurtboxes_position[ihurtbox] = float3x4_transform_point(
-											     p1->spatial.world_transform,
-											     np1->pose.global_transforms[ibone].cols[3]);
-				break;
+		// Update animation component
+		players[iplayer]->animation.frame += 1;
+		// update hurtboxes positions
+		for (uint32_t ihurtbox = 0; ihurtbox < characters[iplayer]->hurtboxes_length; ++ihurtbox) {
+			uint32_t hurtbox_bone_id = characters[iplayer]->hurtboxes_bone_id[ihurtbox];
+			for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ++ibone){
+				if (anim_skeleton->bones_identifier[ibone] == hurtbox_bone_id) {
+					nonplayers[iplayer]->hurtboxes_position[ihurtbox] = float3x4_transform_point(
+														     players[iplayer]->spatial.world_transform,
+														     nonplayers[iplayer]->pose.global_transforms[ibone].cols[3]);
+					break;
+				}
 			}
 		}
+		// Debug draw animated pose
+		for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ibone++) {
+			Float3 p;
+			p.x = F34(nonplayers[iplayer]->pose.global_transforms[ibone], 0, 3);
+			p.y = F34(nonplayers[iplayer]->pose.global_transforms[ibone], 1, 3);
+			p.z = F34(nonplayers[iplayer]->pose.global_transforms[ibone], 2, 3);
+			p = float3x4_transform_point(players[iplayer]->spatial.world_transform, p);
+			debug_draw_point(p);
+		}
 	}
+
 	
-	// debug draw animated pose
-	for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ibone++) {
-		Float3 p;
-		p.x = F34(np1->pose.global_transforms[ibone], 0, 3);
-		p.y = F34(np1->pose.global_transforms[ibone], 1, 3);
-		p.z = F34(np1->pose.global_transforms[ibone], 2, 3);
-		p = float3x4_transform_point(p1->spatial.world_transform, p);
-		debug_draw_point(p);
-	}
 	// debug draw hurtboxes cylinders
-if (nonstate->draw_hurtboxes) {
-	for (uint32_t ihurtbox = 0; ihurtbox < c1->hurtboxes_length; ++ihurtbox) {
-		Float3 center = np1->hurtboxes_position[ihurtbox];
-		float radius = c1->hurtboxes_radius[ihurtbox];
-		float height = c1->hurtboxes_height[ihurtbox];
-		debug_draw_cylinder(center, radius, height, DD_GREEN);
-	}
-	}
-	// debug draw skeleton at P2
-	for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ibone++) {
-		Float3 p;
-		p.x = F34(anim_skeleton->bones_global_transforms[ibone], 0, 3);
-		p.y = F34(anim_skeleton->bones_global_transforms[ibone], 1, 3);
-		p.z = F34(anim_skeleton->bones_global_transforms[ibone], 2, 3);
-		p = float3x4_transform_point(state->p2_entity.spatial.world_transform, p);
-		debug_draw_point(p);
+	if (nonstate->draw_hurtboxes) {
+		for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
+			for (uint32_t ihurtbox = 0; ihurtbox < characters[iplayer]->hurtboxes_length; ++ihurtbox) {
+				Float3 center = nonplayers[iplayer]->hurtboxes_position[ihurtbox];
+				float radius = characters[iplayer]->hurtboxes_radius[ihurtbox];
+				float height = characters[iplayer]->hurtboxes_height[ihurtbox];
+				debug_draw_cylinder(center, radius, height, DD_GREEN);
+			}
+		}
 	}
 	// debug draw grid
 	if (nonstate->draw_grid) {
@@ -367,28 +374,25 @@ if (nonstate->draw_hurtboxes) {
 			debug_draw_line((Float3){-width, -i, 0.0f}, (Float3){width, -i, 0.0f}, DD_WHITE & DD_QUARTER_ALPHA);
 		}
 	}
-	
-	// draw local axis for P1
-	Float3 origin = {0};
-	Float3 x_axis = (Float3){0.1f, 0.0f, 0.0f};
-	Float3 y_axis = (Float3){0.0f, 0.1f, 0.0f};
-	Float3 z_axis = (Float3){0.0f, 0.0f, 0.1f};
-	Float3 p1_o = float3x4_transform_point(p1_root->world_transform, origin);
-	Float3 p1_x = float3x4_transform_point(p1_root->world_transform, x_axis);
-	Float3 p1_y = float3x4_transform_point(p1_root->world_transform, y_axis);
-	Float3 p1_z = float3x4_transform_point(p1_root->world_transform, z_axis);
-	debug_draw_line(p1_o, p1_x, DD_RED);
-	debug_draw_line(p1_o, p1_y, DD_GREEN);
-	debug_draw_line(p1_o, p1_z, DD_BLUE);
-	// draw local axis for P2
-	Float3 p2_o = float3x4_transform_point(p2_root->world_transform, origin);
-	Float3 p2_x = float3x4_transform_point(p2_root->world_transform, x_axis);
-	Float3 p2_y = float3x4_transform_point(p2_root->world_transform, y_axis);
-	Float3 p2_z = float3x4_transform_point(p2_root->world_transform, z_axis);
-	debug_draw_line(p2_o, p2_x, DD_RED);
-	debug_draw_line(p2_o, p2_y, DD_GREEN);
-	debug_draw_line(p2_o, p2_z, DD_BLUE);
-	
+	// draw local axis for players
+	for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
+		struct SpatialComponent *root = &players[iplayer]->spatial;
+		Float3 origin = {0};
+		Float3 x_axis = (Float3){0.1f, 0.0f, 0.0f};
+		Float3 y_axis = (Float3){0.0f, 0.1f, 0.0f};
+		Float3 z_axis = (Float3){0.0f, 0.0f, 0.1f};
+		Float3 o = float3x4_transform_point(root->world_transform, origin);
+		Float3 x = float3x4_transform_point(root->world_transform, x_axis);
+		Float3 y = float3x4_transform_point(root->world_transform, y_axis);
+		Float3 z = float3x4_transform_point(root->world_transform, z_axis);
+		debug_draw_line(o, x, DD_RED);
+		debug_draw_line(o, y, DD_GREEN);
+		debug_draw_line(o, z, DD_BLUE);
+	}
+
+	// next frame
+	state->frame_number += 1;	
+
 	TracyCZoneEnd(f);
 }
 
