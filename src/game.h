@@ -55,6 +55,7 @@ struct PlayerNonEntity
 	struct SkeletalMeshInstance mesh_instance; // created from the renderer during init
 	struct AnimPose pose; // technically is game state, but because it's computed each tick, it should be deterministic from the AnimationComponent
 	Float3 hurtboxes_position[MAX_BONES_PER_MESH];
+	Float3 hitboxes_position[MAX_HITBOXES];
 };
 
 struct GameState
@@ -77,6 +78,7 @@ struct NonGameState
 	int camera_focus; // 0 = none, 1 = p1, 2 = p2
 	bool draw_grid;
 	bool draw_hurtboxes;
+	bool draw_hitboxes;
 	// player handles
 	// session connection
 };

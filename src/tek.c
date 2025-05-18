@@ -65,6 +65,7 @@ static void tek_read_json_move(struct tek_Character *character, struct json_obje
 		json_object_get_u8(it, "startup", &move.startup);
 		json_object_get_u8(it, "active", &move.active);
 		json_object_get_u8(it, "recovery", &move.recovery);
+		json_object_get_u8(it, "hitbox", &move.hitbox);
 		json_object_get_u8(it, "base_damage", &move.base_damage);
 		json_object_get_u8(it, "hitstun", &move.hitstun);
 		json_object_get_u8(it, "blockstun", &move.blockstun);
@@ -120,6 +121,29 @@ static void tek_read_json_hurtbox(struct tek_Character *character, struct json_o
 	character->hurtboxes_length += 1;
 }
 
+static void tek_read_json_hitbox(struct tek_Character *character, struct json_object_s *obj)
+{
+	if (obj == NULL) {
+		return;
+	}
+	float radius = 0.0f;
+	float height = 0.0f;
+	uint32_t bone_id = 0;
+	
+	for (struct json_object_element_s* it = obj->start; it != NULL; it = it->next) {
+		json_object_get_float(it, "radius", &radius);
+		json_object_get_float(it, "height", &height);
+		json_object_get_string_id(it, "bone", &bone_id);
+	}
+	
+	uint32_t ibox = character->hitboxes_length;
+	assert(ibox < ARRAY_LENGTH(character->hitboxes_radius));
+	character->hitboxes_radius[ibox] = radius;
+	character->hitboxes_height[ibox] = height;
+	character->hitboxes_bone_id[ibox] = bone_id;
+	character->hitboxes_length += 1;
+}
+
 void tek_read_character_json()
 {
 	const char* source_path = "assets/michel.character.json";
@@ -172,6 +196,12 @@ void tek_read_character_json()
 		for (struct json_array_element_s* it = hurtboxes->start; it != NULL; it = it->next) {
 			struct json_object_s *hurtbox = json_value_as_object(it->value);
 			tek_read_json_hurtbox(&character, hurtbox);
+		}
+	}
+	if (hitboxes != NULL) {
+		for (struct json_array_element_s* it = hitboxes->start; it != NULL; it = it->next) {
+			struct json_object_s *hitbox = json_value_as_object(it->value);
+			tek_read_json_hitbox(&character, hitbox);
 		}
 	}
 

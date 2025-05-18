@@ -23,7 +23,8 @@
 	    "startup": 10,
 	    "active": 1,
 	    "recovery": 20,
-	    // reaction
+	    "hitbox": 1, // index in list
+	    // reaction, TODO: list, pushback
 	    "hitstun": 29,
 	    "blockstun": 21,
 	    "base_damage": 10,
@@ -158,5 +159,16 @@
 	    "bone": "DEF.toe.R",
 	},
     ],
-    "hitboxes": [],
+    "hitboxes": [
+	{
+	    "radius": 0.2,
+	    "height": 0.2,
+	    "bone": "DEF.hand.R",
+	},
+	{
+	    "radius": 0.2,
+	    "height": 0.2,
+	    "bone": "DEF.hand.L",
+	},
+    ],
 }

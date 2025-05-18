@@ -52,6 +52,7 @@ struct tek_Move
 	uint8_t startup; // how long is the startup of the animation
 	uint8_t active; // how long is the move active
 	uint8_t recovery; // how long is the recovery
+	uint8_t hitbox; // index in hitbox list
 	// hit reaction, TODO: reactions list to handle airborne, CH, etc
 	uint8_t base_damage;
 	uint8_t hitstun; // stun the opponent for X frames on hit
@@ -67,6 +68,7 @@ struct tek_Cancel
 	// input window
 };
 
+#define MAX_HITBOXES 8
 struct tek_Character
 {
 	uint32_t id;
@@ -82,6 +84,11 @@ struct tek_Character
 	float hurtboxes_height[MAX_BONES_PER_MESH];
 	uint32_t hurtboxes_bone_id[MAX_BONES_PER_MESH];
 	uint32_t hurtboxes_length;
+	// hitboxes, referrenced by index in this list
+	float hitboxes_radius[MAX_HITBOXES];
+	float hitboxes_height[MAX_HITBOXES];
+	uint32_t hitboxes_bone_id[MAX_HITBOXES];
+	uint32_t hitboxes_length;
 };
 
 

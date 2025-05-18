@@ -328,6 +328,18 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 				}
 			}
 		}
+		// update hitboxes positions
+		for (uint32_t ihitbox = 0; ihitbox < characters[iplayer]->hitboxes_length; ++ihitbox) {
+			uint32_t hitbox_bone_id = characters[iplayer]->hitboxes_bone_id[ihitbox];
+			for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ++ibone){
+				if (anim_skeleton->bones_identifier[ibone] == hitbox_bone_id) {
+					nonplayers[iplayer]->hitboxes_position[ihitbox] = float3x4_transform_point(
+														     players[iplayer]->spatial.world_transform,
+														     nonplayers[iplayer]->pose.global_transforms[ibone].cols[3]);
+					break;
+				}
+			}
+		}
 		// Debug draw animated pose
 		for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ibone++) {
 			Float3 p;
@@ -339,6 +351,55 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 		}
 	}
 
+	// Evaluate hit
+	{
+		struct PlayerEntity *p1 = players[0];
+		struct PlayerNonEntity *np1 = nonplayers[0];
+		struct PlayerNonEntity *np2 = nonplayers[1];
+		struct tek_Character *c1 = characters[0];
+		struct tek_Character *c2 = characters[1];
+		
+		struct tek_Move *current_move = NULL;
+		for (uint32_t imove = 0; imove < c1->moves_length; ++imove) {
+			if (c1->moves[imove].id == p1->tek.current_move_id) {
+				current_move = &c1->moves[imove];
+			}
+		}
+
+		if (current_move) {
+			uint32_t current = p1->animation.frame;
+			uint32_t first_active = current_move->startup;
+			uint32_t last_active = current_move->startup + current_move->active;
+			bool is_active = first_active <= current && current < last_active;
+			if (is_active) {
+				assert(current_move->hitbox < c1->hitboxes_length);
+				uint32_t ihitbox = current_move->hitbox;
+				Float3 hit_center = np1->hitboxes_position[ihitbox];
+				float hit_radius = c1->hitboxes_radius[ihitbox];
+				float hit_height = c1->hitboxes_height[ihitbox];
+
+				for (uint32_t ihurtbox = 0; ihurtbox < c2->hurtboxes_length; ++ihurtbox){
+					Float3 hurt_center = np2->hurtboxes_position[ihurtbox];
+					float hurt_radius = c2->hurtboxes_radius[ihurtbox];
+					float hurt_height = c2->hurtboxes_height[ihurtbox];
+
+					float x_dist = hit_center.x - hurt_center.x;
+					float y_dist = hit_center.y - hurt_center.y;
+					float hor_distance = sqrtf(x_dist*x_dist + y_dist*y_dist);
+					float vert_distance = fabs(hit_center.z - hurt_center.z);
+
+					bool inside_vert = vert_distance <= ((hit_height + hurt_height) / 2.0f);
+					bool inside_hor = hor_distance <= (hit_radius + hurt_radius);
+					bool inside = inside_vert & inside_hor;
+					if (inside) {
+						printf("HIIIIIIIIIIIIIIIIIIT hurtbox[%u] distance: %fx%f\n", ihurtbox, hor_distance, vert_distance);
+					}
+				}
+
+			}
+		}
+	}
+
 	
 	// debug draw hurtboxes cylinders
 	if (nonstate->draw_hurtboxes) {
@@ -347,6 +408,29 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 				Float3 center = nonplayers[iplayer]->hurtboxes_position[ihurtbox];
 				float radius = characters[iplayer]->hurtboxes_radius[ihurtbox];
 				float height = characters[iplayer]->hurtboxes_height[ihurtbox];
+				debug_draw_cylinder(center, radius, height, DD_GREEN);
+			}
+		}
+	}
+	if (nonstate->draw_hitboxes) {
+		for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
+			struct tek_Move *current_move = NULL;
+			for (uint32_t imove = 0; imove < characters[iplayer]->moves_length; ++imove) {
+				if (characters[iplayer]->moves[imove].id == players[iplayer]->tek.current_move_id) {
+					current_move = &characters[iplayer]->moves[imove];
+				}
+			}
+
+			uint32_t current = players[iplayer]->animation.frame;
+			uint32_t first_active = current_move->startup;
+			uint32_t last_active = current_move->startup + current_move->active;
+			bool is_active = first_active <= current && current < last_active;
+			if (is_active) {
+				assert(current_move->hitbox < characters[iplayer]->hitboxes_length);
+				uint32_t ihitbox = current_move->hitbox;
+				Float3 center = nonplayers[iplayer]->hitboxes_position[ihitbox];
+				float radius = characters[iplayer]->hitboxes_radius[ihitbox];
+				float height = characters[iplayer]->hitboxes_height[ihitbox];
 				debug_draw_cylinder(center, radius, height, DD_GREEN);
 			}
 		}
@@ -437,6 +521,7 @@ void game_render(struct NonGameState *nonstate, struct GameState *state)
 		ImGui_DragInt("camera focus", &nonstate->camera_focus);
 		ImGui_Checkbox("draw grid", &nonstate->draw_grid);
 		ImGui_Checkbox("draw hurtboxes", &nonstate->draw_hurtboxes);
+		ImGui_Checkbox("draw hitboxes", &nonstate->draw_hitboxes);
 	}
 	ImGui_End();
 
