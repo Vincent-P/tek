@@ -32,6 +32,26 @@
     "cancels": [
 	{
 	    "from": "standing idle",
+	    "to": "standing idle",
+	    // for now, no input == anim end
+	},
+	{
+	    "from": "standing walk forward",
+	    "to": "standing idle",
+	    // for now, no input == anim end
+	},
+	{
+	    "from": "standing walk backward",
+	    "to": "standing idle",
+	    // for now, no input == anim end
+	},
+	{
+	    "from": "jab",
+	    "to": "standing idle",
+	    // for now, no input == anim end
+	},
+	{
+	    "from": "standing idle",
 	    "to": "standing walk forward",
 	    "motion_input": 6, // f
 	},
@@ -42,6 +62,16 @@
 	},
 	{
 	    "from": "standing idle",
+	    "to": "jab",
+	    "action_input": 4, // LP(4) RP(5) LK(6) RK(7)
+	},
+	{
+	    "from": "standing walk forward",
+	    "to": "jab",
+	    "action_input": 4, // LP(4) RP(5) LK(6) RK(7)
+	},
+	{
+	    "from": "standing walk backward",
 	    "to": "jab",
 	    "action_input": 4, // LP(4) RP(5) LK(6) RK(7)
 	},

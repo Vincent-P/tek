@@ -34,6 +34,7 @@ struct TekPlayerComponent
 	uint32_t character_id;
 	// status
 	uint32_t current_move_id;
+	uint32_t current_move_last_frame;
 	// input buffer
 	GameInput input_buffer[INPUT_BUFFER_SIZE];
 	uint32_t input_buffer_frame_start[INPUT_BUFFER_SIZE];

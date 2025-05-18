@@ -20,8 +20,31 @@ void _display_skeletal_mesh_component(struct SkeletalMeshComponent *mesh)
 }
 void _display_tek_component(struct TekPlayerComponent *player)
 {
+	struct tek_Character *chara = tek_characters + player->character_id;
+	
 	ImGui_InputScalar("character", ImGuiDataType_U32, &player->character_id);
 	ImGui_InputScalar("current move", ImGuiDataType_U32, &player->current_move_id);
+
+	ImGui_TextUnformatted("Available cancels:");
+	for (uint32_t icancel = 0; icancel < chara->cancels_length; ++icancel) {
+		struct tek_Cancel *cancel = &chara->cancels[icancel];
+		if (cancel->from_move_id == player->current_move_id) {
+			ImGui_Text("To move: %u | Motion input: %u | Action input: %u",
+				   cancel->to_move_id,
+				   cancel->motion_input,
+				   cancel->action_input);
+		}
+	}
+
+	ImGui_TextUnformatted("Moves:");
+	for (uint32_t imove = 0; imove < chara->moves_length; ++imove) {
+		struct tek_Move *move = &chara->moves[imove];
+		ImGui_Text("Move[%u]: %u", imove, move->id);
+		ImGui_SameLine();
+		if (ImGui_Button("Do")) {
+			player->current_move_id = move->id;
+		}
+	}
 }
 
 void ed_display_player_entity(const char* id, struct PlayerEntity *player)

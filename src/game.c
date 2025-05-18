@@ -134,7 +134,7 @@ void game_state_init_player(struct PlayerEntity *p, struct PlayerNonEntity *pn, 
 void game_state_init(struct GameState *state, struct NonGameState *nonstate, Renderer *renderer)
 {
 	// Initial game state
-	Float3 p1_initial_pos = (Float3){-1.0f, 0.f, 0.f};
+	Float3 p1_initial_pos = (Float3){-10.0f, 0.f, 0.f};
 	Float3 p2_initial_pos = (Float3){ 1.0f, 0.f, 0.f};
 	spatial_component_set_position(&state->p1_entity.spatial, p1_initial_pos);
 	state->p1_entity.spatial.world_transform.cols[0] = (Float3){1.0f, 0.0f, 0.0f};
@@ -147,6 +147,9 @@ void game_state_init(struct GameState *state, struct NonGameState *nonstate, Ren
 	state->p2_entity.spatial.world_transform.cols[2] = (Float3){0.0f, 0.0f, 1.0f};
 	spatial_component_target(&state->p2_entity.spatial, (Float3){0});//p1_initial_pos);
 
+	struct tek_Character *c1 = tek_characters + state->p1_entity.tek.character_id;
+	state->p1_entity.tek.current_move_id = c1->moves[0].id;
+
 	// initial non game state
 	nonstate->renderer = renderer;
 	// Init players
@@ -156,30 +159,36 @@ void game_state_init(struct GameState *state, struct NonGameState *nonstate, Ren
 	nonstate->camera_distance = 3.0f;
 	nonstate->camera.position = (Float3){1.0f, -5.0f, 1.0f};
 	nonstate->camera.vertical_fov = 40.0f;
+	nonstate->camera_focus = 1;
 }
 
-static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel cancel)
+static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel cancel, uint32_t current_frame)
 {
-	uint32_t input_index = (player.current_input_index + (INPUT_BUFFER_SIZE - 0)) % INPUT_BUFFER_SIZE;
-	enum GameInputBits frame_input = player.input_buffer[input_index];
+	if (cancel.motion_input == 0 && cancel.action_input == 0) {
+		// for now, auto cancel when move ends
+		return current_frame > player.current_move_last_frame;
+	} else {
+		uint32_t input_index = (player.current_input_index + (INPUT_BUFFER_SIZE - 0)) % INPUT_BUFFER_SIZE;
+		enum GameInputBits frame_input = player.input_buffer[input_index];
 	
-	GameInput ACTION_MASK = (GAME_INPUT_LPUNCH | GAME_INPUT_RPUNCH | GAME_INPUT_LKICK | GAME_INPUT_RKICK);	
-	GameInput action_input = frame_input & ACTION_MASK;
+		GameInput ACTION_MASK = (GAME_INPUT_LPUNCH | GAME_INPUT_RPUNCH | GAME_INPUT_LKICK | GAME_INPUT_RKICK);	
+		GameInput action_input = frame_input & ACTION_MASK;
 
-	tek_MotionInput current_motion = 0;
-	if ((frame_input & GAME_INPUT_BACK) != 0) {
-		current_motion = TEK_MOTION_INPUT_B;
-	} else if ((frame_input & GAME_INPUT_UP) != 0) {
-		current_motion = TEK_MOTION_INPUT_U;
-	} else if ((frame_input & GAME_INPUT_FORWARD) != 0) {
-		current_motion = TEK_MOTION_INPUT_F;
-	} else if ((frame_input & GAME_INPUT_DOWN) != 0) {
-		current_motion = TEK_MOTION_INPUT_D;
-	}
+		tek_MotionInput current_motion = 0;
+		if ((frame_input & GAME_INPUT_BACK) != 0) {
+			current_motion = TEK_MOTION_INPUT_B;
+		} else if ((frame_input & GAME_INPUT_UP) != 0) {
+			current_motion = TEK_MOTION_INPUT_U;
+		} else if ((frame_input & GAME_INPUT_FORWARD) != 0) {
+			current_motion = TEK_MOTION_INPUT_F;
+		} else if ((frame_input & GAME_INPUT_DOWN) != 0) {
+			current_motion = TEK_MOTION_INPUT_D;
+		}
 	
-	bool match_dir = current_motion  == cancel.motion_input;
-	bool match_action = action_input == cancel.action_input;
-	return match_dir && match_action;
+		bool match_dir = current_motion  == cancel.motion_input;
+		bool match_action = action_input == cancel.action_input;
+		return match_dir && match_action;
+	}
 }
 
 void game_state_update(struct NonGameState *nonstate, struct GameState *state, struct GameInputs inputs)
@@ -198,22 +207,20 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 	
 	// match inputs
 	uint32_t request_move_id = 0;
-	if (p1->tek.current_move_id == 0) {
-		// default to idle move
-		request_move_id = c1->moves[0].id;
-	}
-	struct tek_Move *current_move = &c1->moves[0];
-	for (uint32_t imove = 0; imove < c1->moves_length; ++imove) {
-		if (c1->moves[imove].id == p1->tek.current_move_id) {
-			current_move = &c1->moves[imove];
-		}
-	}
 	for (uint32_t icancel = 0; icancel < c1->cancels_length; ++icancel) {
 		struct tek_Cancel *cancel = &c1->cancels[icancel];
-		if (cancel->from_move_id == p1->tek.current_move_id && match_cancel(p1->tek, *cancel)) {
+		if (cancel->from_move_id == p1->tek.current_move_id && match_cancel(p1->tek, *cancel, state->frame_number)) {
 			printf("p1 canceling from %u to %u\n", cancel->from_move_id, cancel->to_move_id);
 			request_move_id = cancel->to_move_id;
 			break;
+		}
+	}
+	// -- gameplay update
+	// move request
+	struct tek_Move *current_move = NULL;
+	for (uint32_t imove = 0; imove < c1->moves_length; ++imove) {
+		if (c1->moves[imove].id == p1->tek.current_move_id) {
+			current_move = &c1->moves[imove];
 		}
 	}
 	struct tek_Move *request_move = NULL;
@@ -222,37 +229,20 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 			request_move = &c1->moves[imove];
 		}
 	}
-	// -- gameplay update
-	// move request
-	if (request_move != NULL) {
+	if (current_move != NULL && request_move != NULL) {
 		bool is_recovery = p1->animation.frame > (current_move->startup + current_move->active);
-		if (is_recovery) {
+		bool can_cancel = is_recovery;
+		if (can_cancel) {
 			printf("do move %u\n", request_move->id);
 			printf("play anim %u\n", request_move->animation_id);
-
+			// perform the cancel
+			struct Animation const *animation = asset_library_get_animation(nonstate->assets, request_move->animation_id);
 			p1->animation.animation_id = request_move->animation_id;
 			p1->animation.frame = 0;
 			p1->tek.current_move_id = request_move->id;
+			p1->tek.current_move_last_frame = state->frame_number + animation->root_motion_track.translations.length;
 		}
 	}
-
-	// update player state
-	#if 0
-	if (p1->tek.action_state.type != TEK_ACTION_STATE_NONE) {
-		struct tek_ActionState action_state = p1->tek.action_state;
-		if (action_state.type == TEK_ACTION_STATE_STARTUP) {
-			if (state->frame_number >= action_state.end) {
-				
-			}
-		} else if (action_state.type == TEK_ACTION_STATE_ACTIVE) {
-			
-		} else if (action_state.type == TEK_ACTION_STATE_RECOVERY) {
-		}
-	}
-	#endif
-	
-	
-
 
 	// update transforms
 	struct SpatialComponent *p1_root = &state->p1_entity.spatial;
@@ -298,11 +288,7 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 	struct AnimSkeleton const *anim_skeleton = asset_library_get_anim_skeleton(nonstate->assets, p1->anim_skeleton.anim_skeleton_id);
 	struct Animation const *animation = asset_library_get_animation(nonstate->assets, p1->animation.animation_id);
 	if (animation != NULL) {
-		bool has_ended = anim_evaluate_animation(anim_skeleton, animation, &np1->pose, p1->animation.frame);
-		if (has_ended) {
-			// reset move? move has ended.
-			p1->tek.current_move_id = 0;
-		}
+		anim_evaluate_animation(anim_skeleton, animation, &np1->pose, p1->animation.frame);
 		// update render skeleton
 		anim_pose_compute_global_transforms(anim_skeleton, &np1->pose);
 		skeletal_mesh_apply_pose(&np1->mesh_instance, &np1->pose);
