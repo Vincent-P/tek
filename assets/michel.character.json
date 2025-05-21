@@ -13,7 +13,7 @@
 		    "to": "standing moves",
 		},
 		{
-		    "to": "standing walk forward",
+		    "to": "standing walk forward start",
 		    "motion_input": 6, // f
 		},
 		{
@@ -22,21 +22,54 @@
 		},
 	    ],
 	},
+	// f -> start walk, f -> walk loop
+	// f -> start walk, neutral, f -> dash
 	{
-	    "name": "standing walk forward",
+	    "name": "standing walk forward start",
+	    "animation": "rig|walk_forward_start",
+	    "cancels": [
+		{
+		    "to": "standing walk forward loop",
+		    "motion_input": 6, // f
+		    "frame": 10,
+		},
+		{
+		    "to": "standing idle",
+		    "condition": "eoa",
+		},
+	    ],
+	},
+	{
+	    "name": "standing walk forward loop",
 	    "animation": "rig|walk_forward",
 	    "cancels": [
 		{
 		    "type": "list",
 		    "to": "standing moves",
 		},
+		// loop
 		{
-		    "to": "standing walk forward",
+		    "to": "standing walk forward loop",
 		    "motion_input": 6, // f
-		    "condition": "eoa",
+		    "type": "loop",
+		},
+		// custom cancel to idle, cancel anytime if we release f
+		{
+		    "to": "standing idle",
+		    "frame": 1,
 		},
 	    ],
 	},
+	{
+	    "name": "standing forward dash",
+	    "animation": "rig|forward_dash",
+	    "cancels": [
+		{
+		    "to": "standing idle",
+		},
+	    ],
+	},
+	// walk backward
 	{
 	    "name": "standing walk backward",
 	    "animation": "rig|walk_backward",
@@ -45,10 +78,16 @@
 		    "type": "list",
 		    "to": "standing moves",
 		},
+		// loop
 		{
 		    "to": "standing walk backward",
 		    "motion_input": 2, // b
-		    "condition": "eoa",
+		    "type": "loop",
+		},
+		// custom cancel to idle, cancel anytime if we release f
+		{
+		    "to": "standing idle",
+		    "frame": 1,
 		},
 	    ],
 	},
@@ -78,7 +117,6 @@
 	"cancels": [
 	    {
 		"to": "standing idle",
-		"frame": 1,
 		// for now, no input == anim end
 	    },
 	    {

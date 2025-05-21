@@ -8,6 +8,7 @@
 
 const char* tek_CancelType_str[TEK_CANCEL_TYPE_COUNT] = {
 	"single",
+	"loop",
 	"list",
 };
 
@@ -92,6 +93,7 @@ static struct tek_Cancel tek_read_cancel(struct json_object_s *cancel_obj)
 		if (json_object_get_u8(it, "action_input", &cancel.action_input)) {
 			cancel.action_input = (1 << cancel.action_input);
 		}
+		json_object_get_u8(it, "frame", &cancel.starting_frame);
 	}
 	
 	return cancel;
@@ -123,9 +125,13 @@ static void tek_read_json_move(struct tek_Character *character, struct json_obje
 	
 	struct tek_Move move = {0};
 	struct json_array_s *cancels = NULL;
+	struct json_string_s *movename = NULL;
 	
 	for (struct json_object_element_s* it = obj->start; it != NULL; it = it->next) {
-		json_object_get_string_id(it, "name", &move.id);
+		
+		if (json_object_get_string_id(it, "name", &move.id)) {
+			movename = json_value_as_string(it->value);
+		}
 		json_object_get_string_id(it, "animation", &move.animation_id);
 		json_object_get_u8(it, "startup", &move.startup);
 		json_object_get_u8(it, "active", &move.active);
@@ -146,6 +152,9 @@ static void tek_read_json_move(struct tek_Character *character, struct json_obje
 	uint32_t imove = character->moves_length;
 	assert(imove < ARRAY_LENGTH(character->moves));
 	character->moves[imove] = move;
+	strncpy(character->move_names[imove].string,
+		movename->string,
+		sizeof(character->move_names[imove].string)-1);
 	character->moves_length += 1;
 }
 

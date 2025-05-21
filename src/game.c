@@ -164,17 +164,32 @@ void game_state_init(struct GameState *state, struct NonGameState *nonstate, Ren
 	nonstate->camera_focus = 1;
 }
 
-static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel cancel, uint32_t current_frame)
+struct CancelContext
+{
+	uint32_t animation_frame; // current frame of the animation
+	uint32_t animation_length; // number of frames in the animation
+};
+
+static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel cancel, struct CancelContext ctx)
 {
 	if (cancel.to_move_id == 0) {
 		// end of list?
 		return false;
 	}
-	
+
+	bool current_animation_end = ctx.animation_frame >= ctx.animation_length;
+	bool is_after_starting_frame = ctx.animation_frame >= cancel.starting_frame;
+
+#if 0
 	if (cancel.motion_input == 0 && cancel.action_input == 0) {
-		// for now, auto cancel when move ends
-		return current_frame >= player.current_move_last_frame;
+		// auto cancel
+		if (cancel.starting_frame > 0) {
+			return is_after_starting_frame;
+		} else {
+			return current_animation_end;
+		}
 	} else {
+#endif
 		uint32_t input_index = (player.current_input_index + (INPUT_BUFFER_SIZE - 0)) % INPUT_BUFFER_SIZE;
 		enum GameInputBits frame_input = player.input_buffer[input_index];
 	
@@ -191,12 +206,15 @@ static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel can
 		} else if ((frame_input & GAME_INPUT_DOWN) != 0) {
 			current_motion = TEK_MOTION_INPUT_D;
 		}
+		// TODO: match action even if dir don't match (jab while walking)
 	
 		bool match_dir = current_motion  == cancel.motion_input;
 		bool match_action = action_input == cancel.action_input;
-		bool end_of_animation = (cancel.condition != TEK_CANCEL_CONDITION_END_OF_ANIMATION) | ((cancel.condition == TEK_CANCEL_CONDITION_END_OF_ANIMATION) & (current_frame >= player.current_move_last_frame));
-		return match_dir & match_action & end_of_animation;
+		bool end_of_animation = (cancel.condition != TEK_CANCEL_CONDITION_END_OF_ANIMATION) | ((cancel.condition == TEK_CANCEL_CONDITION_END_OF_ANIMATION) & (current_animation_end));
+		return match_dir & match_action & end_of_animation & is_after_starting_frame;
+#if 0
 	}
+#endif
 }
 
 void game_state_update(struct NonGameState *nonstate, struct GameState *state, struct GameInputs inputs)
@@ -234,11 +252,16 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 			}
 		}
 		// find valid cancel
+		struct Animation const *animation = asset_library_get_animation(nonstate->assets, current_move->animation_id);
+		struct CancelContext cancel_ctx = {0};
+		cancel_ctx.animation_frame = players[iplayer]->animation.frame;
+		cancel_ctx.animation_length = animation->root_motion_track.translations.length;
 		uint32_t request_move_id = 0;
+		
+		struct tek_Cancel *cancel = NULL;
 		for (uint32_t imovecancel = 0; imovecancel < MAX_CANCELS_PER_MOVE; ++imovecancel) {
-			struct tek_Cancel *cancel = NULL;
 			if (current_cancels[imovecancel].type == TEK_CANCEL_TYPE_SINGLE) {
-				if (match_cancel(players[iplayer]->tek, current_cancels[imovecancel], state->frame_number)) {
+				if (match_cancel(players[iplayer]->tek, current_cancels[imovecancel], cancel_ctx)) {
 					cancel = &current_cancels[imovecancel];
 				}
 			} else {
@@ -253,7 +276,7 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 				if (group) {
 					for (uint32_t igroupcancel = 0; igroupcancel < MAX_CANCELS_PER_GROUP; ++igroupcancel) {
 						struct tek_Cancel *groupcancel = &group->cancels[igroupcancel];
-						if (match_cancel(players[iplayer]->tek, *groupcancel, state->frame_number)) {
+						if (match_cancel(players[iplayer]->tek, *groupcancel, cancel_ctx)) {
 							cancel = groupcancel;
 							break;
 						}
@@ -261,10 +284,25 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 				}
 			}
 			if (cancel) {
-				printf("p%u canceling from %u to %u\n", iplayer, current_move->id, cancel->to_move_id);
-				request_move_id = cancel->to_move_id;
+		struct tek_Move *request_move = NULL;
+		for (uint32_t imove = 0; imove < characters[iplayer]->moves_length; ++imove) {
+			if (characters[iplayer]->moves[imove].id == cancel->to_move_id) {
+				request_move = &characters[iplayer]->moves[imove];
 			}
-			
+		}
+				printf("p%u cancel %s[%u] -> %s[%u] | frame: %u | anim frame: %u | anim len: %u\n",
+				       iplayer,
+				       characters[iplayer]->move_names[current_move-characters[iplayer]->moves].string,
+				       current_move->id,
+				       characters[iplayer]->move_names[request_move-characters[iplayer]->moves].string,
+				       cancel->to_move_id,
+				       state->frame_number,
+				       cancel_ctx.animation_frame,
+				       cancel_ctx.animation_length
+				       );
+				request_move_id = cancel->to_move_id;
+				break;
+			}
 		}
 		// find request move
 		struct tek_Move *request_move = NULL;
@@ -278,14 +316,15 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 			bool is_done = players[iplayer]->animation.frame > (current_move->startup + current_move->active + current_move->recovery);
 			bool can_cancel = is_done;
 			if (can_cancel) {
-				printf("do move %u\n", request_move->id);
-				printf("play anim %u\n", request_move->animation_id);
 				// perform the cancel
 				struct Animation const *animation = asset_library_get_animation(nonstate->assets, request_move->animation_id);
 				players[iplayer]->animation.animation_id = request_move->animation_id;
-				players[iplayer]->animation.frame = 0;
+				if (cancel->type == TEK_CANCEL_TYPE_SINGLE_LOOP) {
+					players[iplayer]->animation.frame = players[iplayer]->animation.frame % cancel_ctx.animation_length;
+				} else {
+					players[iplayer]->animation.frame = 0;
+				}
 				players[iplayer]->tek.current_move_id = request_move->id;
-				players[iplayer]->tek.current_move_last_frame = state->frame_number + animation->root_motion_track.translations.length;
 			}
 		}
 	}
@@ -344,9 +383,6 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 			skeletal_mesh_apply_pose(&nonplayers[iplayer]->mesh_instance, &nonplayers[iplayer]->pose);
 			// use root motion
 			Float3 root_translation = float3x4_transform_direction(players[iplayer]->spatial.world_transform, nonplayers[iplayer]->pose.root_motion_delta_translation);
-			if (root_translation.x != 0.0f || root_translation.y != 0.0f || root_translation.z != 0.0f) {
-				printf("root motion: %f %f %f\n", root_translation.x, root_translation.y, root_translation.z);
-			}
 			players[iplayer]->spatial.world_transform.cols[3] = float3_add(players[iplayer]->spatial.world_transform.cols[3], root_translation);
 		}
 		// Update animation component

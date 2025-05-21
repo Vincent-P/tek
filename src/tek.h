@@ -51,6 +51,7 @@ enum tek_AttackType
 enum tek_CancelType
 {
 	TEK_CANCEL_TYPE_SINGLE = 0,
+	TEK_CANCEL_TYPE_SINGLE_LOOP,
 	TEK_CANCEL_TYPE_LIST,
 	TEK_CANCEL_TYPE_COUNT
 };
@@ -71,6 +72,7 @@ struct tek_Cancel
 	uint8_t action_input;
 	tek_CancelType type;
 	tek_CancelCondition condition;
+	uint8_t starting_frame; // at which frame of the current move the cancel should be applied
 	// input window
 };
 
@@ -99,6 +101,11 @@ struct tek_Move
 	struct tek_Cancel cancels[MAX_CANCELS_PER_MOVE];
 };
 
+struct tek_DebugName
+{
+	char string[32];
+};
+
 struct tek_Character
 {
 	uint32_t id;
@@ -119,6 +126,8 @@ struct tek_Character
 	float hitboxes_height[MAX_HITBOXES];
 	uint32_t hitboxes_bone_id[MAX_HITBOXES];
 	uint32_t hitboxes_length;
+
+	struct tek_DebugName move_names[128];
 };
 
 
