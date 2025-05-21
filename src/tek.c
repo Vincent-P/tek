@@ -6,6 +6,16 @@
 #include <xxhash.h>
 #endif
 
+const char* tek_CancelType_str[TEK_CANCEL_TYPE_COUNT] = {
+	"single",
+	"list",
+};
+
+const char* tek_CancelCondition_str[TEK_CANCEL_CONDITION_COUNT] = {
+	"true",
+	"eoa",
+};
+
 uint32_t string_to_id(const char *s, size_t l)
 {
 	XXH64_hash_t hash = XXH64(s, l, 0);
@@ -52,6 +62,59 @@ bool json_object_get_float(struct json_object_element_s *it, const char *field_n
 	return false;
 }
 
+static struct tek_Cancel tek_read_cancel(struct json_object_s *cancel_obj)
+{
+	struct tek_Cancel cancel = {0};
+	
+	if (cancel_obj == NULL) {
+		return cancel;
+	}
+	
+	for (struct json_object_element_s* it = cancel_obj->start; it != NULL; it = it->next) {
+		if (strcmp(it->name->string, "type") == 0) {
+			struct json_string_s *type = json_value_as_string(it->value);
+			for (tek_CancelType itype = 0; itype < TEK_CANCEL_TYPE_COUNT; ++itype) {
+				if (strcmp(type->string, tek_CancelType_str[itype]) == 0) {
+					cancel.type = itype;
+				}
+			}
+		}
+		if (strcmp(it->name->string, "condition") == 0) {
+			struct json_string_s *condition = json_value_as_string(it->value);
+			for (tek_CancelCondition icondition = 0; icondition < TEK_CANCEL_CONDITION_COUNT; ++icondition) {
+				if (strcmp(condition->string, tek_CancelCondition_str[icondition]) == 0) {
+					cancel.condition = icondition;
+				}
+			}
+		}
+		json_object_get_string_id(it, "to", &cancel.to_move_id);
+		json_object_get_u8(it, "motion_input", &cancel.motion_input);
+		if (json_object_get_u8(it, "action_input", &cancel.action_input)) {
+			cancel.action_input = (1 << cancel.action_input);
+		}
+	}
+	
+	return cancel;
+}
+
+static void tek_read_json_move_cancels(struct tek_Move *move, struct json_array_s *cancels_array)
+{
+	if (cancels_array == NULL) {
+		return;
+	}
+	
+	uint32_t cancel_index = 0;
+	for (struct json_array_element_s* it = cancels_array->start; it != NULL && cancel_index < MAX_CANCELS_PER_MOVE; it = it->next) {
+		struct json_object_s *cancel_obj = json_value_as_object(it->value);
+		if (cancel_obj == NULL) {
+			continue;
+		}
+		
+		move->cancels[cancel_index] = tek_read_cancel(cancel_obj);
+		cancel_index++;
+	}
+}
+
 static void tek_read_json_move(struct tek_Character *character, struct json_object_s *obj)
 {
 	if (obj == NULL) {
@@ -59,6 +122,8 @@ static void tek_read_json_move(struct tek_Character *character, struct json_obje
 	}
 	
 	struct tek_Move move = {0};
+	struct json_array_s *cancels = NULL;
+	
 	for (struct json_object_element_s* it = obj->start; it != NULL; it = it->next) {
 		json_object_get_string_id(it, "name", &move.id);
 		json_object_get_string_id(it, "animation", &move.animation_id);
@@ -69,33 +134,56 @@ static void tek_read_json_move(struct tek_Character *character, struct json_obje
 		json_object_get_u8(it, "base_damage", &move.base_damage);
 		json_object_get_u8(it, "hitstun", &move.hitstun);
 		json_object_get_u8(it, "blockstun", &move.blockstun);
+		
+		if (strcmp(it->name->string, "cancels") == 0) {
+			cancels = json_value_as_array(it->value);
+		}
 	}
+	
+	// Process cancels if they exist
+	tek_read_json_move_cancels(&move, cancels);
+	
 	uint32_t imove = character->moves_length;
 	assert(imove < ARRAY_LENGTH(character->moves));
 	character->moves[imove] = move;
 	character->moves_length += 1;
 }
 
-static void tek_read_json_cancel(struct tek_Character *character, struct json_object_s *obj)
+static void tek_read_json_cancel_group(struct tek_Character *character, struct json_object_s *obj)
 {
 	if (obj == NULL) {
 		return;
 	}
+
+	uint32_t group_index = character->cancel_groups_length;
+	assert(group_index < MAX_CANCEL_GROUPS);
+	character->cancel_groups_length += 1;
+	struct tek_CancelGroup *group = &character->cancel_groups[group_index];
 	
-	struct tek_Cancel cancel = {0};
+	struct json_array_s *cancels = NULL;
 	for (struct json_object_element_s* it = obj->start; it != NULL; it = it->next) {
-		json_object_get_string_id(it, "from", &cancel.from_move_id);
-		json_object_get_string_id(it, "to", &cancel.to_move_id);
+		json_object_get_string_id(it, "name", &group->id);
 		
-		json_object_get_u8(it, "motion_input", &cancel.motion_input);
-		if (json_object_get_u8(it, "action_input", &cancel.action_input)) {
-			cancel.action_input = (1 << cancel.action_input);
+		if (strcmp(it->name->string, "cancels") == 0) {
+			cancels = json_value_as_array(it->value);
 		}
 	}
-	uint32_t icancel = character->cancels_length;
-	assert(icancel < ARRAY_LENGTH(character->cancels));
-	character->cancels[icancel] = cancel;
-	character->cancels_length += 1;
+	
+	// Process cancels in the group
+	if (cancels != NULL) {
+		uint32_t cancel_index = 0;
+		for (struct json_array_element_s* it = cancels->start; it != NULL && cancel_index < MAX_CANCELS_PER_GROUP; it = it->next) {
+			struct json_object_s *cancel_obj = json_value_as_object(it->value);
+			if (cancel_obj == NULL) {
+				continue;
+			}
+			
+			group->cancels[cancel_index] = tek_read_cancel(cancel_obj);
+			cancel_index++;
+		}
+		group->cancels_length = cancel_index;
+	}
+	
 }
 
 static void tek_read_json_hurtbox(struct tek_Character *character, struct json_object_s *obj)
@@ -155,7 +243,7 @@ void tek_read_character_json()
 	assert(root->type == json_type_object);
 
 	struct json_array_s *moves = NULL;
-	struct json_array_s *cancels = NULL;
+	struct json_object_s *group_cancels = NULL;
 	struct json_array_s *hurtboxes = NULL;
 	struct json_array_s *hitboxes = NULL;
 	
@@ -169,8 +257,8 @@ void tek_read_character_json()
 		if (strcmp(it->name->string, "moves") == 0) {
 			moves = json_value_as_array(it->value);
 		}
-		if (strcmp(it->name->string, "cancels") == 0) {
-			cancels = json_value_as_array(it->value);
+		if (strcmp(it->name->string, "group_cancels") == 0) {
+			group_cancels = json_value_as_object(it->value);
 		}
 		if (strcmp(it->name->string, "hurtboxes") == 0) {
 			hurtboxes = json_value_as_array(it->value);
@@ -186,11 +274,8 @@ void tek_read_character_json()
 			tek_read_json_move(&character, move);
 		}
 	}
-	if (cancels != NULL) {
-		for (struct json_array_element_s* it = cancels->start; it != NULL; it = it->next) {
-			struct json_object_s *cancel = json_value_as_object(it->value);
-			tek_read_json_cancel(&character, cancel);
-		}
+	if (group_cancels != NULL) {
+		tek_read_json_cancel_group(&character, group_cancels);
 	}
 	if (hurtboxes != NULL) {
 		for (struct json_array_element_s* it = hurtboxes->start; it != NULL; it = it->next) {

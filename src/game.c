@@ -166,9 +166,14 @@ void game_state_init(struct GameState *state, struct NonGameState *nonstate, Ren
 
 static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel cancel, uint32_t current_frame)
 {
+	if (cancel.to_move_id == 0) {
+		// end of list?
+		return false;
+	}
+	
 	if (cancel.motion_input == 0 && cancel.action_input == 0) {
 		// for now, auto cancel when move ends
-		return current_frame > player.current_move_last_frame;
+		return current_frame >= player.current_move_last_frame;
 	} else {
 		uint32_t input_index = (player.current_input_index + (INPUT_BUFFER_SIZE - 0)) % INPUT_BUFFER_SIZE;
 		enum GameInputBits frame_input = player.input_buffer[input_index];
@@ -189,7 +194,8 @@ static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel can
 	
 		bool match_dir = current_motion  == cancel.motion_input;
 		bool match_action = action_input == cancel.action_input;
-		return match_dir && match_action;
+		bool end_of_animation = (cancel.condition != TEK_CANCEL_CONDITION_END_OF_ANIMATION) | ((cancel.condition == TEK_CANCEL_CONDITION_END_OF_ANIMATION) & (current_frame >= player.current_move_last_frame));
+		return match_dir & match_action & end_of_animation;
 	}
 }
 
@@ -218,30 +224,59 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 	// -- gameplay update
 	// move request
 	for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
-		uint32_t request_move_id = 0;
-		for (uint32_t icancel = 0; icancel < characters[iplayer]->cancels_length; ++icancel) {
-			struct tek_Cancel *cancel = &characters[iplayer]->cancels[icancel];
-			if (cancel->from_move_id == players[iplayer]->tek.current_move_id && match_cancel(players[iplayer]->tek, *cancel, state->frame_number)) {
-				printf("p%u canceling from %u to %u\n", iplayer, cancel->from_move_id, cancel->to_move_id);
-				request_move_id = cancel->to_move_id;
-				break;
-			}
-		}
+		// find current move
 		struct tek_Move *current_move = NULL;
+		struct tek_Cancel *current_cancels = NULL;
 		for (uint32_t imove = 0; imove < characters[iplayer]->moves_length; ++imove) {
 			if (characters[iplayer]->moves[imove].id == players[iplayer]->tek.current_move_id) {
 				current_move = &characters[iplayer]->moves[imove];
+				current_cancels = current_move->cancels;
 			}
 		}
+		// find valid cancel
+		uint32_t request_move_id = 0;
+		for (uint32_t imovecancel = 0; imovecancel < MAX_CANCELS_PER_MOVE; ++imovecancel) {
+			struct tek_Cancel *cancel = NULL;
+			if (current_cancels[imovecancel].type == TEK_CANCEL_TYPE_SINGLE) {
+				if (match_cancel(players[iplayer]->tek, current_cancels[imovecancel], state->frame_number)) {
+					cancel = &current_cancels[imovecancel];
+				}
+			} else {
+
+				struct tek_CancelGroup *group = NULL;
+				for (uint32_t imovecancelgroup = 0; imovecancelgroup < characters[iplayer]->cancel_groups_length; ++imovecancelgroup) {
+					if (characters[iplayer]->cancel_groups[imovecancelgroup].id == current_cancels[imovecancel].to_move_id) {
+						group = &characters[iplayer]->cancel_groups[imovecancelgroup];
+						break;
+					}
+				}
+				if (group) {
+					for (uint32_t igroupcancel = 0; igroupcancel < MAX_CANCELS_PER_GROUP; ++igroupcancel) {
+						struct tek_Cancel *groupcancel = &group->cancels[igroupcancel];
+						if (match_cancel(players[iplayer]->tek, *groupcancel, state->frame_number)) {
+							cancel = groupcancel;
+							break;
+						}
+					}
+				}
+			}
+			if (cancel) {
+				printf("p%u canceling from %u to %u\n", iplayer, current_move->id, cancel->to_move_id);
+				request_move_id = cancel->to_move_id;
+			}
+			
+		}
+		// find request move
 		struct tek_Move *request_move = NULL;
 		for (uint32_t imove = 0; imove < characters[iplayer]->moves_length; ++imove) {
 			if (characters[iplayer]->moves[imove].id == request_move_id) {
 				request_move = &characters[iplayer]->moves[imove];
 			}
 		}
+		// check if request move can be made
 		if (current_move != NULL && request_move != NULL) {
-			bool is_recovery = players[iplayer]->animation.frame > (current_move->startup + current_move->active);
-			bool can_cancel = is_recovery;
+			bool is_done = players[iplayer]->animation.frame > (current_move->startup + current_move->active + current_move->recovery);
+			bool can_cancel = is_done;
 			if (can_cancel) {
 				printf("do move %u\n", request_move->id);
 				printf("play anim %u\n", request_move->animation_id);

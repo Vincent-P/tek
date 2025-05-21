@@ -1,5 +1,10 @@
 #pragma once
 
+#define MAX_CANCELS_PER_MOVE 8
+#define MAX_CANCELS_PER_GROUP 32
+#define MAX_CANCEL_GROUPS 16
+#define MAX_HITBOXES 8
+
 // -- Runtime data
 
 enum tek_ActionStateType
@@ -43,6 +48,39 @@ enum tek_AttackType
 	TEK_ATTACK_TYPE_SPECIAL_LOW = 0, // can be block standing and crouching
 };
 
+enum tek_CancelType
+{
+	TEK_CANCEL_TYPE_SINGLE = 0,
+	TEK_CANCEL_TYPE_LIST,
+	TEK_CANCEL_TYPE_COUNT
+};
+typedef uint8_t tek_CancelType;
+
+enum tek_CancelCondition
+{
+	TEK_CANCEL_CONDITION_TRUE = 0,
+	TEK_CANCEL_CONDITION_END_OF_ANIMATION,
+	TEK_CANCEL_CONDITION_COUNT,
+};
+typedef uint8_t tek_CancelCondition;
+
+struct tek_Cancel
+{
+	uint32_t to_move_id; // cancel group index if type is list
+	tek_MotionInput motion_input;
+	uint8_t action_input;
+	tek_CancelType type;
+	tek_CancelCondition condition;
+	// input window
+};
+
+struct tek_CancelGroup
+{
+	uint32_t id;
+	struct tek_Cancel cancels[MAX_CANCELS_PER_GROUP];
+	uint32_t cancels_length;
+};
+
 struct tek_Move
 {
 	uint32_t id;
@@ -57,18 +95,10 @@ struct tek_Move
 	uint8_t base_damage;
 	uint8_t hitstun; // stun the opponent for X frames on hit
 	uint8_t blockstun; // stun the opponent for X frames on block
+	// cancels
+	struct tek_Cancel cancels[MAX_CANCELS_PER_MOVE];
 };
 
-struct tek_Cancel
-{
-	uint32_t from_move_id;
-	uint32_t to_move_id;
-	tek_MotionInput motion_input;
-	uint8_t action_input;
-	// input window
-};
-
-#define MAX_HITBOXES 8
 struct tek_Character
 {
 	uint32_t id;
@@ -76,9 +106,9 @@ struct tek_Character
 	uint32_t anim_skeleton_id;
 	// moves
 	struct tek_Move moves[128];
-	struct tek_Cancel cancels[128];
 	uint32_t moves_length;
-	uint32_t cancels_length;
+	struct tek_CancelGroup cancel_groups[MAX_CANCEL_GROUPS];
+	uint32_t cancel_groups_length;
 	// hurtboxes, 0 or 1 per bone
 	float hurtboxes_radius[MAX_BONES_PER_MESH];
 	float hurtboxes_height[MAX_BONES_PER_MESH];

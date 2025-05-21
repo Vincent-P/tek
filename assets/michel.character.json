@@ -7,14 +7,50 @@
 	{
 	    "name": "standing idle",
 	    "animation": "rig|idle",
+	    "cancels": [
+		{
+		    "type": "list",
+		    "to": "standing moves",
+		},
+		{
+		    "to": "standing walk forward",
+		    "motion_input": 6, // f
+		},
+		{
+		    "to": "standing walk backward",
+		    "motion_input": 2, // b
+		},
+	    ],
 	},
 	{
 	    "name": "standing walk forward",
-	    "animation": "rig|walk_forward"
+	    "animation": "rig|walk_forward",
+	    "cancels": [
+		{
+		    "type": "list",
+		    "to": "standing moves",
+		},
+		{
+		    "to": "standing walk forward",
+		    "motion_input": 6, // f
+		    "condition": "eoa",
+		},
+	    ],
 	},
 	{
 	    "name": "standing walk backward",
-	    "animation": "rig|walk_backward"
+	    "animation": "rig|walk_backward",
+	    "cancels": [
+		{
+		    "type": "list",
+		    "to": "standing moves",
+		},
+		{
+		    "to": "standing walk backward",
+		    "motion_input": 2, // b
+		    "condition": "eoa",
+		},
+	    ],
 	},
 	{
 	    "name": "jab",
@@ -28,55 +64,29 @@
 	    "hitstun": 29,
 	    "blockstun": 21,
 	    "base_damage": 10,
+	    // cancels
+	    "cancels": [
+		{
+		    "type": "list",
+		    "to": "standing moves",
+		},
+	    ],
 	},
     ],
-    "cancels": [
-	{
-	    "from": "standing idle",
-	    "to": "standing idle",
-	    // for now, no input == anim end
-	},
-	{
-	    "from": "standing walk forward",
-	    "to": "standing idle",
-	    // for now, no input == anim end
-	},
-	{
-	    "from": "standing walk backward",
-	    "to": "standing idle",
-	    // for now, no input == anim end
-	},
-	{
-	    "from": "jab",
-	    "to": "standing idle",
-	    // for now, no input == anim end
-	},
-	{
-	    "from": "standing idle",
-	    "to": "standing walk forward",
-	    "motion_input": 6, // f
-	},
-	{
-	    "from": "standing idle",
-	    "to": "standing walk backward",
-	    "motion_input": 2, // b
-	},
-	{
-	    "from": "standing idle",
-	    "to": "jab",
-	    "action_input": 4, // LP(4) RP(5) LK(6) RK(7)
-	},
-	{
-	    "from": "standing walk forward",
-	    "to": "jab",
-	    "action_input": 4, // LP(4) RP(5) LK(6) RK(7)
-	},
-	{
-	    "from": "standing walk backward",
-	    "to": "jab",
-	    "action_input": 4, // LP(4) RP(5) LK(6) RK(7)
-	},
-    ],
+    "group_cancels": {
+	"name": "standing moves",
+	"cancels": [
+	    {
+		"to": "standing idle",
+		"frame": 1,
+		// for now, no input == anim end
+	    },
+	    {
+		"to": "jab",
+		"action_input": 4, // LP(4) RP(5) LK(6) RK(7)
+	    },
+	]
+    },
     "hurtboxes": [
 	{
 	    "radius": 0.2,

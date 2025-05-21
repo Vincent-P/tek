@@ -440,6 +440,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 	if (ImGui_Begin("Application", NULL, 0)) {
 		ImGui_Text("current time: %llu", application->current_time);
 		ImGui_Text("time: %llu", application->t);
+		ImGui_Text("game frame: %u", application->game.gs.frame_number);
 		ImGui_Text("frame: %llu", application->f);
 		ImGui_Text("frame_time: %llu", frame_time);
 		ImGui_Text("accumulator: %llu", application->accumulator);
@@ -447,7 +448,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 	ImGui_End();
 
 	// simulate in fixed-step increments from the accumulator
-	const uint64_t dt = 33;
+	const uint64_t dt = 16;
 	while (application->accumulator >= dt) {
 		game_run_frame(application);
 		application->t += dt;

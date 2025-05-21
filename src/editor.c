@@ -24,8 +24,10 @@ void _display_tek_component(struct TekPlayerComponent *player)
 	
 	ImGui_InputScalar("character", ImGuiDataType_U32, &player->character_id);
 	ImGui_InputScalar("current move", ImGuiDataType_U32, &player->current_move_id);
+	ImGui_InputScalar("current move last frame", ImGuiDataType_U32, &player->current_move_last_frame);
 
 	ImGui_TextUnformatted("Available cancels:");
+	#if 0
 	for (uint32_t icancel = 0; icancel < chara->cancels_length; ++icancel) {
 		struct tek_Cancel *cancel = &chara->cancels[icancel];
 		if (cancel->from_move_id == player->current_move_id) {
@@ -35,6 +37,7 @@ void _display_tek_component(struct TekPlayerComponent *player)
 				   cancel->action_input);
 		}
 	}
+	#endif
 
 	ImGui_TextUnformatted("Moves:");
 	for (uint32_t imove = 0; imove < chara->moves_length; ++imove) {
