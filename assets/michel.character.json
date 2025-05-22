@@ -8,6 +8,11 @@
 	    "name": "standing idle",
 	    "animation": "rig|idle",
 	    "cancels": [
+		// special cancel to loop idle anim with iself, bypassing cancel to idle from standing moves
+		{
+		    "to": "standing idle",
+		    "type": "loop",
+		},
 		{
 		    "type": "list",
 		    "to": "standing moves",

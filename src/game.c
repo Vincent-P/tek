@@ -177,44 +177,37 @@ static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel can
 		return false;
 	}
 
-	bool current_animation_end = ctx.animation_frame >= ctx.animation_length;
-	bool is_after_starting_frame = ctx.animation_frame >= cancel.starting_frame;
+	bool current_animation_end = ctx.animation_frame >= ctx.animation_length; // true at end only
+	bool is_after_starting_frame = ctx.animation_frame >= cancel.starting_frame;  // true
 
-#if 0
-	if (cancel.motion_input == 0 && cancel.action_input == 0) {
-		// auto cancel
-		if (cancel.starting_frame > 0) {
-			return is_after_starting_frame;
-		} else {
-			return current_animation_end;
-		}
-	} else {
-#endif
-		uint32_t input_index = (player.current_input_index + (INPUT_BUFFER_SIZE - 0)) % INPUT_BUFFER_SIZE;
-		enum GameInputBits frame_input = player.input_buffer[input_index];
+	uint32_t input_index = (player.current_input_index + (INPUT_BUFFER_SIZE - 0)) % INPUT_BUFFER_SIZE;
+	enum GameInputBits frame_input = player.input_buffer[input_index];
 	
-		GameInput ACTION_MASK = (GAME_INPUT_LPUNCH | GAME_INPUT_RPUNCH | GAME_INPUT_LKICK | GAME_INPUT_RKICK);	
-		GameInput action_input = frame_input & ACTION_MASK;
+	GameInput ACTION_MASK = (GAME_INPUT_LPUNCH | GAME_INPUT_RPUNCH | GAME_INPUT_LKICK | GAME_INPUT_RKICK);	
+	GameInput action_input = frame_input & ACTION_MASK;
 
-		tek_MotionInput current_motion = 0;
-		if ((frame_input & GAME_INPUT_BACK) != 0) {
-			current_motion = TEK_MOTION_INPUT_B;
-		} else if ((frame_input & GAME_INPUT_UP) != 0) {
-			current_motion = TEK_MOTION_INPUT_U;
-		} else if ((frame_input & GAME_INPUT_FORWARD) != 0) {
-			current_motion = TEK_MOTION_INPUT_F;
-		} else if ((frame_input & GAME_INPUT_DOWN) != 0) {
-			current_motion = TEK_MOTION_INPUT_D;
-		}
-		// TODO: match action even if dir don't match (jab while walking)
-	
-		bool match_dir = current_motion  == cancel.motion_input;
-		bool match_action = action_input == cancel.action_input;
-		bool end_of_animation = (cancel.condition != TEK_CANCEL_CONDITION_END_OF_ANIMATION) | ((cancel.condition == TEK_CANCEL_CONDITION_END_OF_ANIMATION) & (current_animation_end));
-		return match_dir & match_action & end_of_animation & is_after_starting_frame;
-#if 0
+	tek_MotionInput current_motion = 0;
+	if ((frame_input & GAME_INPUT_BACK) != 0) {
+		current_motion = TEK_MOTION_INPUT_B;
+	} else if ((frame_input & GAME_INPUT_UP) != 0) {
+		current_motion = TEK_MOTION_INPUT_U;
+	} else if ((frame_input & GAME_INPUT_FORWARD) != 0) {
+		current_motion = TEK_MOTION_INPUT_F;
+	} else if ((frame_input & GAME_INPUT_DOWN) != 0) {
+		current_motion = TEK_MOTION_INPUT_D;
 	}
-#endif
+	// TODO: match action even if dir don't match (jab while walking)
+	
+	bool match_dir = current_motion  == cancel.motion_input; // true
+	bool match_action = action_input == cancel.action_input; // true
+	bool end_of_animation = (cancel.condition != TEK_CANCEL_CONDITION_END_OF_ANIMATION) | ((cancel.condition == TEK_CANCEL_CONDITION_END_OF_ANIMATION) & (current_animation_end)); // true
+	
+	if (current_animation_end && current_motion == TEK_MOTION_INPUT_B) {
+		printf("weird\n");
+	}
+
+
+	return match_dir & match_action & end_of_animation & is_after_starting_frame;
 }
 
 void game_state_update(struct NonGameState *nonstate, struct GameState *state, struct GameInputs inputs)
@@ -260,7 +253,9 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 		
 		struct tek_Cancel *cancel = NULL;
 		for (uint32_t imovecancel = 0; imovecancel < MAX_CANCELS_PER_MOVE; ++imovecancel) {
-			if (current_cancels[imovecancel].type == TEK_CANCEL_TYPE_SINGLE) {
+			bool is_group = current_cancels[imovecancel].type == TEK_CANCEL_TYPE_LIST;
+			
+			if (!is_group) {
 				if (match_cancel(players[iplayer]->tek, current_cancels[imovecancel], cancel_ctx)) {
 					cancel = &current_cancels[imovecancel];
 				}
@@ -284,22 +279,24 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 				}
 			}
 			if (cancel) {
-		struct tek_Move *request_move = NULL;
-		for (uint32_t imove = 0; imove < characters[iplayer]->moves_length; ++imove) {
-			if (characters[iplayer]->moves[imove].id == cancel->to_move_id) {
-				request_move = &characters[iplayer]->moves[imove];
-			}
-		}
-				printf("p%u cancel %s[%u] -> %s[%u] | frame: %u | anim frame: %u | anim len: %u\n",
-				       iplayer,
-				       characters[iplayer]->move_names[current_move-characters[iplayer]->moves].string,
-				       current_move->id,
-				       characters[iplayer]->move_names[request_move-characters[iplayer]->moves].string,
-				       cancel->to_move_id,
-				       state->frame_number,
-				       cancel_ctx.animation_frame,
-				       cancel_ctx.animation_length
-				       );
+				struct tek_Move *request_move = NULL;
+				for (uint32_t imove = 0; imove < characters[iplayer]->moves_length; ++imove) {
+					if (characters[iplayer]->moves[imove].id == cancel->to_move_id) {
+						request_move = &characters[iplayer]->moves[imove];
+					}
+				}
+				if (iplayer == 0) {
+					printf("p%u cancel %s[%u] -> %s[%u] | frame: %u | anim frame: %u | anim len: %u\n",
+					       iplayer,
+					       characters[iplayer]->move_names[current_move-characters[iplayer]->moves].string,
+					       current_move->id,
+					       characters[iplayer]->move_names[request_move-characters[iplayer]->moves].string,
+					       cancel->to_move_id,
+					       state->frame_number,
+					       cancel_ctx.animation_frame,
+					       cancel_ctx.animation_length
+					       );
+				}
 				request_move_id = cancel->to_move_id;
 				break;
 			}
