@@ -37,6 +37,8 @@ enum tek_MotionInputBits
 	TEK_MOTION_INPUT_F_QCF = 9,
 	TEK_MOTION_INPUT_QCF   = 10,
 	TEK_MOTION_INPUT_QCB   = 11,
+	TEK_MOTION_INPUT_FF    = 12,
+	TEK_MOTION_INPUT_BB    = 13,
 };
 typedef uint8_t tek_MotionInput;
 

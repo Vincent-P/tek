@@ -25,6 +25,10 @@
 		    "to": "standing walk backward",
 		    "motion_input": 2, // b
 		},
+		{
+		    "to": "standing backward dash",
+		    "motion_input": 13, // b _ b
+		},
 	    ],
 	},
 	// f -> start walk, f -> walk loop
@@ -33,6 +37,10 @@
 	    "name": "standing walk forward start",
 	    "animation": "rig|walk_forward_start",
 	    "cancels": [
+		{
+		    "to": "standing forward dash",
+		    "motion_input": 12, // f _ f
+		},
 		{
 		    "to": "standing walk forward loop",
 		    "motion_input": 6, // f
@@ -71,6 +79,7 @@
 	    "cancels": [
 		{
 		    "to": "standing idle",
+		    "condition": "eoa",
 		},
 	    ],
 	},
@@ -93,6 +102,17 @@
 		{
 		    "to": "standing idle",
 		    "frame": 1,
+		},
+	    ],
+	},
+	// backward dash
+	{
+	    "name": "standing backward dash",
+	    "animation": "rig|backward_dash",
+	    "cancels": [
+		{
+		    "to": "standing idle",
+		    "condition": "eoa",
 		},
 	    ],
 	},

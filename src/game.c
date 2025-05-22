@@ -189,10 +189,38 @@ static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel can
 	tek_MotionInput current_motion = 0;
 	if ((frame_input & GAME_INPUT_BACK) != 0) {
 		current_motion = TEK_MOTION_INPUT_B;
+
+		// look for another B to detect double tap back
+		uint32_t previous_input_index = (player.current_input_index + INPUT_BUFFER_SIZE - 1) % INPUT_BUFFER_SIZE;
+		uint32_t previous_previous_input_index = (player.current_input_index + INPUT_BUFFER_SIZE - 2) % INPUT_BUFFER_SIZE;
+		enum GameInputBits previous_input = player.input_buffer[previous_input_index];
+		enum GameInputBits previous_previous_input = player.input_buffer[previous_previous_input_index];
+		uint32_t current_start_frame = player.input_buffer_frame_start[player.current_input_index % INPUT_BUFFER_SIZE];
+		uint32_t previous_start_frame = player.input_buffer_frame_start[previous_input_index];
+		uint32_t delta_frame = current_start_frame - (previous_start_frame + 1); // take only the last frame of the previous previous input as starting point.
+		
+		if (previous_input == 0 && previous_previous_input == GAME_INPUT_BACK && delta_frame <= 10) {
+			current_motion = TEK_MOTION_INPUT_BB;
+		}
+		
 	} else if ((frame_input & GAME_INPUT_UP) != 0) {
 		current_motion = TEK_MOTION_INPUT_U;
 	} else if ((frame_input & GAME_INPUT_FORWARD) != 0) {
+		
 		current_motion = TEK_MOTION_INPUT_F;
+
+		// look for another F to detect double tap back
+		uint32_t previous_input_index = (player.current_input_index + INPUT_BUFFER_SIZE - 1) % INPUT_BUFFER_SIZE;
+		uint32_t previous_previous_input_index = (player.current_input_index + INPUT_BUFFER_SIZE - 2) % INPUT_BUFFER_SIZE;
+		enum GameInputBits previous_input = player.input_buffer[previous_input_index];
+		enum GameInputBits previous_previous_input = player.input_buffer[previous_previous_input_index];
+		uint32_t current_start_frame = player.input_buffer_frame_start[player.current_input_index % INPUT_BUFFER_SIZE];
+		uint32_t previous_start_frame = player.input_buffer_frame_start[previous_input_index];
+		uint32_t delta_frame = current_start_frame - (previous_start_frame + 1); // take only the last frame of the previous previous input as starting point.
+		
+		if (previous_input == 0 && previous_previous_input == GAME_INPUT_FORWARD && delta_frame <= 10) {
+			current_motion = TEK_MOTION_INPUT_FF;
+		}
 	} else if ((frame_input & GAME_INPUT_DOWN) != 0) {
 		current_motion = TEK_MOTION_INPUT_D;
 	}
@@ -202,11 +230,6 @@ static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel can
 	bool match_action = action_input == cancel.action_input; // true
 	bool end_of_animation = (cancel.condition != TEK_CANCEL_CONDITION_END_OF_ANIMATION) | ((cancel.condition == TEK_CANCEL_CONDITION_END_OF_ANIMATION) & (current_animation_end)); // true
 	
-	if (current_animation_end && current_motion == TEK_MOTION_INPUT_B) {
-		printf("weird\n");
-	}
-
-
 	return match_dir & match_action & end_of_animation & is_after_starting_frame;
 }
 
@@ -285,7 +308,7 @@ void game_state_update(struct NonGameState *nonstate, struct GameState *state, s
 						request_move = &characters[iplayer]->moves[imove];
 					}
 				}
-				if (iplayer == 0) {
+				if (iplayer == 0 && current_move->id != cancel->to_move_id) {
 					printf("p%u cancel %s[%u] -> %s[%u] | frame: %u | anim frame: %u | anim len: %u\n",
 					       iplayer,
 					       characters[iplayer]->move_names[current_move-characters[iplayer]->moves].string,
