@@ -111,8 +111,12 @@
 	    "animation": "rig|backward_dash",
 	    "cancels": [
 		{
-		    "to": "standing idle",
-		    "condition": "eoa",
+		    "type": "list",
+		    "to": "standing moves",
+		},
+		{
+		    "to": "standing walk forward loop",
+		    "motion_input": 6, // f
 		},
 	    ],
 	},
@@ -142,6 +146,7 @@
 	"cancels": [
 	    {
 		"to": "standing idle",
+		"condition": "eoa",
 		// for now, no input == anim end
 	    },
 	    {

@@ -226,9 +226,14 @@ static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel can
 	}
 	// TODO: match action even if dir don't match (jab while walking)
 	
-	bool match_dir = current_motion  == cancel.motion_input; // true
-	bool match_action = action_input == cancel.action_input; // true
-	bool end_of_animation = (cancel.condition != TEK_CANCEL_CONDITION_END_OF_ANIMATION) | ((cancel.condition == TEK_CANCEL_CONDITION_END_OF_ANIMATION) & (current_animation_end)); // true
+	bool match_dir = current_motion  == cancel.motion_input;
+	bool match_action = action_input == cancel.action_input;
+	bool end_of_animation = true;
+	if (cancel.condition == TEK_CANCEL_CONDITION_END_OF_ANIMATION) {
+		match_dir = true;
+		match_action = true;
+		end_of_animation = current_animation_end;
+	}
 	
 	return match_dir & match_action & end_of_animation & is_after_starting_frame;
 }
