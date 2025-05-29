@@ -14,16 +14,12 @@
 #include "vulkan.h"
 #include "renderer.h"
 #include "inputs.h"
+#include "tek.h"
 #include "game.h"
+#include "game_battle.h"
 #include "debugdraw.h"
 #include "file.h"
 #include "watcher.h"
-
-struct Game
-{
-	struct GameState gs;
-	struct NonGameState ngs;
-};
 
 struct Application
 {
@@ -34,8 +30,6 @@ struct Application
 	Renderer *renderer;
 
 	uint64_t current_time;
-	uint64_t accumulator;
-	uint64_t t;
 	uint64_t f;
 };
 
@@ -121,8 +115,10 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 	postload_assets(&application->assets, application->renderer);
 
 	// game init
-	application->game.ngs.assets = &application->assets;
-	game_state_init(&application->game.gs, &application->game.ngs, application->renderer);
+	application->game.assets = &application->assets;
+	application->game.renderer = application->renderer;
+	application->game.inputs = &application->inputs;
+	game_init(&application->game);
 
 	watcher_init("cooking");
 	
@@ -390,23 +386,13 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 	return SDL_APP_CONTINUE;
 }
 
-static void game_run_frame(struct Application *application)
-{
-	TracyCZoneN(f, "RunFrame", true);
-	struct GameInputs inputs = game_read_input(&application->inputs);
-	// ggpo_add_local_input
-
-	// ggpo_synchronize_input
-	game_simulate_frame(&application->game.ngs, &application->game.gs, inputs);
-	TracyCZoneEnd(f);
-}
-
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
 	TracyCZoneN(appiterate, "MainLoop", true);
 	
 	struct Application *application = appstate;
 
+	// hot-reload materials
 	bool atleast_one_change = watcher_tick();
 	if (atleast_one_change) {
 		load_assets_materials(&application->assets, application->renderer);
@@ -432,32 +418,20 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 	bool opened = true;
 	ImGui_ShowDemoWindow(&opened);
 
-	// accumulate time
 	uint64_t new_time = SDL_GetTicks();
-	uint64_t frame_time = new_time - application->current_time;
+	uint64_t previous_frame_time = new_time - application->current_time;
 	application->current_time = new_time;
-	application->accumulator += frame_time;
-	if (ImGui_Begin("Application", NULL, 0)) {
-		ImGui_Text("current time: %llu", application->current_time);
-		ImGui_Text("time: %llu", application->t);
-		ImGui_Text("game frame: %u", application->game.gs.frame_number);
-		ImGui_Text("frame: %llu", application->f);
-		ImGui_Text("frame_time: %llu", frame_time);
-		ImGui_Text("accumulator: %llu", application->accumulator);
-	}
-	ImGui_End();
 
-	// simulate in fixed-step increments from the accumulator
-	const uint64_t dt = 16;
-	while (application->accumulator >= dt) {
-		game_run_frame(application);
-		application->t += dt;
-		application->accumulator -= dt;
-	}
+	struct GameUpdateContext update_ctx = {};
+	update_ctx.inputs = application->inputs;
+	update_ctx.current_time = application->current_time;
+	update_ctx.previous_frame_time = previous_frame_time;
+	update_ctx.f = application->f;
+	game_update(&application->game, &update_ctx);
 	
-	game_render(&application->game.ngs, &application->game.gs);
+	game_render(&application->game);
 	renderer_set_time(application->renderer, ((float)application->current_time) / 1000.0f);
-	renderer_render(application->renderer, &application->game.ngs.camera);
+	renderer_render(application->renderer);
 	
 	application->f += 1;
 	TracyCZoneEnd(appiterate);
@@ -470,6 +444,10 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 #include "debugdraw.c"
 #include "renderer.c"
 #include "game.c"
+#include "game_battle.c"
+#include "game_mainmenu.c"
+#include "game_local_battle.c"
+#include "game_network_battle.c"
 #include "inputs.c"
 #include "anim.c"
 #include "game_components.c"

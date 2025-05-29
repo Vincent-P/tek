@@ -71,8 +71,6 @@ struct Renderer
 	uint32_t mesh_vbuffer;
 	uint32_t mesh_ibuffer;
 	RenderSkeletalMesh skeletal_meshes[RENDERER_SKELETAL_MESH_CAPACITY];
-	struct SkeletalMeshInstanceData skeletal_mesh_instances[2];
-	uint32_t skeletal_mesh_instances_length;
 	// background shaders
 	uint32_t bg0_pso;
 	// postfx shaders
@@ -85,6 +83,10 @@ struct Renderer
 	float time;
 	uint32_t constant_buffer;
 	uint32_t constant_offset;
+	// scene
+	struct Camera main_camera;
+	struct SkeletalMeshInstanceData skeletal_mesh_instances[2];
+	uint32_t skeletal_mesh_instances_length;
 };
 
 uint32_t renderer_get_size(void)
@@ -453,7 +455,12 @@ static void renderer_imgui_pass(Renderer *renderer, VulkanFrame *frame, VulkanRe
 	}
 }
 
-void renderer_render(Renderer *renderer, struct Camera* camera)
+void renderer_set_main_camera(Renderer *renderer, struct Camera camera)
+{
+	renderer->main_camera = camera;
+}
+
+void renderer_render(Renderer *renderer)
 {
 	TracyCZoneN(f, "Renderer render", true);
 	
@@ -463,8 +470,8 @@ void renderer_render(Renderer *renderer, struct Camera* camera)
 	uint32_t swapchain_height = 0;
 	begin_frame(renderer->device, &frame, &swapchain_width, &swapchain_height);
 
-	renderer->proj = perspective_projection(camera->vertical_fov, (float)swapchain_width / (float)swapchain_height, 1.0f, 100.0f, &renderer->invproj);
-	renderer->view = lookat_view(camera->position, camera->lookat, &renderer->invview);
+	renderer->proj = perspective_projection(renderer->main_camera.vertical_fov, (float)swapchain_width / (float)swapchain_height, 1.0f, 100.0f, &renderer->invproj);
+	renderer->view = lookat_view(renderer->main_camera.position, renderer->main_camera.lookat, &renderer->invview);
 	
 	if (renderer->device->rts[renderer->output_rt].width != swapchain_width || renderer->device->rts[renderer->output_rt].height != swapchain_height) {
 		resize_render_target(renderer->device, renderer->output_rt, swapchain_width, swapchain_height);

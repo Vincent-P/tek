@@ -1,93 +1,91 @@
 #pragma once
-#include "tek.h"
-#include "game_components.h"
 
-#define INPUT_BUFFER_SIZE 20
-
+struct AssetLibrary;
+struct Renderer;
 struct Inputs;
-typedef struct Renderer Renderer;
 
-// For GGPO, we need a single big object for the game state, and for inputs.
-enum GameInputBits
+enum GameState
 {
-	GAME_INPUT_BACK      = (1 << 0),
-	GAME_INPUT_UP        = (1 << 1),
-	GAME_INPUT_FORWARD   = (1 << 2),
-	GAME_INPUT_DOWN      = (1 << 3),
-	
-	GAME_INPUT_LPUNCH    = (1 << 4),
-	GAME_INPUT_RPUNCH    = (1 << 5),
-	GAME_INPUT_LKICK     = (1 << 6),
-	GAME_INPUT_RKICK     = (1 << 7),
-};
-typedef uint8_t GameInput;
-
-struct GameInputs
-{
-	GameInput player1;
-	GameInput player2;
+	GAME_STATE_MAIN_MENU = 0,
+	GAME_STATE_LOCAL_BATTLE,
+	GAME_STATE_NETWORK_BATTLE,
+	GAME_STATE_COUNT,
 };
 
-struct TekPlayerComponent
+struct Game
 {
-	// character
-	uint32_t character_id;
-	// status
-	uint32_t current_move_id;
-	uint32_t current_move_last_frame;
-	// input buffer
-	GameInput input_buffer[INPUT_BUFFER_SIZE];
-	uint32_t input_buffer_frame_start[INPUT_BUFFER_SIZE];
-	uint32_t current_input_index;
-};
-
-struct PlayerEntity
-{
-	struct SpatialComponent spatial;
-	struct SkeletonComponent anim_skeleton;
-	struct AnimationComponent animation;
-	struct SkeletalMeshComponent mesh;
-	struct TekPlayerComponent tek;
-};
-
-struct PlayerNonEntity
-{
-	struct SkeletalMeshInstance mesh_instance; // created from the renderer during init
-	struct AnimPose pose; // technically is game state, but because it's computed each tick, it should be deterministic from the AnimationComponent
-	Float3 hurtboxes_position[MAX_BONES_PER_MESH];
-	Float3 hitboxes_position[MAX_HITBOXES];
-};
-
-struct GameState
-{
-	uint32_t frame_number;
-	struct PlayerEntity p1_entity;
-	struct PlayerEntity p2_entity;
-};
-
-struct NonGameState
-{
+	enum GameState current_state; // TODO: stack? pushdown automata
+	enum GameState requested_state;
+	void *state_data;
 	struct AssetLibrary *assets;
-	// game
-	struct PlayerNonEntity p1_nonentity;
-	struct PlayerNonEntity p2_nonentity;
-	// rendering
-	Renderer *renderer;
-	Camera camera;
-	float camera_distance;
-	int camera_focus; // 0 = none, 1 = p1, 2 = p2
-	bool draw_grid;
-	bool draw_hurtboxes;
-	bool draw_hitboxes;
-	// player handles
-	// session connection
+	struct Renderer *renderer;
+	struct Inputs *inputs;
 };
 
-void game_state_init(struct GameState *state, struct NonGameState *nonstate, Renderer *renderer);
+struct GameUpdateContext
+{
+	struct Inputs inputs;
+	uint64_t current_time;
+	uint64_t previous_frame_time;
+	uint64_t f;
+};
 
-// GGPO requires a function to simulate 1 frame with specified inputs for rollback.
-struct GameInputs game_read_input(struct Inputs *inputs);
-void game_simulate_frame(struct NonGameState *ngs, struct GameState *state, struct GameInputs input);
+enum GameUpdateAction
+{
+	GAME_UPDATE_ACTION_CONTINUE = 0,
+	GAME_UPDATE_ACTION_TRANSITION,
+};
 
-// Update renderer with the latest game state.
-void game_render(struct NonGameState *nonstate, struct GameState *state);
+struct GameUpdateResult
+{
+	enum GameUpdateAction action;
+	enum GameState transition_state;
+};
+
+typedef void (*StateInitFn)(void **state_data, struct Game const *game);
+typedef void (*StateTermFn)(void **state_data);
+typedef struct GameUpdateResult (*StateUpdateFn)(void **state_data, struct GameUpdateContext const *ctx);
+typedef void (*StateRenderFn)(void **state_data);
+
+void mainmenu_init(void **state_data, struct Game const *game);
+void mainmenu_term(void **state_data);
+struct GameUpdateResult mainmenu_update(void **state_data, struct GameUpdateContext const *ctx);
+void mainmenu_render(void **state_data);
+
+void local_battle_init(void **state_data, struct Game const *game);
+void local_battle_term(void **state_data);
+struct GameUpdateResult local_battle_update(void **state_data, struct GameUpdateContext const *ctx);
+void local_battle_render(void **state_data);
+
+void network_battle_init(void **state_data, struct Game const *game);
+void network_battle_term(void **state_data);
+struct GameUpdateResult network_battle_update(void **state_data, struct GameUpdateContext const *ctx);
+void network_battle_render(void **state_data);
+
+StateInitFn const STATE_INIT_FUNCTIONS[GAME_STATE_COUNT] = {
+	mainmenu_init,
+	local_battle_init,
+	network_battle_init,
+};
+
+StateTermFn const STATE_TERM_FUNCTIONS[GAME_STATE_COUNT] = {
+	mainmenu_term,
+	local_battle_term,
+	network_battle_term,
+};
+
+StateUpdateFn const STATE_UPDATE_FUNCTIONS[GAME_STATE_COUNT] = {
+	mainmenu_update,
+	local_battle_update,
+	network_battle_update,
+};
+
+StateRenderFn const STATE_RENDER_FUNCTIONS[GAME_STATE_COUNT] = {
+	mainmenu_render,
+	local_battle_render,
+	network_battle_render,
+};
+
+void game_init(struct Game *game);
+void game_update(struct Game *game, struct GameUpdateContext const* ctx);
+void game_render(struct Game *game);

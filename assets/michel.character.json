@@ -50,6 +50,10 @@
 		    "to": "standing idle",
 		    "condition": "eoa",
 		},
+		{
+		    "to": "standing walk backward",
+		    "motion_input": 2, // b
+		},
 	    ],
 	},
 	{

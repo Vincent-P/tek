@@ -59,5 +59,6 @@ void renderer_create_render_skeletal_mesh(Renderer *renderer, struct SkeletalMes
 void renderer_register_skeletal_mesh_instance(Renderer *renderer, struct SkeletalMeshInstanceData data);
 void renderer_clear_skeletal_mesh_instances(Renderer *renderer);
 // runtime
-void renderer_render(Renderer *renderer, struct Camera *camera);
+void renderer_set_main_camera(Renderer *renderer, struct Camera camera);
+void renderer_render(Renderer *renderer);
 void renderer_set_time(Renderer *renderer, float t);
