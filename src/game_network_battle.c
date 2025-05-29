@@ -1,6 +1,10 @@
+#include <ggponet.h>
+
 void network_battle_init(void **state_data, struct Game const *game)
 {
 	printf("NETWORK_BATTLE: Init\n");
+
+	ggpo_log(NULL, "test");
 }
 
 void network_battle_term(void **state_data)
