@@ -20,6 +20,7 @@ struct RenderPass
 	enum ImageFormat color_formats[8];
 	uint32_t color_formats_length;
 	enum ImageFormat depth_format;
+	int multisamples;
 	bool depth_enable_test;
 	bool depth_enable_write;
 };
@@ -35,10 +36,10 @@ enum RenderPassesId
 
 static struct RenderPass RENDER_PASSES[RENDER_PASSES_COUNT] =
 {
-	{"mesh", {PG_FORMAT_RGBA16F}, 1, PG_FORMAT_D32_SFLOAT, true, true},
-	{"debugdraw", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_NONE, false, false},
-	{"ui", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_NONE, false, false},
-	{"compositing", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_NONE, false, false},
+	{"mesh", {PG_FORMAT_RGBA16F}, 1, PG_FORMAT_D32_SFLOAT, 4, true, true},
+	{"debugdraw", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_NONE, 1, false, false},
+	{"ui", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_NONE, 1, false, false},
+	{"compositing", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_NONE, 1, false, false},
 };
 
 enum VulkanTopology
@@ -104,7 +105,7 @@ void* buffer_get_mapped_pointer(VulkanDevice *device, uint32_t handle);
 uint64_t buffer_get_gpu_address(VulkanDevice *device, uint32_t handle);
 uint32_t buffer_get_size(VulkanDevice *device, uint32_t handle);
 
-void new_render_target(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t height, int format);
+void new_render_target(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t height, int format, int samples);
 void resize_render_target(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t height);
 
 void new_texture(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t height, int format, void *data, uint32_t size);

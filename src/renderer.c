@@ -107,25 +107,29 @@ void renderer_init(Renderer *renderer, struct AssetLibrary *assets, SDL_Window *
 	new_render_target(renderer->device, renderer->output_rt,
 			  renderer->device->swapchain_width,
 			  renderer->device->swapchain_height,
-			  PG_FORMAT_R8G8B8A8_UNORM);
+			  PG_FORMAT_R8G8B8A8_UNORM,
+			  1);
 	
 	renderer->hdr_rt = 1;
 	new_render_target(renderer->device, renderer->hdr_rt,
 			  renderer->device->swapchain_width,
 			  renderer->device->swapchain_height,
-			  PG_FORMAT_RGBA16F);
+			  PG_FORMAT_RGBA16F,
+			  4);
 	
 	renderer->depth_rt = 2;
 	new_render_target(renderer->device, renderer->depth_rt,
 			  renderer->device->swapchain_width,
 			  renderer->device->swapchain_height,
-			  PG_FORMAT_D32_SFLOAT);
+			  PG_FORMAT_D32_SFLOAT,
+			  4);
 	
 	renderer->final_rt = 3;
 	new_render_target(renderer->device, renderer->final_rt,
 			  renderer->device->swapchain_width,
 			  renderer->device->swapchain_height,
-			  PG_FORMAT_R8G8B8A8_UNORM);
+			  PG_FORMAT_R8G8B8A8_UNORM,
+			  1);
 
 	// Create imgui resources
 	renderer->imgui_fontatlas = 0;

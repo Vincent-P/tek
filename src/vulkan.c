@@ -15,7 +15,7 @@
 
 #define MAIN_MEMORY_SIZE (128 << 20)
 #define RT_MEMORY_SIZE (128 << 20)
-#define MEMORY_ALIGNMENT (128 << 10) // 64K not enough for depth rt ??
+#define MEMORY_ALIGNMENT (256 << 10) // 64K not enough for depth rt ?? -> 256K needed for MSAA
 #define MAX_BACKBUFFER_COUNT 5
 #define VK_BUFFER_CAPACITY 64
 #define VK_PROGRAM_CAPACITY 64
@@ -47,6 +47,7 @@ typedef struct VulkanRenderTarget
 	uint32_t memory_offset;
 	uint32_t width;
 	uint32_t height;
+	int multisamples;
 } VulkanRenderTarget;
 
 typedef struct VulkanTexture
@@ -559,7 +560,7 @@ void new_graphics_program_ex(VulkanDevice *device, uint32_t handle, MaterialAsse
 	RasterizationState.frontFace = VK_FRONT_FACE_CLOCKWISE;
 	
 	VkPipelineMultisampleStateCreateInfo MultisampleState = {.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
-	MultisampleState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+	MultisampleState.rasterizationSamples = renderpass.multisamples;
 
 	VkPipelineDepthStencilStateCreateInfo DepthStencilState = {.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
 	DepthStencilState.depthTestEnable = renderpass.depth_enable_test;
@@ -722,7 +723,7 @@ uint32_t buffer_get_size(VulkanDevice *device, uint32_t handle)
 
 
 // -- Render Targets
-void new_render_target(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t height, int format)
+void new_render_target(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t height, int format, int samples)
 {
 	bool is_depth = format == PG_FORMAT_D32_SFLOAT;
 
@@ -735,7 +736,7 @@ void new_render_target(VulkanDevice *device, uint32_t handle, uint32_t width, ui
 	image_info.extent.depth = 1;
 	image_info.mipLevels = 1;
 	image_info.arrayLayers = 1;
-	image_info.samples = VK_SAMPLE_COUNT_1_BIT;
+	image_info.samples = samples;
 	image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
 	image_info.usage = VK_IMAGE_USAGE_SAMPLED_BIT;
 	if (is_depth) {
@@ -788,6 +789,7 @@ void new_render_target(VulkanDevice *device, uint32_t handle, uint32_t width, ui
 	device->rts[handle].format = format;
 	device->rts[handle].width = width;
 	device->rts[handle].height = height;
+	device->rts[handle].multisamples = samples;
 }
 
 void resize_render_target(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t height)
@@ -798,7 +800,7 @@ void resize_render_target(VulkanDevice *device, uint32_t handle, uint32_t width,
 	oa_free(&device->rt_memory_allocator, &device->rts[handle].allocation);
 	// TODO: free VkImage and VkImageView
 
-	new_render_target(device, handle, width, height, device->rts[handle].format);
+	new_render_target(device, handle, width, height, device->rts[handle].format, device->rts[handle].multisamples);
 }
 
 void new_texture(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t height, int format, void *data, uint32_t size)

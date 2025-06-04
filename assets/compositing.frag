@@ -14,7 +14,14 @@ layout(location = 0) in struct {
 
 void main()
 {
-    vec4 hdr = texture(global_textures[HDR_TEXTURE_INPUT], g_in.uv);
+    ivec2 pixel_coords = ivec2(g_in.uv * textureSize(global_textures_ms[HDR_TEXTURE_INPUT]));
+
+    vec4 hdr0 = texelFetch(global_textures_ms[HDR_TEXTURE_INPUT], pixel_coords, 0);
+    vec4 hdr1 = texelFetch(global_textures_ms[HDR_TEXTURE_INPUT], pixel_coords, 1);
+    vec4 hdr2 = texelFetch(global_textures_ms[HDR_TEXTURE_INPUT], pixel_coords, 2);
+    vec4 hdr3 = texelFetch(global_textures_ms[HDR_TEXTURE_INPUT], pixel_coords, 3);
+    vec4 hdr = (hdr0 + hdr1 + hdr2 + hdr3) * 0.25;
+    
     vec4 linear = texture(global_textures[LINEAR_TEXTURE_INPUT], g_in.uv);
     float occlusion = 1.0 - linear.a;
     vec4 color = vec4(occlusion * hdr.rgb + linear.rgb, 1.0);

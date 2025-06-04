@@ -11,6 +11,7 @@
 #define GLOBAL_IMAGE_BINDING 1
 
 layout(set = GLOBAL_BINDLESS_SET, binding = GLOBAL_SAMPLER_BINDING) uniform sampler2D global_textures[GLOBAL_SAMPLER_COUNT];
+layout(set = GLOBAL_BINDLESS_SET, binding = GLOBAL_SAMPLER_BINDING) uniform sampler2DMS global_textures_ms[GLOBAL_SAMPLER_COUNT];
 layout(set = GLOBAL_BINDLESS_SET, binding = GLOBAL_SAMPLER_BINDING) uniform usampler2D global_textures_uint[GLOBAL_SAMPLER_COUNT];
 layout(set = GLOBAL_BINDLESS_SET, binding = GLOBAL_SAMPLER_BINDING) uniform sampler3D global_textures_3d[GLOBAL_SAMPLER_COUNT];
 layout(set = GLOBAL_BINDLESS_SET, binding = GLOBAL_SAMPLER_BINDING) uniform usampler3D global_textures_3d_uint[GLOBAL_SAMPLER_COUNT];
