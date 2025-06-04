@@ -144,6 +144,26 @@
 		},
 	    ],
 	},
+	{
+	    "name": "highkick",
+	    "animation": "rig|highkick",
+	    // frame data
+	    "startup": 13,
+	    "active": 1,
+	    "recovery": 10,
+	    "hitbox": 2, // index in list
+	    // reaction, TODO: list, pushback
+	    "hitstun": 29,
+	    "blockstun": 21,
+	    "base_damage": 10,
+	    // cancels
+	    "cancels": [
+		{
+		    "type": "list",
+		    "to": "standing moves",
+		},
+	    ],
+	},
     ],
     "group_cancels": {
 	"name": "standing moves",
@@ -156,6 +176,10 @@
 	    {
 		"to": "jab",
 		"action_input": 4, // LP(4) RP(5) LK(6) RK(7)
+	    },
+	    {
+		"to": "highkick",
+		"action_input": 7, // LP(4) RP(5) LK(6) RK(7)
 	    },
 	]
     },
@@ -251,6 +275,16 @@
 	    "radius": 0.2,
 	    "height": 0.2,
 	    "bone": "DEF.hand.L",
+	},
+	{
+	    "radius": 0.2,
+	    "height": 0.2,
+	    "bone": "DEF.toe.R",
+	},
+	{
+	    "radius": 0.2,
+	    "height": 0.2,
+	    "bone": "DEF.toe.L",
 	},
     ],
 }
