@@ -14,7 +14,7 @@
 #define FRAME_COUNT 2
 
 #define MAIN_MEMORY_SIZE (128 << 20)
-#define RT_MEMORY_SIZE (128 << 20)
+#define RT_MEMORY_SIZE (1 << 30)
 #define MEMORY_ALIGNMENT (256 << 10) // 64K not enough for depth rt ?? -> 256K needed for MSAA
 #define MAX_BACKBUFFER_COUNT 5
 #define VK_BUFFER_CAPACITY 64
