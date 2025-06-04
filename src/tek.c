@@ -246,6 +246,7 @@ void tek_read_character_json()
 	const char* source_path = "assets/michel.character.json";
 	
 	struct tek_Character character = {0};
+	character.max_health = 100;
 	
 	struct Blob character_json_file = file_read_entire_file(source_path);
 	struct json_value_s* root = json_parse_ex(character_json_file.data, character_json_file.size, json_parse_flags_allow_c_style_comments | json_parse_flags_allow_trailing_comma , NULL, NULL, NULL);

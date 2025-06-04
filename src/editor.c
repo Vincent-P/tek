@@ -25,6 +25,7 @@ void _display_tek_component(struct TekPlayerComponent *player)
 	ImGui_InputScalar("character", ImGuiDataType_U32, &player->character_id);
 	ImGui_InputScalar("current move", ImGuiDataType_U32, &player->current_move_id);
 	ImGui_InputScalar("current move last frame", ImGuiDataType_U32, &player->current_move_last_frame);
+	ImGui_Text("Health"); ImGui_SameLine(); ImGui_ProgressBar((float)player->hp / (float)chara->max_health, (ImVec2){-FLT_MIN, 0}, NULL);
 
 	ImGui_TextUnformatted("Available cancels:");
 	#if 0

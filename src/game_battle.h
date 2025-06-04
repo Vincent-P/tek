@@ -35,6 +35,7 @@ struct TekPlayerComponent
 	// status
 	uint32_t current_move_id;
 	uint32_t current_move_last_frame;
+	int hp;
 	// input buffer
 	BattleInput input_buffer[INPUT_BUFFER_SIZE];
 	uint32_t input_buffer_frame_start[INPUT_BUFFER_SIZE];
@@ -71,6 +72,10 @@ struct BattleState
 // Non-replicated game state
 struct BattleNonState
 {
+	// rounds
+	int rounds_first_to; // number of rounds needed to win
+	int rounds_p1_won; // number of won rounds for P1
+	int rounds_p2_won; // number of won rounds for P2
 	// game
 	struct PlayerNonEntity p1_nonentity;
 	struct PlayerNonEntity p2_nonentity;
@@ -96,12 +101,19 @@ struct BattleContext
 	struct BattleNonState battle_non_state;
 };
 
+enum BattleFrameResult
+{
+	BATTLE_FRAME_RESULT_CONTINUE,
+	BATTLE_FRAME_RESULT_END,
+};
+
 void battle_state_init(struct BattleContext *ctx);
+void battle_state_new_round(struct BattleContext *ctx);
 void battle_state_term(struct BattleContext *ctx);
 
 // GGPO requires a function to simulate 1 frame with specified inputs for rollback.
 struct BattleInputs battle_read_input(struct Inputs const *inputs);
-void battle_simulate_frame(struct BattleContext *ctx, struct BattleInputs input);
+enum BattleFrameResult battle_simulate_frame(struct BattleContext *ctx, struct BattleInputs input);
 
 // Update renderer with the latest game state.
 void battle_render(struct BattleContext *ctx);

@@ -113,6 +113,7 @@ struct tek_Character
 	uint32_t id;
 	uint32_t skeletal_mesh_id;
 	uint32_t anim_skeleton_id;
+	int max_health;
 	// moves
 	struct tek_Move moves[128];
 	uint32_t moves_length;

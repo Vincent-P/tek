@@ -97,14 +97,14 @@ struct BattleInputs battle_read_input(struct Inputs const *inputs)
 
 // -- Battle main functions
 
-void battle_state_update(struct BattleContext *ctx, struct BattleInputs inputs);
+enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct BattleInputs inputs);
 
-void battle_simulate_frame(struct BattleContext *ctx, struct BattleInputs inputs)
+enum BattleFrameResult battle_simulate_frame(struct BattleContext *ctx, struct BattleInputs inputs)
 {
 	TracyCZoneN(f, "Battle - simulate frame", true);
 	debug_draw_reset();
 
-	battle_state_update(ctx, inputs);
+	enum BattleFrameResult result = battle_state_update(ctx, inputs);
 
 	// desync checks
 
@@ -113,14 +113,13 @@ void battle_simulate_frame(struct BattleContext *ctx, struct BattleInputs inputs
 
 	// ggpoutil_perfmon_update
 	TracyCZoneEnd(f);
+
+	return result;
 }
 
 void battle_state_init_player(struct BattleContext *ctx, struct PlayerEntity *p, struct PlayerNonEntity *pn)
 {
 	struct tek_Character *c = tek_characters + p->tek.character_id;
-	p->anim_skeleton.anim_skeleton_id = c->anim_skeleton_id;
-	p->animation.animation_id = 3108588149; // idle
-
 	SkeletalMeshAsset const *skeletal_mesh = asset_library_get_skeletal_mesh(ctx->assets, c->skeletal_mesh_id);
 	AnimSkeleton const *anim_skeleton = asset_library_get_anim_skeleton(ctx->assets, c->anim_skeleton_id);
 
@@ -136,8 +135,19 @@ void battle_state_init_player(struct BattleContext *ctx, struct PlayerEntity *p,
 
 void battle_state_init(struct BattleContext *ctx)
 {
+	battle_state_new_round(ctx);
+	
 	struct BattleState *state = &ctx->battle_state;	
-	// Initial game state
+	struct BattleNonState *nonstate = &ctx->battle_non_state;	
+	battle_state_init_player(ctx, &state->p1_entity, &nonstate->p1_nonentity);
+	battle_state_init_player(ctx, &state->p2_entity, &nonstate->p2_nonentity);
+}
+
+void battle_state_new_round(struct BattleContext *ctx)
+{
+	struct BattleState *state = &ctx->battle_state;
+	
+	// Reset spatial components
 	Float3 p1_initial_pos = (Float3){-2.0f, 0.f, 0.f};
 	Float3 p2_initial_pos = (Float3){ 2.0f, 0.f, 0.f};
 	spatial_component_set_position(&state->p1_entity.spatial, p1_initial_pos);
@@ -150,18 +160,26 @@ void battle_state_init(struct BattleContext *ctx)
 	state->p2_entity.spatial.world_transform.cols[1] = (Float3){0.0f, 1.0f, 0.0f};
 	state->p2_entity.spatial.world_transform.cols[2] = (Float3){0.0f, 0.0f, 1.0f};
 	spatial_component_target(&state->p2_entity.spatial, p1_initial_pos);
-	// default move
+	
+	// Reset tek component
 	struct tek_Character *c1 = tek_characters + state->p1_entity.tek.character_id;
 	struct tek_Character *c2 = tek_characters + state->p2_entity.tek.character_id;
+	state->p1_entity.tek.hp = c1->max_health;
 	state->p1_entity.tek.current_move_id = c1->moves[0].id;
+	state->p2_entity.tek.hp = c2->max_health;
 	state->p2_entity.tek.current_move_id = c2->moves[0].id;
 
+	// Reset animation
+	state->p1_entity.anim_skeleton.anim_skeleton_id = c1->anim_skeleton_id;
+	state->p1_entity.animation.animation_id = 3108588149; // idle
+	state->p1_entity.animation.frame = 0;
+	
+	state->p2_entity.anim_skeleton.anim_skeleton_id = c2->anim_skeleton_id;
+	state->p2_entity.animation.animation_id = 3108588149; // idle
+	state->p2_entity.animation.frame = 0;
+
+	// Reset camera
 	struct BattleNonState *nonstate = &ctx->battle_non_state;	
-	// initial non game state
-	// Init players
-	battle_state_init_player(ctx, &state->p1_entity, &nonstate->p1_nonentity);
-	battle_state_init_player(ctx, &state->p2_entity, &nonstate->p2_nonentity);
-	// Init camera
 	nonstate->camera_distance = 3.0f;
 	nonstate->camera.position = (Float3){1.0f, -5.0f, 1.0f};
 	nonstate->camera.vertical_fov = 40.0f;
@@ -242,7 +260,7 @@ static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel can
 	return match_dir & match_action & end_of_animation & is_after_starting_frame;
 }
 
-void battle_state_update(struct BattleContext *ctx, struct BattleInputs inputs)
+enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct BattleInputs inputs)
 {
 	TracyCZoneN(f, "StateUpdate", true);
 
@@ -455,6 +473,7 @@ void battle_state_update(struct BattleContext *ctx, struct BattleInputs inputs)
 	// Evaluate hit
 	{
 		struct PlayerEntity *p1 = players[0];
+		struct PlayerEntity *p2 = players[1];
 		struct PlayerNonEntity *np1 = nonplayers[0];
 		struct PlayerNonEntity *np2 = nonplayers[1];
 		struct tek_Character *c1 = characters[0];
@@ -494,11 +513,26 @@ void battle_state_update(struct BattleContext *ctx, struct BattleInputs inputs)
 					bool inside = inside_vert & inside_hor;
 					if (inside) {
 						printf("HIIIIIIIIIIIIIIIIIIT hurtbox[%u] distance: %fx%f\n", ihurtbox, hor_distance, vert_distance);
+						p2->tek.hp -= current_move->base_damage;
 					}
 				}
 
 			}
 		}
+	}
+
+	// post update: determine future game state
+	enum BattleFrameResult frame_result = BATTLE_FRAME_RESULT_CONTINUE;
+	
+	// someone won a round?
+	if (players[1]->tek.hp <= 0) {
+		// TODO: outro
+		nonstate->rounds_p1_won += 1;
+		battle_state_new_round(ctx);
+	}
+	// someone won the match?
+	if (nonstate->rounds_p1_won >= nonstate->rounds_first_to) {
+		frame_result = BATTLE_FRAME_RESULT_END;
 	}
 
 	
@@ -579,6 +613,8 @@ void battle_state_update(struct BattleContext *ctx, struct BattleInputs inputs)
 	state->frame_number += 1;	
 
 	TracyCZoneEnd(f);
+
+	return frame_result;
 }
 
 // -- Render
@@ -618,6 +654,10 @@ void battle_render(struct BattleContext *ctx)
 	ed_display_player_entity("Player 2", &state->p2_entity);
 
 	if (ImGui_Begin("Battle", NULL, 0)) {
+		ImGui_Text("First To %d", nonstate->rounds_first_to);
+		ImGui_Text("P1: %d", nonstate->rounds_p1_won);
+		ImGui_Text("P2: %d", nonstate->rounds_p2_won);
+		ImGui_Text("");
 		ImGui_DragFloat3Ex("camera position", &nonstate->camera.position.x, 0.1f, 0.0f, 0.0f, "%.3f", 0);
 		ImGui_DragFloat3Ex("camera lookat", &nonstate->camera.lookat.x, 0.1f, 0.0f, 0.0f, "%.3f", 0);
 		ImGui_DragFloat("camera fov", &nonstate->camera.vertical_fov);
