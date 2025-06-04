@@ -322,26 +322,36 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	assert(res == VK_SUCCESS);
 	
 	// -- Prepare descriptor layout
-	VkDescriptorSetLayoutBinding binding = {0};
-	binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	binding.descriptorCount = 3;
-	binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-	VkDescriptorBindingFlags binding_flags =  VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT;
+	VkDescriptorSetLayoutBinding bindings[2] = {
+		{
+			.binding = 0,
+			.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			.descriptorCount = 8,
+			.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT,
+		},
+		{
+			.binding = 1,
+			.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+			.descriptorCount = 8,
+			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT,
+		},
+	};
+	VkDescriptorBindingFlags bindings_flags[2] =  {VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT, VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT};
 	VkDescriptorSetLayoutBindingFlagsCreateInfo binding_flags_info = {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO};
-	binding_flags_info.bindingCount = 1;
-	binding_flags_info.pBindingFlags = &binding_flags;
+	binding_flags_info.bindingCount = ARRAY_LENGTH(bindings_flags);
+	binding_flags_info.pBindingFlags = bindings_flags;
 	VkDescriptorSetLayoutCreateInfo desc_layout_info = {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
 	desc_layout_info.pNext = &binding_flags_info;
 	desc_layout_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
-	desc_layout_info.bindingCount = 1;
-	desc_layout_info.pBindings = &binding;
+	desc_layout_info.bindingCount = ARRAY_LENGTH(bindings);
+	desc_layout_info.pBindings = bindings;
 	VkDescriptorSetLayout desc_layout = VK_NULL_HANDLE;
 	res = vkCreateDescriptorSetLayout(device->device, &desc_layout_info, NULL, &desc_layout);
 	assert(res == VK_SUCCESS);
 	
 	VkPushConstantRange push_constants_ranges[] = {
 		// {stage, offset, size}
-		{VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, 256},
+		{VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT, 0, 256},
 	};
 	VkPipelineLayoutCreateInfo pipeline_layout_info = {.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
 	pipeline_layout_info.setLayoutCount =1;
@@ -613,6 +623,22 @@ void new_graphics_program_ex(VulkanDevice *device, uint32_t handle, MaterialAsse
 	device->graphics_psos[handle].pipeline = pipeline;
 }
 
+void new_compute_program(VulkanDevice *device, uint32_t handle, ComputeProgramAsset program_asset)
+{
+	VkShaderModuleCreateInfo shader_module = {.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+	shader_module.codeSize = program_asset.shader_bytecode.size;
+	shader_module.pCode = program_asset.shader_bytecode.data;
+	
+	VkComputePipelineCreateInfo pipeline_info =  {.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
+	pipeline_info.stage.pNext = &shader_module;
+	pipeline_info.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+	pipeline_info.stage.pName = "main";
+	pipeline_info.layout = device->pipeline_layout;
+
+	VkPipeline pipeline = VK_NULL_HANDLE;
+	VkResult res = vkCreateComputePipelines(device->device, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &pipeline);
+	assert(res == VK_SUCCESS);
+}
 
 // -- Buffers
 void new_buffer_internal(VulkanDevice *device, uint32_t handle,uint32_t size, VkBufferCreateFlags flags, VkBufferUsageFlagBits  usage)
@@ -1262,7 +1288,7 @@ void vulkan_push_constants(VulkanDevice *device, VulkanRenderPass *pass, void *d
 	VulkanFrame *frame = pass->frame;
 	vkCmdPushConstants(frame->cmd,
 			   device->pipeline_layout,
-			   VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+			   VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT,
 			   0,
 			   size,
 			   data);

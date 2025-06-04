@@ -15,7 +15,15 @@ struct MaterialAsset
 };
 
 void Serialize_MaterialAsset(Serializer *serializer, MaterialAsset *value);
-;
+
+typedef struct ComputeProgramAsset ComputeProgramAsset;
+struct ComputeProgramAsset
+{
+	struct Blob shader_bytecode;
+	AssetId id;
+};
+void Serialize_ComputeProgramAsset(Serializer *serializer, ComputeProgramAsset *value);
+
 
 typedef struct SkeletalMeshWithAnimationsAsset SkeletalMeshWithAnimationsAsset;
 struct SkeletalMeshWithAnimationsAsset
@@ -28,6 +36,7 @@ struct SkeletalMeshWithAnimationsAsset
 void Serialize_SkeletalMeshWithAnimationsAsset(Serializer *serializer, SkeletalMeshWithAnimationsAsset *value);
 
 #define ASSET_MATERIAL_CAPACITY 8
+#define ASSET_COMPUTE_PROGRAM_CAPACITY 8
 #define ASSET_SKELETAL_MESH_CAPACITY 4
 #define ASSET_ANIM_SKELETON_CAPACITY 4
 #define ASSET_ANIMATIONS_CAPACITY 8
@@ -36,6 +45,8 @@ struct AssetLibrary
 {
 	MaterialAsset materials[ASSET_MATERIAL_CAPACITY];
 	AssetId materials_id[ASSET_MATERIAL_CAPACITY];
+	ComputeProgramAsset compute_programs[ASSET_COMPUTE_PROGRAM_CAPACITY];
+	AssetId compute_programs_id[ASSET_COMPUTE_PROGRAM_CAPACITY];
 	SkeletalMeshAsset skeletal_meshes[ASSET_SKELETAL_MESH_CAPACITY];
 	AssetId skeletal_meshes_id[ASSET_SKELETAL_MESH_CAPACITY];
 	AnimSkeleton anim_skeletons[ASSET_ANIM_SKELETON_CAPACITY];
@@ -44,16 +55,19 @@ struct AssetLibrary
 	AssetId animations_id[ASSET_ANIMATIONS_CAPACITY];
 
 	AssetId material_generation;
+	AssetId compute_program_generation;
 	AssetId skeletal_mesh_generation;
 	AssetId anim_skeleton_generation;
 	AssetId animation_generation;
 };
 
 MaterialAsset const *asset_library_get_material(struct AssetLibrary *assets, AssetId id);
+ComputeProgramAsset const *asset_library_get_compute_program(struct AssetLibrary *assets, AssetId id);
 SkeletalMeshAsset const *asset_library_get_skeletal_mesh(struct AssetLibrary *assets, AssetId id);
 AnimSkeleton const *asset_library_get_anim_skeleton(struct AssetLibrary *assets, AssetId id);
 Animation const *asset_library_get_animation(struct AssetLibrary *assets, AssetId id);
 AssetId asset_library_add_material(struct AssetLibrary *assets, struct MaterialAsset material);
+AssetId asset_library_add_compute_program(struct AssetLibrary *assets, struct ComputeProgramAsset program);
 AssetId asset_library_add_skeletal_mesh(struct AssetLibrary *assets, struct SkeletalMeshAsset skeletal_mesh);
 AssetId asset_library_add_anim_skeleton(struct AssetLibrary *assets, struct AnimSkeleton anim_skeleton);
 AssetId asset_library_add_animation(struct AssetLibrary *assets, struct Animation animation);

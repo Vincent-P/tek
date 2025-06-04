@@ -9,6 +9,11 @@ void Serialize_MaterialAsset(Serializer *serializer, MaterialAsset *value)
 	SV_ADD(SV_INITIAL, AssetId, id);
 }
 
+void Serialize_ComputeProgramAsset(Serializer *serializer, ComputeProgramAsset *value)
+{
+	SV_ADD(SV_INITIAL, Blob, shader_bytecode);
+	SV_ADD(SV_INITIAL, AssetId, id);
+}
 
 void Serialize_SkeletalMeshWithAnimationsAsset(Serializer *serializer, SkeletalMeshWithAnimationsAsset *value)
 {
@@ -25,6 +30,17 @@ MaterialAsset const *asset_library_get_material(struct AssetLibrary *assets, Ass
 	for (uint32_t i = 0; i < ASSET_MATERIAL_CAPACITY; ++i) {
 		if (assets->materials_id[i] == id) {
 			return assets->materials + i;
+		}
+	}
+	assert(false);
+	return NULL;
+}
+
+ComputeProgramAsset const *asset_library_get_compute_program(struct AssetLibrary *assets, AssetId id)
+{
+	for (uint32_t i = 0; i < ASSET_COMPUTE_PROGRAM_CAPACITY; ++i) {
+		if (assets->compute_programs_id[i] == id) {
+			return assets->compute_programs + i;
 		}
 	}
 	assert(false);
@@ -79,6 +95,23 @@ AssetId asset_library_add_material(struct AssetLibrary *assets, struct MaterialA
 	assets->materials[i] = material;
 	assets->materials_id[i] = material.id;
 	return material.id;
+}
+
+AssetId asset_library_add_compute_program(struct AssetLibrary *assets, struct ComputeProgramAsset program)
+{
+	// support hot reload
+	for (uint32_t i = 0;  i  < ASSET_COMPUTE_PROGRAM_CAPACITY; ++i) {
+		if (assets->compute_programs_id[i] == program.id) {
+			assets->compute_programs[i] = program;
+			return program.id;
+		}
+	}
+	
+	uint32_t i = assets->compute_program_generation++;
+	assert(i < ASSET_COMPUTE_PROGRAM_CAPACITY);
+	assets->compute_programs[i] = program;
+	assets->compute_programs_id[i] = program.id;
+	return program.id;
 }
 
 AssetId asset_library_add_skeletal_mesh(struct AssetLibrary *assets, struct SkeletalMeshAsset skeletal_mesh)

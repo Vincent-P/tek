@@ -1,0 +1,31 @@
+#version 450
+#include "bindless.h"
+
+#define IMGUI_TEXTURE_INPUT 0
+#define HDR_TEXTURE_INPUT 1
+#define LINEAR_TEXTURE_INPUT 2
+#define IMAGE_OUTPUT 0
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+void main()
+{
+    uint  local_idx  = gl_LocalInvocationIndex;
+    uvec3 global_idx = gl_GlobalInvocationID;
+    uvec3 group_idx  = gl_WorkGroupID;
+
+    ivec2 pixel_pos = ivec2(global_idx.xy);
+    ivec2 output_size = imageSize(global_images_2d_rgba32f[IMAGE_OUTPUT]);
+    if (any(greaterThan(pixel_pos, output_size)))
+    {
+        return;
+    }
+    
+    vec2 screen_uv  = (vec2(pixel_pos) + vec2(0.5)) / vec2(output_size);
+
+    vec4 hdr = texture(global_textures[HDR_TEXTURE_INPUT], screen_uv);
+    vec4 linear = texture(global_textures[LINEAR_TEXTURE_INPUT], screen_uv);
+    float occlusion = 1.0 - linear.a;
+    vec4 color = vec4(occlusion * hdr.rgb + linear.rgb, 1.0);
+
+    imageStore(global_images_2d_rgba32f[IMAGE_OUTPUT], pixel_pos, color);
+}

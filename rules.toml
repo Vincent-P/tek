@@ -9,6 +9,16 @@ DepFile = { Path = '{ Repo:cooking }{ Path }.dep', Format = 'AssetCooker' }
 CommandLine = 'cooker.exe mat "{ Path }" "{ Repo:assets }" "{ Repo:cooking }"'
 
 [[Rule]]
+Name = "Compute programs"
+Priority = 1
+Version = 1
+InputFilters = [
+    { Repo = "assets", PathPattern = "*.comp" }
+]
+DepFile = { Path = '{ Repo:cooking }{ Path }.dep', Format = 'AssetCooker' }
+CommandLine = 'cooker.exe compute "{ Path }" "{ Repo:assets }" "{ Repo:cooking }"'
+
+[[Rule]]
 Name = "3D"
 Priority = 1
 Version = 2

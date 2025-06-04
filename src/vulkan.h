@@ -96,6 +96,8 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd);
 void new_graphics_program(VulkanDevice *device, uint32_t handle, MaterialAsset material_asset);
 void new_graphics_program_ex(VulkanDevice *device, uint32_t handle, MaterialAsset material_asset, struct VulkanGraphicsPsoSpec spec);
 
+void new_compute_program(VulkanDevice *device, uint32_t handle, ComputeProgramAsset program_asset);
+
 void new_index_buffer(VulkanDevice *device, uint32_t handle, uint32_t size);
 void new_storage_buffer(VulkanDevice *device, uint32_t handle, uint32_t size);
 void* buffer_get_mapped_pointer(VulkanDevice *device, uint32_t handle);
@@ -106,7 +108,6 @@ void new_render_target(VulkanDevice *device, uint32_t handle, uint32_t width, ui
 void resize_render_target(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t height);
 
 void new_texture(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t height, int format, void *data, uint32_t size);
-
 
 void begin_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t *out_swapchain_w, uint32_t *out_swapchain_h);
 void end_frame(VulkanDevice *device, VulkanFrame *fame, uint32_t output_rt);

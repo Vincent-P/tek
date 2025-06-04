@@ -1,6 +1,7 @@
 #version 450
+#include "bindless.h"
 
-layout(set=0, binding=0) uniform sampler2D g_Textures[3];
+#define IMGUI_TEXTURE_INPUT 0
 
 layout(location = 0) out vec4 outColor;
 
@@ -11,7 +12,7 @@ layout(location = 0) in struct {
 
 void main()
 {
-    vec4 color = g_in.color * texture(g_Textures[0], g_in.uv);
+    vec4 color = g_in.color * texture(global_textures[IMGUI_TEXTURE_INPUT], g_in.uv);
     color.rgb *= color.a;
     outColor = color;
 }

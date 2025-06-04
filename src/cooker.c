@@ -37,6 +37,38 @@ uint32_t ufbx_string_to_id(ufbx_string s)
 	return string_to_id(s.data, s.length);
 }
 
+	
+// An includer callback type for mapping an #include request to an include
+// result. The user_data parameter specifies the client context.  The
+// requested_source parameter specifies the name of the source being requested.
+// The type parameter specifies the kind of inclusion request being made.
+// The requesting_source parameter specifies the name of the source containing
+// the #include request.  The includer owns the result object and its contents,
+// and both must remain valid until the release callback is called on the result
+// object.
+shaderc_include_result* resolve_include(void* user_data, const char* requested_source, int type, const char* requesting_source, size_t include_depth)
+{
+		
+	char *include_path = calloc(1, 128);
+	int include_path_length = snprintf(include_path, 128, "%sshaders\\%s", source_dir, requested_source);
+	struct Blob file = file_read_entire_file(include_path);
+	
+	printf("Including %s\n", include_path);
+
+	shaderc_include_result *result = calloc(sizeof(shaderc_include_result), 1);
+	result->source_name = include_path;
+	result->source_name_length = include_path_length;
+	result->content = file.data;
+	result->content_length = file.size;
+	return result;
+}
+
+
+// An includer callback type for destroying an include result.
+void free_include(void* user_data, shaderc_include_result* include_result)
+{
+}
+
 struct MaterialJson
 {
 	const char* vertex_shader;
@@ -146,7 +178,8 @@ int cook_material()
 	shaderc_compiler_t shader_compiler = shaderc_compiler_initialize();
 	shaderc_compile_options_t options = shaderc_compile_options_initialize();
 	shaderc_compile_options_set_generate_debug_info(options);
-	
+	shaderc_compile_options_set_include_callbacks(options, resolve_include, free_include, NULL);
+
 	shaderc_compilation_result_t vshader_result = shaderc_compile_into_spv(shader_compiler,
 								       vshader_file.data, vshader_file.size,
 								       shaderc_vertex_shader, vertex_shader_path, "main", options);
@@ -190,6 +223,54 @@ int cook_material()
 	int32_t dep_cursor = 0;
 	dep_cursor += snprintf(dep_content + dep_cursor, (512 - dep_cursor), "INPUT: %s\n", vertex_shader_path);
 	dep_cursor += snprintf(dep_content + dep_cursor, (512 - dep_cursor), "INPUT: %s\n", pixel_shader_path);
+	dep_cursor += snprintf(dep_content + dep_cursor, (512 - dep_cursor), "OUTPUT: %s\n", dest_path);
+	file_write_entire_file(dep_path, (struct Blob){dep_content, dep_cursor});
+
+	return 0;
+}
+
+int cook_compute_program()
+{
+	char source_path[512];
+	char dep_path[512];
+	snprintf(source_path, sizeof(source_path), "%s%s", source_dir, relative_path);
+	snprintf(dep_path, sizeof(dep_path), "%s%s.dep", cooking_dir, relative_path);
+	
+	// Compile shaders
+	struct Blob shader_file = file_read_entire_file(source_path);
+	
+	shaderc_compiler_t shader_compiler = shaderc_compiler_initialize();
+	shaderc_compile_options_t options = shaderc_compile_options_initialize();
+	shaderc_compile_options_set_generate_debug_info(options);
+	shaderc_compile_options_set_include_callbacks(options, resolve_include, free_include, NULL);
+	shaderc_compilation_result_t shader_result = shaderc_compile_into_spv(shader_compiler,
+								       shader_file.data, shader_file.size,
+								       shaderc_compute_shader, source_path, "main", options);
+	if (shaderc_result_get_compilation_status(shader_result) != shaderc_compilation_status_success) {
+		size_t num_warnings = shaderc_result_get_num_warnings(shader_result);
+		size_t num_errors = shaderc_result_get_num_errors(shader_result);
+		const char* error_msg = shaderc_result_get_error_message(shader_result);
+		printf("%zu warnings. %zu errors.\n%s\n", num_warnings, num_errors, error_msg);
+		return 1;
+	}
+
+	// Save material to disk
+	struct ComputeProgramAsset compute_program = {0};
+	compute_program.id = string_to_id(relative_path, strlen(relative_path));
+	compute_program.shader_bytecode.size = shaderc_result_get_length(shader_result);
+	compute_program.shader_bytecode.data = (char*)shaderc_result_get_bytes(shader_result);
+
+	uint32_t serializer_capacity = (4 << 10) + compute_program.shader_bytecode.size;
+	Serializer serializer = serialize_begin_write_file(serializer_capacity);
+	Serialize_ComputeProgramAsset(&serializer, &compute_program);
+	char dest_path[512] = {0};
+	snprintf(dest_path, sizeof(dest_path), "%s%u", cooking_dir, compute_program.id);
+	serialize_end_write_file(&serializer, dest_path);
+
+	// Save dep file to disk
+	char dep_content[512] = {0};
+	int32_t dep_cursor = 0;
+	dep_cursor += snprintf(dep_content + dep_cursor, (512 - dep_cursor), "INPUT: %s\n", source_path);
 	dep_cursor += snprintf(dep_content + dep_cursor, (512 - dep_cursor), "OUTPUT: %s\n", dest_path);
 	file_write_entire_file(dep_path, (struct Blob){dep_content, dep_cursor});
 
@@ -536,6 +617,8 @@ int main(int argc, char *argv[])
 
 	if (strcmp(asset_type, "mat") == 0) {
 		return cook_material();
+	} else if (strcmp(asset_type, "compute") == 0) {
+		return cook_compute_program();
 	} else if (strcmp(asset_type, "skeletalmesh") == 0) {
 		return cook_fbx();
 	}
