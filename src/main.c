@@ -94,7 +94,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 
 	// window init
 	SDL_Init(SDL_INIT_VIDEO);
-	application->window = SDL_CreateWindow("tek", 1280, 1280, SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
+	application->window = SDL_CreateWindow("tek", 1920, 1080, SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
 
 	// load all assets
 	load_assets(&application->assets, application->renderer);

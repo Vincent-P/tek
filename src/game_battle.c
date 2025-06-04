@@ -400,7 +400,9 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 		float width_from_dist = ratio * 2.0f * tanf(fov_rad / 2.0f);
 
 		float target_width = width_from_dist * target_distance;
-		float ideal_width = float3_distance(p1_root->world_transform.cols[3], p2_root->world_transform.cols[3]);
+
+		float const CAMERA_HACK_TWEAK = 0.35f;
+		float ideal_width = float3_distance(p1_root->world_transform.cols[3], p2_root->world_transform.cols[3]) * CAMERA_HACK_TWEAK;
 
 		float ideal_distance = ideal_width / width_from_dist;
 
@@ -409,7 +411,7 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 			camera_dir = p2_root->world_transform.cols[0];
 		}
 
-		float const MINIMUM_DISTANCE = 5.0f;
+		float const MINIMUM_DISTANCE = 3.5f;
 		float const CAMERA_SMOOTHING = 0.1f;
 		
 		float delta_dist = (ideal_distance - nonstate->camera_distance) * CAMERA_SMOOTHING;
