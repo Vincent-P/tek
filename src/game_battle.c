@@ -402,17 +402,23 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 		float target_width = width_from_dist * target_distance;
 		float ideal_width = float3_distance(p1_root->world_transform.cols[3], p2_root->world_transform.cols[3]);
 
-		float ideal_distance = target_distance;
-		//if (target_width - ideal_width > 0.1f) {
-			ideal_distance = ideal_width / width_from_dist;
-		//}
+		float ideal_distance = ideal_width / width_from_dist;
 
-			Float3 camera_dir = p1_root->world_transform.cols[0];
-			if (nonstate->camera_focus == 2) {
-				camera_dir = p2_root->world_transform.cols[0];
-			}
-		nonstate->camera_distance = ideal_distance;
-		nonstate->camera.position = float3_add(target_pos, float3_mul_scalar(camera_dir, ideal_distance));
+		Float3 camera_dir = p1_root->world_transform.cols[0];
+		if (nonstate->camera_focus == 2) {
+			camera_dir = p2_root->world_transform.cols[0];
+		}
+
+		float const MINIMUM_DISTANCE = 5.0f;
+		float const CAMERA_SMOOTHING = 0.1f;
+		
+		float delta_dist = (ideal_distance - nonstate->camera_distance) * CAMERA_SMOOTHING;
+		nonstate->camera_distance += delta_dist;
+		if (nonstate->camera_distance < MINIMUM_DISTANCE) {
+			nonstate->camera_distance = MINIMUM_DISTANCE;
+		}
+
+		nonstate->camera.position = float3_add(target_pos, float3_mul_scalar(camera_dir, nonstate->camera_distance));
 		nonstate->camera.lookat = target_pos;
 		
 		nonstate->camera.position.z += 1.0f;
