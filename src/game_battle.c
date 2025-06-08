@@ -148,8 +148,8 @@ void battle_state_new_round(struct BattleContext *ctx)
 	struct BattleState *state = &ctx->battle_state;
 	
 	// Reset spatial components
-	Float3 p1_initial_pos = (Float3){-2.0f, 0.f, 0.f};
-	Float3 p2_initial_pos = (Float3){ 2.0f, 0.f, 0.f};
+	Float3 p1_initial_pos = (Float3){-0.5f, 0.f, 0.f};
+	Float3 p2_initial_pos = (Float3){ 0.5f, 0.f, 0.f};
 	spatial_component_set_position(&state->p1_entity.spatial, p1_initial_pos);
 	state->p1_entity.spatial.world_transform.cols[0] = (Float3){1.0f, 0.0f, 0.0f};
 	state->p1_entity.spatial.world_transform.cols[1] = (Float3){0.0f, 1.0f, 0.0f};

@@ -526,6 +526,8 @@ void new_graphics_program_ex(VulkanDevice *device, uint32_t handle, MaterialAsse
 {
 	assert(material_asset.render_pass_id < ARRAY_LENGTH(RENDER_PASSES));
 	struct RenderPass renderpass = RENDER_PASSES[material_asset.render_pass_id];
+
+	bool const has_pixel_shader = material_asset.pixel_shader_bytecode.size > 0;
 	
 	VkShaderModuleCreateInfo vshader_module = {.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
 	vshader_module.codeSize = material_asset.vertex_shader_bytecode.size;
@@ -542,6 +544,11 @@ void new_graphics_program_ex(VulkanDevice *device, uint32_t handle, MaterialAsse
 	ShaderStages[1].pNext = &pshader_module;
 	ShaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 	ShaderStages[1].pName = "main";
+
+	uint32_t ShaderStagesCount = 1;
+	if (has_pixel_shader) {
+		ShaderStagesCount = 2;
+	}
 	
 	VkPipelineVertexInputStateCreateInfo VertexInputState = {.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
 	
@@ -584,7 +591,7 @@ void new_graphics_program_ex(VulkanDevice *device, uint32_t handle, MaterialAsse
 	}
 	
 	VkPipelineColorBlendStateCreateInfo ColorBlendState = {.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
-	ColorBlendState.attachmentCount = renderpass.color_formats_length;
+	ColorBlendState.attachmentCount = has_pixel_shader ? renderpass.color_formats_length : 0;
 	ColorBlendState.pAttachments = AttachmentBlendStates;
 	
 	VkDynamicState dynamic_states[] = {
@@ -597,13 +604,13 @@ void new_graphics_program_ex(VulkanDevice *device, uint32_t handle, MaterialAsse
 	DynamicState.pDynamicStates = dynamic_states;
 
 	VkPipelineRenderingCreateInfoKHR RenderingState = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR};
-	RenderingState.colorAttachmentCount = renderpass.color_formats_length;
+	RenderingState.colorAttachmentCount = has_pixel_shader ? renderpass.color_formats_length : 0;
 	RenderingState.pColorAttachmentFormats = (const VkFormat*)renderpass.color_formats;
 	RenderingState.depthAttachmentFormat = (VkFormat)renderpass.depth_format;
 
 	VkGraphicsPipelineCreateInfo pipeline_info = {.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
 	pipeline_info.pNext = &RenderingState;
-	pipeline_info.stageCount = ARRAY_LENGTH(ShaderStages);
+	pipeline_info.stageCount = ShaderStagesCount;
 	pipeline_info.pStages = ShaderStages;
 	pipeline_info.pVertexInputState = &VertexInputState;
 	pipeline_info.pInputAssemblyState = &InputAssemblyState;

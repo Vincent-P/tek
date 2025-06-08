@@ -30,6 +30,7 @@ layout(scalar, push_constant) uniform uPushConstant {
 
 layout(location = 0) out struct {
     vec3 normal;
+    vec3 worldpos;
 } g_out;
 
 uvec4 unpackUint4x8(uint v)
@@ -106,7 +107,8 @@ void main()
 #endif
 
     vec4 pos = c_.proj * float34_mul(c_.view, float34_mul(c_.transform, skinned_p).xyz);
-
+ 
     g_out.normal = adjugate(c_.transform) * (adjugate(bone_matrix) * vertex.normal);
+    g_out.worldpos = float34_mul(c_.transform, skinned_p).xyz;
     gl_Position = pos;
 }
