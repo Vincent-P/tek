@@ -33,5 +33,11 @@ bool inputs_process_event(SDL_Event *event, struct Inputs *inputs)
 
 	}
 
+	if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+		inputs->is_mouse_down = true;
+	} else if (event->type == SDL_EVENT_MOUSE_BUTTON_UP) {
+		inputs->is_mouse_down = false;
+	}
+
 	return true;
 }

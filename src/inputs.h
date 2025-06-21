@@ -20,6 +20,7 @@ enum InputButtons
 struct Inputs
 {
 	bool buttons_is_pressed[InputButtons_Count];
+	bool is_mouse_down;
 };
 
 bool inputs_process_event(SDL_Event *event, struct Inputs *inputs);

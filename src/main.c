@@ -8,6 +8,9 @@
 #include <dcimgui.h>
 #include <tracy/tracy/TracyC.h>
 
+#define CLAY_IMPLEMENTATION
+#include <clay.h>
+
 #define ARRAY_LENGTH(x) (sizeof(x)/sizeof(*x))
 
 #include "asset.h"
@@ -86,6 +89,16 @@ static void postload_assets(struct AssetLibrary *assets, struct Renderer *render
 	}
 }
 
+
+static void HandleClayErrors(Clay_ErrorData errorData)
+{
+	// See the Clay_ErrorData struct for more information
+	printf("%s", errorData.errorText.chars);
+	switch(errorData.errorType) {
+		// etc
+	}
+}
+
 static void ImGui_ImplSDL3_PlatformSetImeData(ImGuiContext*, ImGuiViewport* viewport, ImGuiPlatformImeData* data);
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
@@ -111,6 +124,17 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 	viewport->PlatformHandle = (void*)(intptr_t)SDL_GetWindowID(application->window);
 	application->renderer = calloc(1, renderer_get_size());
 	renderer_init(application->renderer, &application->assets, application->window);
+
+	// clay init
+	// Note: malloc is only used here as an example, any allocator that provides
+	// a pointer to addressable memory of at least totalMemorySize will work
+	uint64_t totalMemorySize = Clay_MinMemorySize();
+	Clay_Arena arena = Clay_CreateArenaWithCapacityAndMemory(totalMemorySize, malloc(totalMemorySize));
+	// Note: screenWidth and screenHeight will need to come from your environment, Clay doesn't handle window related tasks
+	int display_w, display_h;
+	SDL_GetWindowSizeInPixels(application->window, &display_w, &display_h);
+	Clay_Initialize(arena, (Clay_Dimensions) { display_w, display_h }, (Clay_ErrorHandler) { HandleClayErrors });
+
 
 	postload_assets(&application->assets, application->renderer);
 
@@ -311,7 +335,32 @@ static void ImGui_ImplSDL3_PlatformSetImeData(ImGuiContext* ctx, ImGuiViewport* 
 	if (data->WantVisible || io->WantTextInput)
 		SDL_StartTextInput(window);
 }
+bool clay_process_event(struct Application *application, SDL_Event* event)
+{
+	ImGuiIO* io = ImGui_GetIO();
 
+	switch (event->type) {
+	case SDL_EVENT_MOUSE_MOTION:
+		{
+			float mouse_pos_x = (float)event->motion.x;
+			float mouse_pos_y = (float)event->motion.y;
+		        // Optional: Update internal pointer position for handling mouseover / click / touch events - needed for scrolling & debug tools
+			Clay_SetPointerState((Clay_Vector2) { mouse_pos_x, mouse_pos_y }, application->inputs.is_mouse_down);
+			return true;
+		}
+	case SDL_EVENT_MOUSE_WHEEL:
+		{
+			//IMGUI_DEBUG_LOG("wheel %.2f %.2f, precise %.2f %.2f\n", (float)event->wheel.x, (float)event->wheel.y, event->wheel.preciseX, event->wheel.preciseY);
+			float wheel_x = -event->wheel.x;
+			float wheel_y = event->wheel.y;
+
+			// Optional: Update internal pointer position for handling mouseover / click / touch events - needed for scrolling and debug tools
+			Clay_UpdateScrollContainers(true, (Clay_Vector2) { wheel_x, wheel_y }, 0.16f);
+			return true;
+		}
+	}
+	return false;
+}
 bool imgui_process_event(struct Application *application, SDL_Event* event)
 {
 	ImGuiIO* io = ImGui_GetIO();
@@ -381,6 +430,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 
 	imgui_process_event(application, event);
 	inputs_process_event(event, &application->inputs);
+	clay_process_event(application, event);
 	
 	TracyCZoneEnd(f);	
 	return SDL_APP_CONTINUE;
@@ -417,6 +467,14 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
 	bool opened = true;
 	ImGui_ShowDemoWindow(&opened);
+
+	// Setup clay size
+        // Optional: Update internal layout dimensions to support resizing
+        Clay_SetLayoutDimensions((Clay_Dimensions) { display_w, display_h });
+        // All clay layouts are declared between Clay_BeginLayout and Clay_EndLayout
+        Clay_BeginLayout();
+
+	//
 
 	uint64_t new_time = SDL_GetTicks();
 	uint64_t previous_frame_time = new_time - application->current_time;
