@@ -373,7 +373,7 @@ int cook_fbx()
 		opts.key_reduction_enabled = false;
 		ufbx_baked_anim *bake = ufbx_bake_anim(scene, anim, &opts, NULL);
 		assert(bake);
-		fprintf(stderr, "Importing anim: %s\n", stack->name.data);
+		fprintf(stderr, "Importing anim: %s (%zu frames)\n", stack->name.data, bake->nodes.count);
 		animations[istack].id = ufbx_string_to_id(stack->name);
 		animations[istack].skeleton_id = skeleton_id;
 		for (size_t inode = 0; inode < bake->nodes.count; inode++) {
