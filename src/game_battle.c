@@ -64,6 +64,23 @@ static const char* _get_action_label(enum BattleInputBits bits)
 	return ACTIONS_LABELS[actions];
 }
 
+BattleInput battle_clean_socd_input(BattleInput input)
+{
+	bool socd_bf = ((input & BATTLE_INPUT_FORWARD) != 0) &&  ((input & BATTLE_INPUT_BACK) != 0);
+	if (socd_bf) {
+		// clean bits
+		input ^= BATTLE_INPUT_FORWARD;
+		input ^= BATTLE_INPUT_BACK;
+	}
+	bool socd_ud = ((input & BATTLE_INPUT_UP) != 0) &&  ((input & BATTLE_INPUT_DOWN) != 0);
+	if (socd_ud) {
+		// clean bits
+		input ^= BATTLE_INPUT_UP;
+		input ^= BATTLE_INPUT_DOWN;
+	}
+	return input;
+}
+
 struct BattleInputs battle_read_input(struct Inputs const *inputs)
 {
 	struct BattleInputs input = {0};
@@ -92,6 +109,10 @@ struct BattleInputs battle_read_input(struct Inputs const *inputs)
 	if (inputs->buttons_is_pressed[InputButtons_K]) {
 		input.player1 |= BATTLE_INPUT_RKICK;
 	}
+
+	input.player1 = battle_clean_socd_input(input.player1);
+	input.player2 = battle_clean_socd_input(input.player2);
+	
 	return input;
 }
 
@@ -102,8 +123,6 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 enum BattleFrameResult battle_simulate_frame(struct BattleContext *ctx, struct BattleInputs inputs)
 {
 	TracyCZoneN(f, "Battle - simulate frame", true);
-	debug_draw_reset();
-
 	enum BattleFrameResult result = battle_state_update(ctx, inputs);
 
 	// desync checks
@@ -467,15 +486,6 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 				}
 			}
 		}
-		// Debug draw animated pose
-		for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ibone++) {
-			Float3 p;
-			p.x = F34(nonplayers[iplayer]->pose.global_transforms[ibone], 0, 3);
-			p.y = F34(nonplayers[iplayer]->pose.global_transforms[ibone], 1, 3);
-			p.z = F34(nonplayers[iplayer]->pose.global_transforms[ibone], 2, 3);
-			p = float3x4_transform_point(players[iplayer]->spatial.world_transform, p);
-			debug_draw_point(p);
-		}
 	}
 
 	// Evaluate hit
@@ -543,7 +553,92 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 		frame_result = BATTLE_FRAME_RESULT_END;
 	}
 
+	// next frame
+	state->frame_number += 1;	
+
+	TracyCZoneEnd(f);
+
+	return frame_result;
+}
+
+// -- Render
+
+void battle_render(struct BattleContext *ctx)
+{
+	TracyCZoneN(f, "BattleRender", true);
+	struct BattleState *state = &ctx->battle_state;
+	struct BattleNonState *nonstate = &ctx->battle_non_state;
+	struct PlayerEntity *players[] = {&state->p1_entity, &state->p2_entity};
+	struct PlayerNonEntity *nonplayers[] = {
+		&nonstate->p1_nonentity,
+		&nonstate->p2_nonentity,
+	};
+	struct tek_Character *characters[] = {
+		tek_characters + players[0]->tek.character_id,
+		tek_characters + players[1]->tek.character_id,
+	};
 	
+	struct TekPlayerComponent const *p1 = &state->p1_entity.tek;
+	if (ImGui_Begin("Player 1 inputs", NULL, 0)) {
+		if (ImGui_BeginTable("inputs", 2, ImGuiTableFlags_Borders)) {
+			uint32_t input_last_frame = state->frame_number;
+			for (uint32_t i = 0; i < INPUT_BUFFER_SIZE; i++) {
+				uint32_t input_index = (p1->current_input_index + (INPUT_BUFFER_SIZE - i)) % INPUT_BUFFER_SIZE;
+				enum BattleInputBits input = p1->input_buffer[input_index];
+				uint32_t input_duration = input_last_frame - p1->input_buffer_frame_start[input_index];
+				input_last_frame = p1->input_buffer_frame_start[input_index];
+
+				ImGui_TableNextRow();
+				ImGui_TableSetColumnIndex(0);
+				char input_label[32] = {0};
+				sprintf(input_label, "%s %s", _get_motion_label(input), _get_action_label(input));
+				ImGui_TextUnformatted(input_label);
+
+				ImGui_TableSetColumnIndex(1);
+				char duration_label[32] = {0};
+				sprintf(duration_label, "%u", input_duration);
+				ImGui_TextUnformatted(duration_label);
+			}
+			ImGui_EndTable();
+		}
+	}
+	ImGui_End();
+	ed_display_player_entity("Player 1", &state->p1_entity);
+	ed_display_player_entity("Player 2", &state->p2_entity);
+
+	if (ImGui_Begin("Battle", NULL, 0)) {
+		ImGui_Text("First To %d", nonstate->rounds_first_to);
+		ImGui_Text("P1: %d", nonstate->rounds_p1_won);
+		ImGui_Text("P2: %d", nonstate->rounds_p2_won);
+		ImGui_Text("");
+		ImGui_DragFloat3Ex("camera position", &nonstate->camera.position.x, 0.1f, 0.0f, 0.0f, "%.3f", 0);
+		ImGui_DragFloat3Ex("camera lookat", &nonstate->camera.lookat.x, 0.1f, 0.0f, 0.0f, "%.3f", 0);
+		ImGui_DragFloat("camera fov", &nonstate->camera.vertical_fov);
+		ImGui_DragInt("camera focus", &nonstate->camera_focus);
+		ImGui_Checkbox("draw grid", &nonstate->draw_grid);
+		ImGui_Checkbox("draw hurtboxes", &nonstate->draw_hurtboxes);
+		ImGui_Checkbox("draw hitboxes", &nonstate->draw_hitboxes);
+	}
+	ImGui_End();
+
+	// -- debug draw
+	debug_draw_reset();
+
+	// Evaluate anims
+	for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
+		struct AnimSkeleton const *anim_skeleton = asset_library_get_anim_skeleton(ctx->assets, players[iplayer]->anim_skeleton.anim_skeleton_id);
+		struct Animation const *animation = asset_library_get_animation(ctx->assets, players[iplayer]->animation.animation_id);
+		// Debug draw animated pose
+		for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ibone++) {
+			Float3 p;
+			p.x = F34(nonplayers[iplayer]->pose.global_transforms[ibone], 0, 3);
+			p.y = F34(nonplayers[iplayer]->pose.global_transforms[ibone], 1, 3);
+			p.z = F34(nonplayers[iplayer]->pose.global_transforms[ibone], 2, 3);
+			p = float3x4_transform_point(players[iplayer]->spatial.world_transform, p);
+			debug_draw_point(p);
+		}
+	}
+
 	// debug draw hurtboxes cylinders
 	if (nonstate->draw_hurtboxes) {
 		for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
@@ -616,65 +711,6 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 		debug_draw_line(o, y, DD_GREEN);
 		debug_draw_line(o, z, DD_BLUE);
 	}
-
-	// next frame
-	state->frame_number += 1;	
-
-	TracyCZoneEnd(f);
-
-	return frame_result;
-}
-
-// -- Render
-
-void battle_render(struct BattleContext *ctx)
-{
-	TracyCZoneN(f, "BattleRender", true);
-	struct BattleState *state = &ctx->battle_state;
-	struct BattleNonState *nonstate = &ctx->battle_non_state;
-	
-	struct TekPlayerComponent const *p1 = &state->p1_entity.tek;
-	if (ImGui_Begin("Player 1 inputs", NULL, 0)) {
-		if (ImGui_BeginTable("inputs", 2, ImGuiTableFlags_Borders)) {
-			uint32_t input_last_frame = state->frame_number;
-			for (uint32_t i = 0; i < INPUT_BUFFER_SIZE; i++) {
-				uint32_t input_index = (p1->current_input_index + (INPUT_BUFFER_SIZE - i)) % INPUT_BUFFER_SIZE;
-				enum BattleInputBits input = p1->input_buffer[input_index];
-				uint32_t input_duration = input_last_frame - p1->input_buffer_frame_start[input_index];
-				input_last_frame = p1->input_buffer_frame_start[input_index];
-
-				ImGui_TableNextRow();
-				ImGui_TableSetColumnIndex(0);
-				char input_label[32] = {0};
-				sprintf(input_label, "%s %s", _get_motion_label(input), _get_action_label(input));
-				ImGui_TextUnformatted(input_label);
-
-				ImGui_TableSetColumnIndex(1);
-				char duration_label[32] = {0};
-				sprintf(duration_label, "%u", input_duration);
-				ImGui_TextUnformatted(duration_label);
-			}
-			ImGui_EndTable();
-		}
-	}
-	ImGui_End();
-	ed_display_player_entity("Player 1", &state->p1_entity);
-	ed_display_player_entity("Player 2", &state->p2_entity);
-
-	if (ImGui_Begin("Battle", NULL, 0)) {
-		ImGui_Text("First To %d", nonstate->rounds_first_to);
-		ImGui_Text("P1: %d", nonstate->rounds_p1_won);
-		ImGui_Text("P2: %d", nonstate->rounds_p2_won);
-		ImGui_Text("");
-		ImGui_DragFloat3Ex("camera position", &nonstate->camera.position.x, 0.1f, 0.0f, 0.0f, "%.3f", 0);
-		ImGui_DragFloat3Ex("camera lookat", &nonstate->camera.lookat.x, 0.1f, 0.0f, 0.0f, "%.3f", 0);
-		ImGui_DragFloat("camera fov", &nonstate->camera.vertical_fov);
-		ImGui_DragInt("camera focus", &nonstate->camera_focus);
-		ImGui_Checkbox("draw grid", &nonstate->draw_grid);
-		ImGui_Checkbox("draw hurtboxes", &nonstate->draw_hurtboxes);
-		ImGui_Checkbox("draw hitboxes", &nonstate->draw_hitboxes);
-	}
-	ImGui_End();
 
 	renderer_set_main_camera(ctx->renderer, nonstate->camera);
 

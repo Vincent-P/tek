@@ -2,25 +2,6 @@
 
 #define REPLAY_LENGTH_IN_FRAMES (60*60*60) // 1 hour
 
-/**
-
-recording:
-    read inputs
-    
-
-Replay feature for testing:
-
-playing (recording / not recording)
-watching replay (paused / playing)
-
-- record replay using "Record" button -> save gamestate + start recording inputs
-- end replay using "End" button       -> stop recording inputs + set replay length in frames
-
-- loop replay -> set context to initial replay context -> simulate frame each frame -> done loop
-- replay player -> pause, backward 1/2/4 frame, forward 1/2/4 frame
-   
- **/
-
 enum BattleReplayState
 {
 	BATTLE_REPLAY_STATE_PLAYING,
