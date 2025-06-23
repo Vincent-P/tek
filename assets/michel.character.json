@@ -60,10 +60,6 @@
 	    "name": "standing walk forward loop",
 	    "animation": "rig|walk_forward",
 	    "cancels": [
-		{
-		    "type": "list",
-		    "to": "standing moves",
-		},
 		// loop
 		{
 		    "to": "standing walk forward loop",
@@ -75,12 +71,28 @@
 		    "to": "standing idle",
 		    "frame": 1,
 		},
+		// custom cancel to walk backward if we press b
+		{
+		    "to": "standing walk backward",
+		    "motion_input": 2, // b
+		},
+		// lastly match standing moves
+		{
+		    "type": "list",
+		    "to": "standing moves",
+		},
 	    ],
 	},
 	{
 	    "name": "standing forward dash",
 	    "animation": "rig|forward_dash",
 	    "cancels": [
+		// custom cancel to walk backward if we press b, TODO: blending over 5-10 frames
+		{
+		    "to": "standing walk backward",
+		    "motion_input": 2, // b
+		},
+		// go back to idle after end of anim
 		{
 		    "to": "standing idle",
 		    "condition": "eoa",
@@ -92,10 +104,6 @@
 	    "name": "standing walk backward",
 	    "animation": "rig|walk_backward",
 	    "cancels": [
-		{
-		    "type": "list",
-		    "to": "standing moves",
-		},
 		// loop
 		{
 		    "to": "standing walk backward",
@@ -106,6 +114,16 @@
 		{
 		    "to": "standing idle",
 		    "frame": 1,
+		},
+		// custom cancel to walk forward if we press f
+		{
+		    "to": "standing walk forward loop",
+		    "motion_input": 6, // f
+		},
+		// lastly stadning moves
+		{
+		    "type": "list",
+		    "to": "standing moves",
 		},
 	    ],
 	},
@@ -118,6 +136,7 @@
 		    "type": "list",
 		    "to": "standing moves",
 		},
+		// custom cancel to walk forward if we press f
 		{
 		    "to": "standing walk forward loop",
 		    "motion_input": 6, // f
