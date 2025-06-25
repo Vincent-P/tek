@@ -109,6 +109,33 @@ bool anim_evaluate_animation(struct AnimSkeleton const *skeleton, Animation cons
 	return has_ended;
 }
 
+void anim_blend_poses(struct AnimPose *out_pose, struct AnimPose *pose_a, struct AnimPose *pose_b, float coef)
+{
+	out_pose->anim_skeleton = pose_a->anim_skeleton;
+	out_pose->bones_length = pose_a->bones_length;
+	out_pose->state = ANIM_POSE_STATE_POSE;
+	
+	for (uint32_t ibone = 0; ibone < pose_a->bones_length; ++ibone) {
+		Float3x4 local_mat_a = pose_a->local_transforms[ibone];
+		Float3 translation_a;
+		Quat rotation_a;
+		Float3 scale_a;
+		transform_from_float3x4(local_mat_a, &translation_a, &rotation_a, &scale_a);
+		
+		Float3x4 local_mat_b = pose_b->local_transforms[ibone];
+		Float3 translation_b;
+		Quat rotation_b;
+		Float3 scale_b;
+		transform_from_float3x4(local_mat_b, &translation_b, &rotation_b, &scale_b);
+
+		Float3 out_translation = float3_lerp(translation_a, translation_b, coef);
+		Quat out_rotation = quat_slerp(rotation_a, rotation_b, coef);
+		Float3 out_scale = float3_lerp(scale_a, scale_b, coef);
+		
+		out_pose->local_transforms[ibone] = float3x4_from_transform(out_translation, out_rotation, out_scale);
+	}
+}
+
 void anim_pose_compute_global_transforms(struct AnimSkeleton const *skeleton, struct AnimPose *pose)
 {
 	pose->global_transforms[0] = float3x4_mul(skeleton->bones_global_transforms[0], pose->local_transforms[0]);

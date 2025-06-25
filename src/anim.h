@@ -11,11 +11,8 @@ typedef struct AnimSkeleton AnimSkeleton;
 /**
 animation system works with bone space poses (local)
 render system works with character space poses (global)
-
 anim track, animations -> local space
-
 apply to skinned mesh -> local to global space
-
  **/
 struct AnimSkeleton
 {
@@ -97,6 +94,7 @@ void Serialize_AnimSkeleton(Serializer *serializer, AnimSkeleton *value);
 void Serialize_SkeletalMeshAsset(Serializer *serializer, SkeletalMeshAsset *value);
 
 bool anim_evaluate_animation(struct AnimSkeleton const *skeleton, Animation const* anim, struct AnimPose *out_pose, uint32_t frame);
+void anim_blend_poses(struct AnimPose *out_pose, struct AnimPose *pose_a, struct AnimPose *pose_b, float coef);
 void anim_pose_compute_global_transforms(struct AnimSkeleton const *skeleton, struct AnimPose *pose);
 
 void skeletal_mesh_create_instance(struct SkeletalMeshAsset const *asset, struct SkeletalMeshInstance *instance, struct AnimSkeleton const *skeleton);

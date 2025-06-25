@@ -390,11 +390,18 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 			if (can_cancel) {
 				// perform the cancel
 				struct Animation const *animation = asset_library_get_animation(ctx->assets, request_move->animation_id);
+				players[iplayer]->animation.previous_animation_id = players[iplayer]->animation.animation_id;
 				players[iplayer]->animation.animation_id = request_move->animation_id;
 				if (cancel->type == TEK_CANCEL_TYPE_SINGLE_LOOP) {
-					players[iplayer]->animation.frame = players[iplayer]->animation.frame % cancel_ctx.animation_length;
+					if (players[iplayer]->animation.frame > cancel_ctx.animation_length) {
+						players[iplayer]->animation.previous_frame = players[iplayer]->animation.frame;
+						players[iplayer]->animation.frame = 0;
+					}
 				} else {
+					players[iplayer]->animation.previous_frame = players[iplayer]->animation.frame;
 					players[iplayer]->animation.frame = 0;
+
+					players[iplayer]->animation.remaining_frames_to_blend = 10;
 				}
 				players[iplayer]->tek.current_move_id = request_move->id;
 			}
@@ -450,18 +457,55 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 	for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
 		struct AnimSkeleton const *anim_skeleton = asset_library_get_anim_skeleton(ctx->assets, players[iplayer]->anim_skeleton.anim_skeleton_id);
 		struct Animation const *animation = asset_library_get_animation(ctx->assets, players[iplayer]->animation.animation_id);
+		
 		// Evaluate animation and apply root motion
-		if (animation != NULL) {
-			anim_evaluate_animation(anim_skeleton, animation, &nonplayers[iplayer]->pose, players[iplayer]->animation.frame);
-			// update render skeleton
-			anim_pose_compute_global_transforms(anim_skeleton, &nonplayers[iplayer]->pose);
-			skeletal_mesh_apply_pose(&nonplayers[iplayer]->mesh_instance, &nonplayers[iplayer]->pose);
-			// use root motion
-			Float3 root_translation = float3x4_transform_direction(players[iplayer]->spatial.world_transform, nonplayers[iplayer]->pose.root_motion_delta_translation);
-			players[iplayer]->spatial.world_transform.cols[3] = float3_add(players[iplayer]->spatial.world_transform.cols[3], root_translation);
+
+		bool has_previous_animation = players[iplayer]->animation.previous_animation_id
+			&& players[iplayer]->animation.previous_animation_id != players[iplayer]->animation.animation_id;
+		bool should_blend = players[iplayer]->animation.remaining_frames_to_blend > 0 && has_previous_animation;
+
+		if (players[iplayer]->animation.remaining_frames_to_blend <= 0) {
+			players[iplayer]->animation.previous_frame = 0;
+			players[iplayer]->animation.previous_animation_id = 0;
 		}
-		// Update animation component
-		players[iplayer]->animation.frame += 1;
+		
+		if (animation != NULL) {
+			if (should_blend) {
+				// Blend with previous animation
+				struct Animation const *previous_animation = asset_library_get_animation(ctx->assets, players[iplayer]->animation.previous_animation_id);
+				bool has_previous_finished = anim_evaluate_animation(anim_skeleton, previous_animation, &nonplayers[iplayer]->previous_pose, players[iplayer]->animation.previous_frame);
+				anim_evaluate_animation(anim_skeleton, animation, &nonplayers[iplayer]->pose, players[iplayer]->animation.frame);
+
+				// remaining = 10f -> 0.0f === remaining = 0 -> 1.0
+				float blend_factor = (1.0f - ((float)players[iplayer]->animation.remaining_frames_to_blend / 10.0f));
+				
+				anim_blend_poses(&nonplayers[iplayer]->blended_pose, &nonplayers[iplayer]->previous_pose, &nonplayers[iplayer]->pose, blend_factor);
+				// update render skeleton
+				anim_pose_compute_global_transforms(anim_skeleton, &nonplayers[iplayer]->blended_pose);
+				skeletal_mesh_apply_pose(&nonplayers[iplayer]->mesh_instance, &nonplayers[iplayer]->blended_pose);
+				// use root motion
+				Float3 root_translation = float3x4_transform_direction(players[iplayer]->spatial.world_transform, nonplayers[iplayer]->pose.root_motion_delta_translation);
+				players[iplayer]->spatial.world_transform.cols[3] = float3_add(players[iplayer]->spatial.world_transform.cols[3], root_translation);
+
+				players[iplayer]->animation.previous_frame += 1;
+				players[iplayer]->animation.frame += 1;
+				players[iplayer]->animation.remaining_frames_to_blend -= 1;
+				
+			} else {
+				// Single animation
+				anim_evaluate_animation(anim_skeleton, animation, &nonplayers[iplayer]->pose, players[iplayer]->animation.frame);
+				// update render skeleton
+				anim_pose_compute_global_transforms(anim_skeleton, &nonplayers[iplayer]->pose);
+				skeletal_mesh_apply_pose(&nonplayers[iplayer]->mesh_instance, &nonplayers[iplayer]->pose);
+				// use root motion
+				Float3 root_translation = float3x4_transform_direction(players[iplayer]->spatial.world_transform, nonplayers[iplayer]->pose.root_motion_delta_translation);
+				players[iplayer]->spatial.world_transform.cols[3] = float3_add(players[iplayer]->spatial.world_transform.cols[3], root_translation);
+				// Update animation component
+				players[iplayer]->animation.frame += 1;
+			}
+		}
+		
+		
 		// update hurtboxes positions
 		for (uint32_t ihurtbox = 0; ihurtbox < characters[iplayer]->hurtboxes_length; ++ihurtbox) {
 			uint32_t hurtbox_bone_id = characters[iplayer]->hurtboxes_bone_id[ihurtbox];
@@ -627,13 +671,12 @@ void battle_render(struct BattleContext *ctx)
 	// Evaluate anims
 	for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
 		struct AnimSkeleton const *anim_skeleton = asset_library_get_anim_skeleton(ctx->assets, players[iplayer]->anim_skeleton.anim_skeleton_id);
-		struct Animation const *animation = asset_library_get_animation(ctx->assets, players[iplayer]->animation.animation_id);
 		// Debug draw animated pose
 		for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ibone++) {
 			Float3 p;
-			p.x = F34(nonplayers[iplayer]->pose.global_transforms[ibone], 0, 3);
-			p.y = F34(nonplayers[iplayer]->pose.global_transforms[ibone], 1, 3);
-			p.z = F34(nonplayers[iplayer]->pose.global_transforms[ibone], 2, 3);
+			p.x = F34(nonplayers[iplayer]->blended_pose.global_transforms[ibone], 0, 3);
+			p.y = F34(nonplayers[iplayer]->blended_pose.global_transforms[ibone], 1, 3);
+			p.z = F34(nonplayers[iplayer]->blended_pose.global_transforms[ibone], 2, 3);
 			p = float3x4_transform_point(players[iplayer]->spatial.world_transform, p);
 			debug_draw_point(p);
 		}

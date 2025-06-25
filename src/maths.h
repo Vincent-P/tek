@@ -59,6 +59,15 @@ Float3 float3_mul_scalar(Float3 a, float s)
 	return r;
 }
 
+Float3 float3_mul(Float3 a, Float3 b)
+{
+	Float3 r;
+	r.x = a.x*b.x;
+	r.y = a.y*b.y;
+	r.z = a.z*b.z;
+	return r;
+}
+
 Float3 float3_normalize(Float3 v)
 {
 	float norm = sqrtf(v.x*v.x + v.y*v.y + v.z*v.z);
@@ -87,6 +96,25 @@ float float3_distance(Float3 a, Float3 b)
 	return sqrtf(x*x + y*y + z*z);
 }
 
+float float3_length(Float3 v)
+{
+	return sqrtf(float3_dot(v, v));
+}
+
+float float_lerp(float a, float b, float coef)
+{
+	return (1.0f - coef) * a + (coef) * b;
+}
+
+Float3 float3_lerp(Float3 a, Float3 b, float coef)
+{
+	Float3 r;
+	r.x = float_lerp(a.x, b.x, coef);
+	r.y = float_lerp(a.y, b.y, coef);
+	r.z = float_lerp(a.z, b.z, coef);
+	return r;
+}
+
 typedef union Quat Quat;
 union Quat
 {
@@ -100,6 +128,44 @@ union Quat
 	float values[4];
 };
 SerializeSimpleType(Quat);
+
+
+Quat quat_normalize(Quat a)
+{
+	float norm = sqrtf(a.x*a.x+a.y*a.y+a.z*a.z+a.w*a.w);
+	Quat r;
+	r.x = a.x / norm;
+	r.y = a.y / norm;
+	r.z = a.z / norm;
+	return r;
+}
+
+Quat quat_slerp(Quat a, Quat b, float coef) 
+{
+	float dot = a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w;
+	if (dot < 0.0) {
+		dot = -dot;
+		b.x = -b.x; b.y = -b.y; b.z = -b.z; b.w = -b.w;
+	}
+	float omega = acosf(fmin(fmax(dot, 0.0), 1.0));
+	if (omega <= 1.175494351e-38f) return a;
+	float rcp_so = 1.0 / sinf(omega);
+	float af = sinf((1.0 - coef) * omega) * rcp_so;
+	float bf = sinf(coef * omega) * rcp_so;
+
+	float x = af*a.x + bf*b.x;
+	float y = af*a.y + bf*b.y;
+	float z = af*a.z + bf*b.z;
+	float w = af*a.w + bf*b.w;
+	float rcp_len = 1.0 / sqrtf(x*x + y*y + z*z + w*w);
+
+	Quat ret;
+	ret.x = x * rcp_len;
+	ret.y = y * rcp_len;
+	ret.z = z * rcp_len;
+	ret.w = w * rcp_len;
+	return ret;
+}
 
 struct FloatList
 {
@@ -283,6 +349,86 @@ Float3x4 float3x4_from_transform(Float3 translation, Quat rotation, Float3 scale
 	F34(m,1,3) = translation.y;
 	F34(m,2,3) = translation.z;
 	return m;
+}
+
+float float3x4_determinant(Float3x4 m)
+{
+	return
+		- F34(m,0,2)*F34(m,1,1)*F34(m,2,0) + F34(m,0,1)*F34(m,1,2)*F34(m,2,0) + F34(m,0,2)*F34(m,1,0)*F34(m,2,1)
+		- F34(m,0,0)*F34(m,1,2)*F34(m,2,1) - F34(m,0,1)*F34(m,1,0)*F34(m,2,2) + F34(m,0,0)*F34(m,1,1)*F34(m,2,2);
+}
+
+// float fmax(float a, float b) { return a > b ? a : b; }
+
+void transform_from_float3x4(Float3x4 mat, Float3 *translation, Quat *rotation, Float3 *scale)
+{
+	float det = float3x4_determinant(mat);
+
+	*translation = mat.cols[3];
+	scale->x = float3_length(mat.cols[0]);
+	scale->y = float3_length(mat.cols[1]);
+	scale->z = float3_length(mat.cols[2]);
+
+	// Flip a single non-zero axis if negative determinant
+	float sign_x = 1.0f;
+	float sign_y = 1.0f;
+	float sign_z = 1.0f;
+	if (det < 0.0f) {
+		if (scale->x > 0.0f) sign_x = -1.0f;
+		else if (scale->y > 0.0f) sign_y = -1.0f;
+		else if (scale->z > 0.0f) sign_z = -1.0f;
+	}
+
+	Float3 x = float3_mul_scalar(mat.cols[0], scale->x > 0.0f ? sign_x / scale->x : 0.0f);
+	Float3 y = float3_mul_scalar(mat.cols[1], scale->y > 0.0f ? sign_y / scale->y : 0.0f);
+	Float3 z = float3_mul_scalar(mat.cols[2], scale->z > 0.0f ? sign_z / scale->z : 0.0f);
+	float trace = x.x + y.y + z.z;
+	if (trace > 0.0f) {
+		float a = sqrtf(fmax(0.0, trace + 1.0)), b = (a != 0.0f) ? 0.5f / a : 0.0f;
+		rotation->x = (y.z - z.y) * b;
+		rotation->y = (z.x - x.z) * b;
+		rotation->z = (x.y - y.x) * b;
+		rotation->w = 0.5f * a;
+	} else if (x.x > y.y && x.x > z.z) {
+		float a = sqrtf(fmax(0.0, 1.0 + x.x - y.y - z.z)), b = (a != 0.0f) ? 0.5f / a : 0.0f;
+		rotation->x = 0.5f * a;
+		rotation->y = (y.x + x.y) * b;
+		rotation->z = (z.x + x.z) * b;
+		rotation->w = (y.z - z.y) * b;
+	}
+	else if (y.y > z.z) {
+		float a = sqrtf(fmax(0.0, 1.0 - x.x + y.y - z.z)), b = (a != 0.0f) ? 0.5f / a : 0.0f;
+		rotation->x = (y.x + x.y) * b;
+		rotation->y = 0.5f * a;
+		rotation->z = (z.y + y.z) * b;
+		rotation->w = (z.x - x.z) * b;
+	}
+	else {
+		float a = sqrtf(fmax(0.0, 1.0 - x.x - y.y + z.z)), b = (a != 0.0f) ? 0.5f / a : 0.0f;
+		rotation->x = (z.x + x.z) * b;
+		rotation->y = (z.y + y.z) * b;
+		rotation->z = 0.5f * a;
+		rotation->w = (x.y - y.x) * b;
+	}
+
+	float len = rotation->x*rotation->x + rotation->y*rotation->y + rotation->z*rotation->z + rotation->w*rotation->w;
+	if (fabs(len - 1.0f) > 0.1f) {
+		if (fabs(len) <= 0.1f) {
+			rotation->x = 0.0f;
+			rotation->y = 0.0f;
+			rotation->z = 0.0f;
+			rotation->w = 1.0f;
+		} else {
+			rotation->x /= len;
+			rotation->y /= len;
+			rotation->z /= len;
+			rotation->w /= len;
+		}
+	}
+
+	scale->x *= sign_x;
+	scale->y *= sign_y;
+	scale->z *= sign_z;
 }
 
 Float3 float3x4_transform_point(Float3x4 m, Float3 p)

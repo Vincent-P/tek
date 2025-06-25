@@ -14,6 +14,12 @@ void _display_animation_component(struct AnimationComponent *animation)
 {
 	ImGui_InputScalar("frame", ImGuiDataType_U32, &animation->frame);
 	ImGui_InputScalar("animation_id", ImGuiDataType_U32, &animation->animation_id);
+	ImGui_InputScalar("previous frame", ImGuiDataType_U32, &animation->previous_frame);
+	ImGui_InputScalar("previous animation_id", ImGuiDataType_U32, &animation->previous_animation_id);
+	ImGui_InputScalar("remaining frames to blend", ImGuiDataType_U32, &animation->remaining_frames_to_blend);
+
+	float blend_factor = (1.0f - ((float)animation->remaining_frames_to_blend / 10.0f));
+	ImGui_Text("Blend factor: %.1f", blend_factor);
 }
 void _display_skeletal_mesh_component(struct SkeletalMeshComponent *mesh)
 {

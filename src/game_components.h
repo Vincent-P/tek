@@ -22,7 +22,10 @@ struct SkeletalMeshComponent
 struct AnimationComponent
 {
 	uint32_t frame;
+	uint32_t previous_frame;
 	AssetId animation_id;
+	AssetId previous_animation_id;
+	int32_t remaining_frames_to_blend; // blend with previous animation
 };
 
 struct SkeletonComponent
