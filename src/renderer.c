@@ -592,6 +592,7 @@ void renderer_render(Renderer *renderer)
 	{
 		struct CompositingConstants
 		{
+			int padding;
 		} constants;
 		vulkan_insert_debug_label(renderer->device, &pass, "compositing");
 		vulkan_bind_graphics_pso(renderer->device, &pass, renderer->compositing_pso);

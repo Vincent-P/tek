@@ -869,7 +869,7 @@ void new_texture(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t
 	device->textures[handle].upload_offset = device->upload_buffer_offset;
 	device->textures[handle].upload_size = size;
 	assert(device->upload_buffer_offset + size <= device->buffers[device->upload_buffer].size);
-	memcpy(device->buffers[device->upload_buffer].mapped + device->upload_buffer_offset,
+	memcpy((char*)device->buffers[device->upload_buffer].mapped + device->upload_buffer_offset,
 	       data,
 	       size);
 	device->upload_buffer_offset += size;

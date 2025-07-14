@@ -31,7 +31,7 @@ enum SerializerVersions
 void Serialize_##T(Serializer *serializer, T *value) \
 { \
 	assert(serializer->cursor + sizeof(T) <= serializer->buffer.size); \
-	T *buffer_as_##T = (T*)(serializer->buffer.data + serializer->cursor); \
+	T *buffer_as_##T = (T*)((char*)serializer->buffer.data + serializer->cursor); \
 	serializer->cursor += sizeof(T); \
 	\
 	if (serializer->is_reading) { \
@@ -44,7 +44,7 @@ void Serialize_##T(Serializer *serializer, T *value) \
 void SerializeBytes(Serializer *serializer, void *data, uint32_t size)
 {
 	assert(serializer->cursor + size <= serializer->buffer.size);
-	void *buffer = serializer->buffer.data + serializer->cursor;
+	void *buffer = (char*)serializer->buffer.data + serializer->cursor;
 	serializer->cursor += size;
 		
 	if (serializer->is_reading) {

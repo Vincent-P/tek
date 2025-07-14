@@ -76,6 +76,7 @@ typedef struct GGPOPlayer {
    int               player_num;
    union {
       struct {
+	      char padding;
       } local;
       struct {
          char           ip_address[32];
