@@ -1,6 +1,7 @@
 #pragma once
 
 #define MAX_CANCELS_PER_MOVE 8
+#define MAX_HIT_CONDITIONS_PER_MOVE 8
 #define MAX_CANCELS_PER_GROUP 32
 #define MAX_CANCEL_GROUPS 16
 #define MAX_HITBOXES 8
@@ -85,6 +86,13 @@ struct tek_CancelGroup
 	uint32_t cancels_length;
 };
 
+struct tek_HitCondition
+{
+	uint32_t reactions_id;
+	uint8_t damage;
+	uint8_t requirements;
+};
+
 struct tek_Move
 {
 	uint32_t id;
@@ -95,12 +103,21 @@ struct tek_Move
 	uint8_t active; // how long is the move active
 	uint8_t recovery; // how long is the recovery
 	uint8_t hitbox; // index in hitbox list
-	// hit reaction, TODO: reactions list to handle airborne, CH, etc
-	uint8_t base_damage;
-	uint8_t hitstun; // stun the opponent for X frames on hit
-	uint8_t blockstun; // stun the opponent for X frames on block
 	// cancels
 	struct tek_Cancel cancels[MAX_CANCELS_PER_MOVE];
+	uint32_t cancels_length;
+	// hit conditions
+	struct tek_HitCondition hit_conditions[MAX_HIT_CONDITIONS_PER_MOVE];
+	uint32_t hit_conditions_length;
+};
+
+struct tek_HitReactions
+{
+	uint32_t id;
+	uint32_t standing_move;
+	uint32_t standing_counter_hit_move;
+	uint32_t standing_block_move;
+	uint32_t crouch_block_move;
 };
 
 struct tek_DebugName
@@ -119,6 +136,9 @@ struct tek_Character
 	uint32_t moves_length;
 	struct tek_CancelGroup cancel_groups[MAX_CANCEL_GROUPS];
 	uint32_t cancel_groups_length;
+	// reactions
+	struct tek_HitReactions hit_reactions[128];
+	uint32_t hit_reactions_length;
 	// hurtboxes, 0 or 1 per bone
 	float hurtboxes_radius[MAX_BONES_PER_MESH];
 	float hurtboxes_height[MAX_BONES_PER_MESH];
@@ -130,7 +150,7 @@ struct tek_Character
 	uint32_t hitboxes_bone_id[MAX_HITBOXES];
 	uint32_t hitboxes_length;
 
-	struct tek_DebugName move_names[128];
+	struct tek_DebugName move_names[128+1];
 };
 
 
@@ -139,3 +159,8 @@ struct tek_Character tek_characters[1] = {0};
 const char* tek_characters_filename[1] = {"michel.character.json"};
 
 void tek_read_character_json();
+
+struct tek_Move *tek_character_find_move(struct tek_Character *character, uint32_t id);
+struct tek_CancelGroup *tek_character_find_cancel_group(struct tek_Character *character, uint32_t id);
+struct tek_HitReactions *tek_character_find_hit_reaction(struct tek_Character *character, uint32_t id);
+

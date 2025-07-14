@@ -308,17 +308,35 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 	}
 	
 	// -- gameplay update
+	// apply pushback
+	for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
+		if (players[iplayer]->tek.pushback_remaining_frames > 0) {
+			players[iplayer]->spatial.world_transform.cols[3].x += players[iplayer]->tek.pushback_strength;
+			players[iplayer]->tek.pushback_remaining_frames -= 1;
+		}
+	}
+	
+	
+	// apply requested move from previous simulation
+	for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
+		uint32_t requested_move_id = players[iplayer]->tek.requested_move_id;
+		if (requested_move_id != 0) {
+			struct tek_Move *request_move = tek_character_find_move(characters[iplayer], requested_move_id);
+			struct Animation const *animation = asset_library_get_animation(ctx->assets, request_move->animation_id);
+			
+			players[iplayer]->animation.animation_id = request_move->animation_id;
+			players[iplayer]->animation.frame = 0;
+			players[iplayer]->tek.current_move_id = requested_move_id;
+			players[iplayer]->tek.requested_move_id = 0;
+		}
+	}
+	
 	// move request
 	for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
 		// find current move
-		struct tek_Move *current_move = NULL;
-		struct tek_Cancel *current_cancels = NULL;
-		for (uint32_t imove = 0; imove < characters[iplayer]->moves_length; ++imove) {
-			if (characters[iplayer]->moves[imove].id == players[iplayer]->tek.current_move_id) {
-				current_move = &characters[iplayer]->moves[imove];
-				current_cancels = current_move->cancels;
-			}
-		}
+		struct tek_Move *current_move = tek_character_find_move(characters[iplayer], players[iplayer]->tek.current_move_id);
+		struct tek_Cancel *current_cancels = current_move->cancels;
+
 		// find valid cancel
 		struct Animation const *animation = asset_library_get_animation(ctx->assets, current_move->animation_id);
 		struct CancelContext cancel_ctx = {0};
@@ -327,7 +345,7 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 		uint32_t request_move_id = 0;
 		
 		struct tek_Cancel *cancel = NULL;
-		for (uint32_t imovecancel = 0; imovecancel < MAX_CANCELS_PER_MOVE; ++imovecancel) {
+		for (uint32_t imovecancel = 0; imovecancel < current_move->cancels_length; ++imovecancel) {
 			bool is_group = current_cancels[imovecancel].type == TEK_CANCEL_TYPE_LIST;
 			
 			if (!is_group) {
@@ -354,13 +372,8 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 				}
 			}
 			if (cancel) {
-				struct tek_Move *request_move = NULL;
-				for (uint32_t imove = 0; imove < characters[iplayer]->moves_length; ++imove) {
-					if (characters[iplayer]->moves[imove].id == cancel->to_move_id) {
-						request_move = &characters[iplayer]->moves[imove];
-					}
-				}
-				if (iplayer == 0 && current_move->id != cancel->to_move_id) {
+				struct tek_Move *request_move = tek_character_find_move(characters[iplayer], cancel->to_move_id);
+				if (current_move->id != cancel->to_move_id) {
 					printf("p%u cancel %s[%u] -> %s[%u] | frame: %u | anim frame: %u | anim len: %u\n",
 					       iplayer,
 					       characters[iplayer]->move_names[current_move-characters[iplayer]->moves].string,
@@ -376,27 +389,24 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 				break;
 			}
 		}
-		// find request move
-		struct tek_Move *request_move = NULL;
-		for (uint32_t imove = 0; imove < characters[iplayer]->moves_length; ++imove) {
-			if (characters[iplayer]->moves[imove].id == request_move_id) {
-				request_move = &characters[iplayer]->moves[imove];
-			}
-		}
-		// check if request move can be made
-		if (current_move != NULL && request_move != NULL) {
-			bool is_done = players[iplayer]->animation.frame > (current_move->startup + current_move->active + current_move->recovery);
-			bool can_cancel = is_done;
-			if (can_cancel) {
-				// perform the cancel
-				struct Animation const *animation = asset_library_get_animation(ctx->assets, request_move->animation_id);
-				players[iplayer]->animation.animation_id = request_move->animation_id;
-				if (cancel->type == TEK_CANCEL_TYPE_SINGLE_LOOP) {
-					players[iplayer]->animation.frame = players[iplayer]->animation.frame % cancel_ctx.animation_length;
-				} else {
-					players[iplayer]->animation.frame = 0;
+		if (request_move_id != 0) {
+			// find request move
+			struct tek_Move *request_move = tek_character_find_move(characters[iplayer], request_move_id);
+			// check if request move can be made
+			if (current_move != NULL && request_move != NULL) {
+				bool is_done = players[iplayer]->animation.frame > (current_move->startup + current_move->active + current_move->recovery);
+				bool can_cancel = is_done;
+				if (can_cancel) {
+					// perform the cancel
+					struct Animation const *animation = asset_library_get_animation(ctx->assets, request_move->animation_id);
+					players[iplayer]->animation.animation_id = request_move->animation_id;
+					if (cancel->type == TEK_CANCEL_TYPE_SINGLE_LOOP) {
+						players[iplayer]->animation.frame = players[iplayer]->animation.frame % cancel_ctx.animation_length;
+					} else {
+						players[iplayer]->animation.frame = 0;
+					}
+					players[iplayer]->tek.current_move_id = request_move->id;
 				}
-				players[iplayer]->tek.current_move_id = request_move->id;
 			}
 		}
 	}
@@ -497,14 +507,9 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 		struct tek_Character *c1 = characters[0];
 		struct tek_Character *c2 = characters[1];
 		
-		struct tek_Move *current_move = NULL;
-		for (uint32_t imove = 0; imove < c1->moves_length; ++imove) {
-			if (c1->moves[imove].id == p1->tek.current_move_id) {
-				current_move = &c1->moves[imove];
-			}
-		}
+		struct tek_Move *current_move = tek_character_find_move(c1, p1->tek.current_move_id);
 
-		if (current_move) {
+		if (current_move && current_move->hit_conditions_length > 0) {
 			uint32_t current = p1->animation.frame;
 			uint32_t first_active = current_move->startup;
 			uint32_t last_active = current_move->startup + current_move->active;
@@ -531,7 +536,21 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 					bool inside = inside_vert & inside_hor;
 					if (inside) {
 						printf("HIIIIIIIIIIIIIIIIIIT hurtbox[%u] distance: %fx%f\n", ihurtbox, hor_distance, vert_distance);
-						p2->tek.hp -= current_move->base_damage;
+
+						struct tek_HitCondition hit_condition = current_move->hit_conditions[0];
+						struct tek_HitReactions *hit_reaction = tek_character_find_hit_reaction(c1, hit_condition.reactions_id);
+
+
+						bool is_blocking = true;
+						if (is_blocking) {
+							p2->tek.requested_move_id = hit_reaction->standing_block_move;
+
+							p2->tek.pushback_remaining_frames = 3;
+							p2->tek.pushback_strength = 0.1f;
+						} else {
+							p2->tek.hp -= hit_condition.damage;
+							p2->tek.requested_move_id = hit_reaction->standing_move;
+						}
 					}
 				}
 
@@ -652,12 +671,7 @@ void battle_render(struct BattleContext *ctx)
 	}
 	if (nonstate->draw_hitboxes) {
 		for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
-			struct tek_Move *current_move = NULL;
-			for (uint32_t imove = 0; imove < characters[iplayer]->moves_length; ++imove) {
-				if (characters[iplayer]->moves[imove].id == players[iplayer]->tek.current_move_id) {
-					current_move = &characters[iplayer]->moves[imove];
-				}
-			}
+			struct tek_Move *current_move = tek_character_find_move(characters[iplayer], players[iplayer]->tek.current_move_id);
 
 			uint32_t current = players[iplayer]->animation.frame;
 			uint32_t first_active = current_move->startup;

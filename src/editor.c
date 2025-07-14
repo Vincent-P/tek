@@ -22,17 +22,20 @@ void _display_tek_component(struct TekPlayerComponent *player)
 {
 	struct tek_Character *chara = tek_characters + player->character_id;
 	
-	uint32_t i_current_move = 0;
+	uint32_t i_current_move = chara->moves_length;
+	uint32_t i_requested_move = chara->moves_length;
 	for (uint32_t imove = 0; imove < chara->moves_length; ++imove) {
 		if (chara->moves[imove].id == player->current_move_id) {
 			i_current_move = imove;
-			break;
+		}
+		if (chara->moves[imove].id == player->requested_move_id) {
+			i_requested_move = imove;
 		}
 	}
 	
 	ImGui_InputScalar("character", ImGuiDataType_U32, &player->character_id);
 	ImGui_Text("current move: %s", chara->move_names[i_current_move].string);
-	ImGui_InputScalar("current move last frame", ImGuiDataType_U32, &player->current_move_last_frame);
+	ImGui_Text("requested move: %s", chara->move_names[i_requested_move].string);
 	ImGui_Text("Health"); ImGui_SameLine(); ImGui_ProgressBar((float)player->hp / (float)chara->max_health, (ImVec2){-FLT_MIN, 0}, NULL);
 
 	ImGui_TextUnformatted("Moves:");
@@ -40,11 +43,15 @@ void _display_tek_component(struct TekPlayerComponent *player)
 		struct tek_Move *move = &chara->moves[imove];
 		ImGui_PushID((const char*)move);
 		
-		ImGui_Text("Move[%u]: %s", move->id, chara->move_names[imove].string);
+		ImGui_Text("Move[%u]: %s | %u cancels | %u hit conditions",
+			   move->id,
+			   chara->move_names[imove].string,
+			   move->cancels_length,
+			   move->hit_conditions_length);
 		
 		ImGui_SameLine();
 		if (ImGui_Button("Do")) {
-			player->current_move_id = move->id;
+			player->requested_move_id = move->id;
 		}
 
 		ImGui_PopID();

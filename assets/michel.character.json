@@ -151,10 +151,13 @@
 	    "active": 1,
 	    "recovery": 20,
 	    "hitbox": 1, // index in list
-	    // reaction, TODO: list, pushback
-	    "hitstun": 29,
-	    "blockstun": 21,
-	    "base_damage": 10,
+	    "hit_conditions": [
+		{
+		    "damage": 10,
+		    "reactions": "standing hit",
+		    "requirements": "none",
+		},
+	    ],
 	    // cancels
 	    "cancels": [
 		{
@@ -171,10 +174,13 @@
 	    "active": 1,
 	    "recovery": 10,
 	    "hitbox": 2, // index in list
-	    // reaction, TODO: list, pushback
-	    "hitstun": 29,
-	    "blockstun": 21,
-	    "base_damage": 10,
+	    "hit_conditions": [
+		{
+		    "damage": 10,
+		    "reactions": "standing hit",
+		    "requirements": "none",
+		},
+	    ],
 	    // cancels
 	    "cancels": [
 		{
@@ -183,6 +189,27 @@
 		},
 	    ],
 	},
+	// -- reactions
+	{
+	    "name": "standing hit",
+	    "animation": "rig|standing_hit_reaction_high",
+	    "cancels": [
+	    	{
+		    "to": "standing idle",
+		    "condition": "eoa",
+		},
+	    ],
+	},
+	{
+	    "name": "standing block",
+	    "animation": "rig|standing_block_mid",
+	    "cancels": [
+	    	{
+		    "to": "standing idle",
+		    "frame": 30,
+		},
+	    ],
+	}
     ],
     "group_cancels": {
 	"name": "standing moves",
@@ -202,6 +229,14 @@
 	    },
 	]
     },
+    "hit_reactions": [
+	{
+	    "name": "standing hit",
+	    "standing_move": "standing hit",
+	    "standing_counter_hit_move": "standing hit",
+	    "standing_block_move": "standing block",
+	},
+    ],
     "hurtboxes": [
 	{
 	    "radius": 0.2,

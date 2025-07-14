@@ -63,6 +63,41 @@ bool json_object_get_float(struct json_object_element_s *it, const char *field_n
 	return false;
 }
 
+static struct tek_HitCondition tek_read_hit_condition(struct json_object_s *hit_condition_obj)
+{
+	struct tek_HitCondition hit_condition = {0};
+	if (hit_condition_obj == NULL) {
+		return hit_condition;
+	}
+	
+	for (struct json_object_element_s* it = hit_condition_obj->start; it != NULL; it = it->next) {
+		json_object_get_string_id(it, "reactions", &hit_condition.reactions_id);
+		json_object_get_u8(it, "damage", &hit_condition.damage);
+	}
+	
+	return hit_condition;
+}
+
+static void tek_read_json_move_hit_conditions(struct tek_Move *move, struct json_array_s *hit_conditions_array)
+{
+	if (hit_conditions_array == NULL) {
+		return;
+	}
+	
+	uint32_t hit_condition_index = 0;
+	for (struct json_array_element_s* it = hit_conditions_array->start; it != NULL && hit_condition_index < MAX_HIT_CONDITIONS_PER_MOVE; it = it->next) {
+		struct json_object_s *hit_condition_obj = json_value_as_object(it->value);
+		if (hit_condition_obj == NULL) {
+			continue;
+		}
+		
+		move->hit_conditions[hit_condition_index] = tek_read_hit_condition(hit_condition_obj);
+		hit_condition_index++;
+	}
+	
+	move->hit_conditions_length = hit_condition_index;
+}
+
 static struct tek_Cancel tek_read_cancel(struct json_object_s *cancel_obj)
 {
 	struct tek_Cancel cancel = {0};
@@ -115,6 +150,8 @@ static void tek_read_json_move_cancels(struct tek_Move *move, struct json_array_
 		move->cancels[cancel_index] = tek_read_cancel(cancel_obj);
 		cancel_index++;
 	}
+
+	move->cancels_length = cancel_index;
 }
 
 static void tek_read_json_move(struct tek_Character *character, struct json_object_s *obj)
@@ -125,6 +162,7 @@ static void tek_read_json_move(struct tek_Character *character, struct json_obje
 	
 	struct tek_Move move = {0};
 	struct json_array_s *cancels = NULL;
+	struct json_array_s *hit_conditions = NULL;
 	struct json_string_s *movename = NULL;
 	
 	for (struct json_object_element_s* it = obj->start; it != NULL; it = it->next) {
@@ -137,17 +175,19 @@ static void tek_read_json_move(struct tek_Character *character, struct json_obje
 		json_object_get_u8(it, "active", &move.active);
 		json_object_get_u8(it, "recovery", &move.recovery);
 		json_object_get_u8(it, "hitbox", &move.hitbox);
-		json_object_get_u8(it, "base_damage", &move.base_damage);
-		json_object_get_u8(it, "hitstun", &move.hitstun);
-		json_object_get_u8(it, "blockstun", &move.blockstun);
 		
 		if (strcmp(it->name->string, "cancels") == 0) {
 			cancels = json_value_as_array(it->value);
+		}
+		if (strcmp(it->name->string, "hit_conditions") == 0) {
+			hit_conditions = json_value_as_array(it->value);
 		}
 	}
 	
 	// Process cancels if they exist
 	tek_read_json_move_cancels(&move, cancels);
+	
+	tek_read_json_move_hit_conditions(&move, hit_conditions);
 	
 	uint32_t imove = character->moves_length;
 	assert(imove < ARRAY_LENGTH(character->moves));
@@ -218,6 +258,25 @@ static void tek_read_json_hurtbox(struct tek_Character *character, struct json_o
 	character->hurtboxes_length += 1;
 }
 
+static void tek_read_json_hit_reactions(struct tek_Character *character, struct json_object_s *obj)
+{
+	if (obj == NULL) {
+		return;
+	}
+
+	struct tek_HitReactions reactions = {0};	
+	for (struct json_object_element_s* it = obj->start; it != NULL; it = it->next) {
+		json_object_get_string_id(it, "name", &reactions.id);
+		json_object_get_string_id(it, "standing_move", &reactions.standing_move);
+		json_object_get_string_id(it, "standing_counter_hit_move", &reactions.standing_counter_hit_move);
+		json_object_get_string_id(it, "standing_block_move", &reactions.standing_block_move);
+	}
+	
+	uint32_t i = character->hit_reactions_length;
+	assert(i < ARRAY_LENGTH(character->hit_reactions));
+	character->hit_reactions[i] = reactions;
+}
+
 static void tek_read_json_hitbox(struct tek_Character *character, struct json_object_s *obj)
 {
 	if (obj == NULL) {
@@ -254,6 +313,7 @@ void tek_read_character_json()
 
 	struct json_array_s *moves = NULL;
 	struct json_object_s *group_cancels = NULL;
+	struct json_array_s *hit_reactions = NULL;
 	struct json_array_s *hurtboxes = NULL;
 	struct json_array_s *hitboxes = NULL;
 	
@@ -276,6 +336,9 @@ void tek_read_character_json()
 		if (strcmp(it->name->string, "hitboxes") == 0) {
 			hitboxes = json_value_as_array(it->value);
 		}
+		if (strcmp(it->name->string, "hit_reactions") == 0) {
+			hit_reactions = json_value_as_array(it->value);
+		}
 	}
 
 	if (moves != NULL) {
@@ -286,6 +349,12 @@ void tek_read_character_json()
 	}
 	if (group_cancels != NULL) {
 		tek_read_json_cancel_group(&character, group_cancels);
+	}
+	if (hit_reactions != NULL) {
+		for (struct json_array_element_s* it = hit_reactions->start; it != NULL; it = it->next) {
+			struct json_object_s *hit_reaction = json_value_as_object(it->value);
+			tek_read_json_hit_reactions(&character, hit_reaction);
+		}
 	}
 	if (hurtboxes != NULL) {
 		for (struct json_array_element_s* it = hurtboxes->start; it != NULL; it = it->next) {
@@ -301,4 +370,37 @@ void tek_read_character_json()
 	}
 
 	tek_characters[0] = character;
+}
+
+struct tek_Move *tek_character_find_move(struct tek_Character *character, uint32_t id)
+{
+	assert(id != 0);
+	for (uint32_t imove = 0; imove < ARRAY_LENGTH(character->moves); ++imove) {
+		if (character->moves[imove].id == id) {
+			return character->moves + imove;
+		}
+	}
+	return NULL;
+}
+
+struct tek_CancelGroup *tek_character_find_cancel_group(struct tek_Character *character, uint32_t id)
+{
+	assert(id != 0);
+	for (uint32_t icancel_group = 0; icancel_group < ARRAY_LENGTH(character->cancel_groups); ++icancel_group) {
+		if (character->cancel_groups[icancel_group].id == id) {
+			return character->cancel_groups + icancel_group;
+		}
+	}
+	return NULL;
+}
+
+struct tek_HitReactions *tek_character_find_hit_reaction(struct tek_Character *character, uint32_t id)
+{
+	assert(id != 0);
+	for (uint32_t ihit_reaction = 0; ihit_reaction < ARRAY_LENGTH(character->hit_reactions); ++ihit_reaction) {
+		if (character->hit_reactions[ihit_reaction].id == id) {
+			return character->hit_reactions + ihit_reaction;
+		}
+	}
+	return NULL;
 }

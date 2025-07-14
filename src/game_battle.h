@@ -33,9 +33,12 @@ struct TekPlayerComponent
 	// character
 	uint32_t character_id;
 	// status
+	uint32_t requested_move_id;
 	uint32_t current_move_id;
-	uint32_t current_move_last_frame;
 	int hp;
+	// pushback
+	int pushback_remaining_frames;
+	float pushback_strength;
 	// input buffer
 	BattleInput input_buffer[INPUT_BUFFER_SIZE];
 	uint32_t input_buffer_frame_start[INPUT_BUFFER_SIZE];
