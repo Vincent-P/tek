@@ -47,6 +47,10 @@
 		    "frame": 10,
 		},
 		{
+		    "type": "list",
+		    "to": "df moves",
+		},
+		{
 		    "to": "standing idle",
 		    "condition": "eoa",
 		},
@@ -60,7 +64,7 @@
 	    "name": "standing walk forward loop",
 	    "animation": "rig|walk_forward",
 	    "cancels": [
-		// loop
+		// loop (should be last?)
 		{
 		    "to": "standing walk forward loop",
 		    "motion_input": 6, // f
@@ -76,7 +80,11 @@
 		    "to": "standing walk backward",
 		    "motion_input": 2, // b
 		},
-		// lastly match standing moves
+		// lastly match moves
+		{
+		    "type": "list",
+		    "to": "df moves",
+		},
 		{
 		    "type": "list",
 		    "to": "standing moves",
@@ -167,6 +175,29 @@
 	    ],
 	},
 	{
+	    "name": "midpunch",
+	    "animation": "rig|midpunch",
+	    // frame data
+	    "startup": 13,
+	    "active": 1,
+	    "recovery": 20,
+	    "hitbox": 1, // index in list
+	    "hit_conditions": [
+		{
+		    "damage": 10,
+		    "reactions": "standing hit",
+		    "requirements": "none",
+		},
+	    ],
+	    // cancels
+	    "cancels": [
+		{
+		    "type": "list",
+		    "to": "standing moves",
+		},
+	    ],
+	},
+	{
 	    "name": "highkick",
 	    "animation": "rig|highkick",
 	    // frame data
@@ -178,6 +209,29 @@
 		{
 		    "damage": 10,
 		    "reactions": "standing hit",
+		    "requirements": "none",
+		},
+	    ],
+	    // cancels
+	    "cancels": [
+		{
+		    "type": "list",
+		    "to": "standing moves",
+		},
+	    ],
+	},
+	{
+	    "name": "lowkick",
+	    "animation": "rig|lowkick",
+	    // frame data
+	    "startup": 19,
+	    "active": 1,
+	    "recovery": 10,
+	    "hitbox": 2, // index in list
+	    "hit_conditions": [
+		{
+		    "damage": 10,
+		    "reactions": "low hit",
 		    "requirements": "none",
 		},
 	    ],
@@ -201,6 +255,16 @@
 	    ],
 	},
 	{
+	    "name": "low hit",
+	    "animation": "rig|standing_hit_reaction_low",
+	    "cancels": [
+	    	{
+		    "to": "standing idle",
+		    "condition": "eoa",
+		},
+	    ],
+	},
+	{
 	    "name": "standing block",
 	    "animation": "rig|standing_block_mid",
 	    "cancels": [
@@ -209,32 +273,80 @@
 		    "frame": 30,
 		},
 	    ],
+	},
+	{
+	    "name": "crouch block",
+	    "animation": "rig|crouch_block",
+	    "cancels": [
+	    	{
+		    "to": "while standing",
+		    "frame": 30,
+		},
+	    ],
+	},
+	{
+	    "name": "while standing",
+	    "animation": "rig|while_standing",
+	    "cancels": [
+	    	{
+		    "to": "standing idle",
+		    "condition": "eoa",
+		},
+	    ],
+	},
+    ],
+    "group_cancels": [
+	{
+	    "name": "standing moves",
+	    "cancels": [
+		{
+		    "to": "standing idle",
+		    "condition": "eoa",
+		    // for now, no input == anim end
+		},
+		{
+		    "to": "jab",
+		    "action_input": 4, // LP(4) RP(5) LK(6) RK(7)
+		},
+		{
+		    "to": "midpunch",
+		    "motion_input": 7, // df(7)
+		    "action_input": 4, // LP(4) RP(5) LK(6) RK(7)
+		},
+		{
+		    "to": "highkick",
+		    "action_input": 7, // LP(4) RP(5) LK(6) RK(7)
+		},
+		{
+		    "to": "lowkick",
+		    "motion_input": 8, // d(8)
+		    "action_input": 7, // LP(4) RP(5) LK(6) RK(7)
+		},
+	    ]
+	},
+	{
+	    "name": "df moves",
+	    "cancels": [
+		{
+		    "to": "midpunch",
+		    "motion_input": 7, // df(7)
+		    "action_input": 4, // LP(4) RP(5) LK(6) RK(7)
+		},
+	    ]
 	}
     ],
-    "group_cancels": {
-	"name": "standing moves",
-	"cancels": [
-	    {
-		"to": "standing idle",
-		"condition": "eoa",
-		// for now, no input == anim end
-	    },
-	    {
-		"to": "jab",
-		"action_input": 4, // LP(4) RP(5) LK(6) RK(7)
-	    },
-	    {
-		"to": "highkick",
-		"action_input": 7, // LP(4) RP(5) LK(6) RK(7)
-	    },
-	]
-    },
     "hit_reactions": [
 	{
 	    "name": "standing hit",
 	    "standing_move": "standing hit",
 	    "standing_counter_hit_move": "standing hit",
 	    "standing_block_move": "standing block",
+	},
+	{
+	    "name": "low hit",
+	    "standing_move": "low hit",
+	    "standing_counter_hit_move": "low hit",
+	    "standing_block_move": "crouch block",
 	},
     ],
     "hurtboxes": [

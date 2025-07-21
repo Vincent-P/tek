@@ -261,7 +261,10 @@ static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel can
 		
 		if (previous_input == 0 && previous_previous_input == BATTLE_INPUT_FORWARD && delta_frame <= 10) {
 			current_motion = TEK_MOTION_INPUT_FF;
+		} else if ((frame_input & BATTLE_INPUT_DOWN) != 0) {
+			current_motion = TEK_MOTION_INPUT_DF;
 		}
+
 	} else if ((frame_input & BATTLE_INPUT_DOWN) != 0) {
 		current_motion = TEK_MOTION_INPUT_D;
 	}
@@ -665,7 +668,7 @@ void battle_render(struct BattleContext *ctx)
 				Float3 center = nonplayers[iplayer]->hurtboxes_position[ihurtbox];
 				float radius = characters[iplayer]->hurtboxes_radius[ihurtbox];
 				float height = characters[iplayer]->hurtboxes_height[ihurtbox];
-				debug_draw_cylinder(center, radius, height, DD_GREEN);
+				debug_draw_cylinder(center, radius, height, DD_RED);
 			}
 		}
 	}

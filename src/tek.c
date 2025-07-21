@@ -94,8 +94,8 @@ static void tek_read_json_move_hit_conditions(struct tek_Move *move, struct json
 		move->hit_conditions[hit_condition_index] = tek_read_hit_condition(hit_condition_obj);
 		hit_condition_index++;
 	}
-	
 	move->hit_conditions_length = hit_condition_index;
+	assert(move->hit_conditions_length <= ARRAY_LENGTH(move->hit_conditions));
 }
 
 static struct tek_Cancel tek_read_cancel(struct json_object_s *cancel_obj)
@@ -152,6 +152,7 @@ static void tek_read_json_move_cancels(struct tek_Move *move, struct json_array_
 	}
 
 	move->cancels_length = cancel_index;
+	assert(move->cancels_length <= ARRAY_LENGTH(move->cancels));
 }
 
 static void tek_read_json_move(struct tek_Character *character, struct json_object_s *obj)
@@ -231,8 +232,8 @@ static void tek_read_json_cancel_group(struct tek_Character *character, struct j
 			cancel_index++;
 		}
 		group->cancels_length = cancel_index;
+		assert(group->cancels_length <= ARRAY_LENGTH(group->cancels));
 	}
-	
 }
 
 static void tek_read_json_hurtbox(struct tek_Character *character, struct json_object_s *obj)
@@ -275,6 +276,7 @@ static void tek_read_json_hit_reactions(struct tek_Character *character, struct 
 	uint32_t i = character->hit_reactions_length;
 	assert(i < ARRAY_LENGTH(character->hit_reactions));
 	character->hit_reactions[i] = reactions;
+	character->hit_reactions_length++;
 }
 
 static void tek_read_json_hitbox(struct tek_Character *character, struct json_object_s *obj)
@@ -312,7 +314,7 @@ void tek_read_character_json()
 	assert(root->type == json_type_object);
 
 	struct json_array_s *moves = NULL;
-	struct json_object_s *group_cancels = NULL;
+	struct json_array_s *group_cancels = NULL;
 	struct json_array_s *hit_reactions = NULL;
 	struct json_array_s *hurtboxes = NULL;
 	struct json_array_s *hitboxes = NULL;
@@ -328,7 +330,7 @@ void tek_read_character_json()
 			moves = json_value_as_array(it->value);
 		}
 		if (strcmp(it->name->string, "group_cancels") == 0) {
-			group_cancels = json_value_as_object(it->value);
+			group_cancels = json_value_as_array(it->value);
 		}
 		if (strcmp(it->name->string, "hurtboxes") == 0) {
 			hurtboxes = json_value_as_array(it->value);
@@ -348,7 +350,10 @@ void tek_read_character_json()
 		}
 	}
 	if (group_cancels != NULL) {
-		tek_read_json_cancel_group(&character, group_cancels);
+		for (struct json_array_element_s* it = group_cancels->start; it != NULL; it = it->next) {
+			struct json_object_s *group_cancel = json_value_as_object(it->value);
+			tek_read_json_cancel_group(&character, group_cancel);
+		}
 	}
 	if (hit_reactions != NULL) {
 		for (struct json_array_element_s* it = hit_reactions->start; it != NULL; it = it->next) {

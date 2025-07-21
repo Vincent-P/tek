@@ -5,7 +5,7 @@ set imgui_flags=-L src\libs\imgui_build -limgui
 set tracy_flags=-ltracy -DTRACY_ENABLE
 set ggpo_flags=-lggpo -lWinmm
 clang.exe src/main.c -o game.exe -g %common_flags% %sdl_flags% %vulkan_flags% %imgui_flags% %tracy_flags% %ggpo_flags%
-:: clang.exe src/cooker.c -o cooker.exe -g %common_flags% %vulkan_flags% -lshaderc_shared
+clang.exe src/cooker.c -o cooker.exe -g %common_flags% %vulkan_flags% -lshaderc_shared
 
 
 :: call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" x64

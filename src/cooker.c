@@ -290,7 +290,9 @@ int cook_fbx()
 	snprintf(fbx_file_path, sizeof(fbx_file_path), "%s%.*s", source_dir, (int)json.source_file_length, json.source_file);
 	// parse FBX
 	ufbx_load_opts opts = { 0 }; // Optional, pass NULL for defaults
-        opts.target_axes = ufbx_axes_right_handed_z_up;
+        opts.target_axes.right = UFBX_COORDINATE_AXIS_POSITIVE_X;
+        opts.target_axes.up = UFBX_COORDINATE_AXIS_POSITIVE_Z;
+        opts.target_axes.front = UFBX_COORDINATE_AXIS_NEGATIVE_Y;
 
         opts.target_unit_meters = 1.0f;
 	ufbx_error error; // Optional, pass NULL if you don't care about errors

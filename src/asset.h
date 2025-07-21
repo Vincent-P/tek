@@ -39,7 +39,7 @@ void Serialize_SkeletalMeshWithAnimationsAsset(Serializer *serializer, SkeletalM
 #define ASSET_COMPUTE_PROGRAM_CAPACITY 8
 #define ASSET_SKELETAL_MESH_CAPACITY 4
 #define ASSET_ANIM_SKELETON_CAPACITY 4
-#define ASSET_ANIMATIONS_CAPACITY 64
+#define ASSET_ANIMATIONS_CAPACITY 128
 
 struct AssetLibrary
 {
