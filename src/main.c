@@ -8,8 +8,8 @@
 #include <dcimgui.h>
 #include <tracy/tracy/TracyC.h>
 
-#define CLAY_IMPLEMENTATION
-#include <clay.h>
+// #define CLAY_IMPLEMENTATION
+// #include <clay.h>
 
 #define ARRAY_LENGTH(x) (sizeof(x)/sizeof(*x))
 
@@ -23,6 +23,8 @@
 #include "debugdraw.h"
 #include "file.h"
 #include "watcher.h"
+
+#include <windows.h>
 
 struct Application
 {
@@ -89,7 +91,7 @@ static void postload_assets(struct AssetLibrary *assets, struct Renderer *render
 	}
 }
 
-
+#if 0
 static void HandleClayErrors(Clay_ErrorData errorData)
 {
 	// See the Clay_ErrorData struct for more information
@@ -98,6 +100,7 @@ static void HandleClayErrors(Clay_ErrorData errorData)
 		// etc
 	}
 }
+#endif
 
 static void ImGui_ImplSDL3_PlatformSetImeData(ImGuiContext*, ImGuiViewport* viewport, ImGuiPlatformImeData* data);
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
@@ -125,6 +128,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 	application->renderer = calloc(1, renderer_get_size());
 	renderer_init(application->renderer, &application->assets, application->window);
 
+	#if 0
 	// clay init
 	// Note: malloc is only used here as an example, any allocator that provides
 	// a pointer to addressable memory of at least totalMemorySize will work
@@ -134,7 +138,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 	int display_w, display_h;
 	SDL_GetWindowSizeInPixels(application->window, &display_w, &display_h);
 	Clay_Initialize(arena, (Clay_Dimensions) { display_w, display_h }, (Clay_ErrorHandler) { HandleClayErrors });
-
+#endif
 
 	postload_assets(&application->assets, application->renderer);
 
@@ -335,6 +339,8 @@ static void ImGui_ImplSDL3_PlatformSetImeData(ImGuiContext* ctx, ImGuiViewport* 
 	if (data->WantVisible || io->WantTextInput)
 		SDL_StartTextInput(window);
 }
+
+#if 0
 bool clay_process_event(struct Application *application, SDL_Event* event)
 {
 	ImGuiIO* io = ImGui_GetIO();
@@ -361,6 +367,8 @@ bool clay_process_event(struct Application *application, SDL_Event* event)
 	}
 	return false;
 }
+#endif
+
 bool imgui_process_event(struct Application *application, SDL_Event* event)
 {
 	ImGuiIO* io = ImGui_GetIO();
@@ -430,7 +438,9 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 
 	imgui_process_event(application, event);
 	inputs_process_event(event, &application->inputs);
+	#if 0
 	clay_process_event(application, event);
+	#endif
 	
 	TracyCZoneEnd(f);	
 	return SDL_APP_CONTINUE;
@@ -468,11 +478,13 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 	bool opened = true;
 	ImGui_ShowDemoWindow(&opened);
 
+	#if 0
 	// Setup clay size
         // Optional: Update internal layout dimensions to support resizing
         Clay_SetLayoutDimensions((Clay_Dimensions) { display_w, display_h });
         // All clay layouts are declared between Clay_BeginLayout and Clay_EndLayout
         Clay_BeginLayout();
+	#endif
 
 	//
 

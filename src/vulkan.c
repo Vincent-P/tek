@@ -12,7 +12,7 @@
 
 // -- Device
 #define FRAME_COUNT 2
-
+// #define ENABLE_VALIDATION
 #define MAIN_MEMORY_SIZE (128 << 20)
 #define RT_MEMORY_SIZE (1 << 30)
 #define MEMORY_ALIGNMENT (256 << 10) // 64K not enough for depth rt ?? -> 256K needed for MSAA
@@ -71,9 +71,11 @@ struct VulkanDevice
 	VkQueue graphics_queue;
 	VkPhysicalDevice physical_device;
 	uint32_t graphics_family_idx;
+#if defined(ENABLE_VALIDATION)
 	PFN_vkCreateDebugUtilsMessengerEXT my_vkCreateDebugUtilsMessengerEXT;
 	PFN_vkDestroyDebugUtilsMessengerEXT my_vkDestroyDebugUtilsMessengerEXT;
 	PFN_vkCmdInsertDebugUtilsLabelEXT my_vkCmdInsertDebugUtilsLabelEXT;
+#endif
 	PFN_vkCmdPushDescriptorSetKHR my_vkCmdPushDescriptorSetKHR;
 	// memory
 	oa_allocator_t main_memory_allocator;
@@ -154,7 +156,14 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 #endif
  		VK_EXT_DEBUG_UTILS_EXTENSION_NAME
 	};
-	const char * instance_layers[] = {"VK_LAYER_KHRONOS_validation"};
+	const char * instance_layers[] = {
+		"VK_LAYER_KHRONOS_validation",
+	};
+	uint32_t instance_layers_length = 0;
+#if defined(ENABLE_VALIDATION)
+	instance_layers_length = 1;
+#endif
+	
 	VkApplicationInfo app_info  	= {.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO};
 	app_info.pApplicationName   	= "tek";
 	app_info.applicationVersion 	= VK_MAKE_VERSION(1, 0, 0);
@@ -163,17 +172,19 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	app_info.apiVersion		= VK_API_VERSION_1_4;
 	VkInstanceCreateInfo create_info	= {.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
 	create_info.pApplicationInfo		= &app_info;
-	create_info.enabledLayerCount	   	= ARRAY_LENGTH(instance_layers);
+	create_info.enabledLayerCount	   	= instance_layers_length;
 	create_info.ppEnabledLayerNames		= instance_layers;
 	create_info.enabledExtensionCount	= ARRAY_LENGTH(instance_extensions);
 	create_info.ppEnabledExtensionNames	= instance_extensions;
 	VkResult res = vkCreateInstance(&create_info, NULL, &device->instance);
 	assert(res == VK_SUCCESS);
+	
+#if defined(ENABLE_VALIDATION)
 	device->my_vkCreateDebugUtilsMessengerEXT  = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(device->instance, "vkCreateDebugUtilsMessengerEXT");
 	device->my_vkDestroyDebugUtilsMessengerEXT = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(device->instance, "vkDestroyDebugUtilsMessengerEXT");
 	device->my_vkCmdInsertDebugUtilsLabelEXT = (PFN_vkCmdInsertDebugUtilsLabelEXT)vkGetInstanceProcAddr(device->instance, "vkCmdInsertDebugUtilsLabelEXT");
 
-	if (device->my_vkCreateDebugUtilsMessengerEXT && false) {
+	if (device->my_vkCreateDebugUtilsMessengerEXT) {
 		VkDebugUtilsMessengerCreateInfoEXT ci	= {.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
 		ci.flags				= 0;
 		ci.messageSeverity			= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
@@ -186,6 +197,7 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 		res = device->my_vkCreateDebugUtilsMessengerEXT(device->instance, &ci, NULL, &messenger);
 		assert(res == VK_SUCCESS);
 	}
+#endif
 
 	
 	/// --- Pick physical device
@@ -1345,9 +1357,13 @@ void vulkan_insert_debug_label(VulkanDevice *device, VulkanRenderPass *pass, con
 {
 	VulkanFrame *frame = pass->frame;
 
-	VkDebugUtilsLabelEXT label_info = {.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT};
-	label_info.pLabelName = label;
-	device->my_vkCmdInsertDebugUtilsLabelEXT(frame->cmd, &label_info);
+#if defined(ENABLE_VALIDATION)
+	if (device->my_vkCmdInsertDebugUtilsLabelEXT) {
+		VkDebugUtilsLabelEXT label_info = {.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT};
+		label_info.pLabelName = label;
+		device->my_vkCmdInsertDebugUtilsLabelEXT(frame->cmd, &label_info);
+	}
+#endif
 }
 
 
