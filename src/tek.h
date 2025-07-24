@@ -54,8 +54,9 @@ enum tek_AttackType
 enum tek_CancelType
 {
 	TEK_CANCEL_TYPE_SINGLE = 0,
-	TEK_CANCEL_TYPE_SINGLE_LOOP,
-	TEK_CANCEL_TYPE_LIST,
+	TEK_CANCEL_TYPE_SINGLE_LOOP, // single cancel, that loops on itself so we have to keep the animation going
+	TEK_CANCEL_TYPE_SINGLE_CONTINUE, // single cancel, keep the animation frame from the previous move
+	TEK_CANCEL_TYPE_LIST, // list cancel, points to a cancel group
 	TEK_CANCEL_TYPE_COUNT
 };
 typedef uint8_t tek_CancelType;

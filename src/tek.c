@@ -9,6 +9,7 @@
 const char* tek_CancelType_str[TEK_CANCEL_TYPE_COUNT] = {
 	"single",
 	"loop",
+	"continue",
 	"list",
 };
 

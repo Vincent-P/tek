@@ -258,11 +258,16 @@ static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel can
 		uint32_t current_start_frame = player.input_buffer_frame_start[player.current_input_index % INPUT_BUFFER_SIZE];
 		uint32_t previous_start_frame = player.input_buffer_frame_start[previous_input_index];
 		uint32_t delta_frame = current_start_frame - (previous_start_frame + 1); // take only the last frame of the previous previous input as starting point.
-		
+
+		tek_MotionInput possible_motion = current_motion;
 		if (previous_input == 0 && previous_previous_input == BATTLE_INPUT_FORWARD && delta_frame <= 10) {
-			current_motion = TEK_MOTION_INPUT_FF;
+			possible_motion = TEK_MOTION_INPUT_FF;
 		} else if ((frame_input & BATTLE_INPUT_DOWN) != 0) {
-			current_motion = TEK_MOTION_INPUT_DF;
+			possible_motion = TEK_MOTION_INPUT_DF;
+		}
+
+		if (cancel.motion_input == possible_motion) {
+			current_motion = possible_motion;
 		}
 
 	} else if ((frame_input & BATTLE_INPUT_DOWN) != 0) {
@@ -403,7 +408,7 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 					// perform the cancel
 					struct Animation const *animation = asset_library_get_animation(ctx->assets, request_move->animation_id);
 					players[iplayer]->animation.animation_id = request_move->animation_id;
-					if (cancel->type == TEK_CANCEL_TYPE_SINGLE_LOOP) {
+					if (cancel->type == TEK_CANCEL_TYPE_SINGLE_LOOP || cancel->type == TEK_CANCEL_TYPE_SINGLE_CONTINUE) {
 						players[iplayer]->animation.frame = players[iplayer]->animation.frame % cancel_ctx.animation_length;
 					} else {
 						players[iplayer]->animation.frame = 0;
