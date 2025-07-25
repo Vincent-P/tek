@@ -9,6 +9,7 @@ enum ImageFormat
 	PG_FORMAT_NONE = 0,
 	PG_FORMAT_R8_UNORM = 9,
 	PG_FORMAT_R8G8B8A8_UNORM = 37,
+	PG_FORMAT_A2B10G10R10_UNORM_PACK32 = 64,
 	PG_FORMAT_D32_SFLOAT = 126,
 	PG_FORMAT_B10G11R11_UFLOAT_PACK32 = 122,
 	PG_FORMAT_RGBA16F = 97,
@@ -39,6 +40,7 @@ static struct RenderPass RENDER_PASSES[RENDER_PASSES_COUNT] =
 	{"mesh", {PG_FORMAT_RGBA16F}, 1, PG_FORMAT_D32_SFLOAT, 4, true, true},
 	{"debugdraw", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_NONE, 1, false, false},
 	{"ui", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_NONE, 1, false, false},
+	// {"compositing", {PG_FORMAT_A2B10G10R10_UNORM_PACK32}, 1, PG_FORMAT_NONE, 1, false, false},
 	{"compositing", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_NONE, 1, false, false},
 };
 
@@ -93,6 +95,7 @@ union VulkanClearColor
 
 uint32_t vulkan_get_device_size(void);
 void vulkan_create_device(VulkanDevice *device, void *hwnd);
+enum ImageFormat vulkan_get_surface_format(VulkanDevice *device);
 
 void new_graphics_program(VulkanDevice *device, uint32_t handle, MaterialAsset material_asset);
 void new_graphics_program_ex(VulkanDevice *device, uint32_t handle, MaterialAsset material_asset, struct VulkanGraphicsPsoSpec spec);

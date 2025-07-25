@@ -84,6 +84,7 @@ struct Renderer
 	float time;
 	uint32_t constant_buffer;
 	uint32_t constant_offset;
+	bool is_hdr;
 	// scene
 	struct Camera main_camera;
 	struct SkeletalMeshInstanceData skeletal_mesh_instances[2];
@@ -125,11 +126,14 @@ void renderer_init(Renderer *renderer, struct AssetLibrary *assets, SDL_Window *
 			  PG_FORMAT_D32_SFLOAT,
 			  4);
 	
+	enum ImageFormat surface_format = vulkan_get_surface_format(renderer->device);
+	renderer->is_hdr = (surface_format == PG_FORMAT_A2B10G10R10_UNORM_PACK32);
+	
 	renderer->final_rt = 3;
 	new_render_target(renderer->device, renderer->final_rt,
 			  renderer->device->swapchain_width,
 			  renderer->device->swapchain_height,
-			  PG_FORMAT_R8G8B8A8_UNORM,
+			  surface_format,
 			  1);
 
 	// Create imgui resources
@@ -592,8 +596,9 @@ void renderer_render(Renderer *renderer)
 	{
 		struct CompositingConstants
 		{
-			int padding;
+			int is_hdr;
 		} constants;
+		constants.is_hdr = renderer->is_hdr;
 		vulkan_insert_debug_label(renderer->device, &pass, "compositing");
 		vulkan_bind_graphics_pso(renderer->device, &pass, renderer->compositing_pso);
 		vulkan_push_constants(renderer->device, &pass, &constants, sizeof(constants));

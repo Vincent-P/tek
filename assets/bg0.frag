@@ -53,7 +53,7 @@ vec3 unproject_dir(vec3 dir)
 
 vec3 skyTex(vec3 ray)
 {
-	vec3 top = 2 * vec3(0.24,0.27,0.41);
+	vec3 top = vec3(0.24,0.27,0.41);
 	vec3 mid = vec3(0.07,0.11,0.21);
 	float f = max(0.01, ray.z);
 	return mix(mid, top, f);

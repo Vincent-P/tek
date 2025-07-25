@@ -98,7 +98,7 @@ struct VulkanDevice
 	int should_recreate_swapchain;
 	uint32_t swapchain_width;
 	uint32_t swapchain_height;
-	VkFormat swapchain_format;
+	VkSurfaceFormatKHR swapchain_format;
 	void *swapchain_last_wnd;
 	VkImage swapchain_images[MAX_BACKBUFFER_COUNT];
 	// resources
@@ -154,7 +154,10 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 #elif defined(__linux__)
 		VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME,
 #endif
+		VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME,
+#if defined(ENABLE_VALIDATION)
  		VK_EXT_DEBUG_UTILS_EXTENSION_NAME
+#endif
 	};
 	const char * instance_layers[] = {
 		"VK_LAYER_KHRONOS_validation",
@@ -424,18 +427,27 @@ static void create_swapchain(VulkanDevice *device, void *hwnd)
 	VkSurfaceFormatKHR *surfFormats = (VkSurfaceFormatKHR *)malloc(formatCount * sizeof(VkSurfaceFormatKHR));
 	res = vkGetPhysicalDeviceSurfaceFormatsKHR(device->physical_device, surface, &formatCount, surfFormats);
 	assert(res == VK_SUCCESS);
-	VkFormat format;
+	// Defaults to the first format.
+	assert(formatCount >= 1);
+	VkSurfaceFormatKHR surf_format = surfFormats[0];
 	// If the format list includes just one entry of VK_FORMAT_UNDEFINED,
 	// the surface has no preferred format.  Otherwise, at least one
 	// supported format will be returned.
 	if (formatCount == 1 && surfFormats[0].format == VK_FORMAT_UNDEFINED) {
-		format = VK_FORMAT_B8G8R8A8_UNORM;
+		surf_format.format = VK_FORMAT_B8G8R8A8_UNORM;
+		surf_format.colorSpace  = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+	// Otherwise, look for HDR format
 	} else {
-		assert(formatCount >= 1);
-		format = surfFormats[0].format;
+		for (uint32_t iformat = 0; iformat < formatCount; ++iformat) {
+			if (surfFormats[iformat].format == VK_FORMAT_A2B10G10R10_UNORM_PACK32
+			    && surfFormats[iformat].colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT) {
+				surf_format = surfFormats[iformat];
+				break;
+			}
+		}
 	}
 	free(surfFormats);
-	device->swapchain_format = format;
+	device->swapchain_format = surf_format;
 	VkSurfaceCapabilitiesKHR surfCapabilities = {0};
 	res = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device->physical_device, surface, &surfCapabilities);
 	assert(res == VK_SUCCESS);
@@ -493,8 +505,8 @@ static void create_swapchain(VulkanDevice *device, void *hwnd)
 	VkSwapchainCreateInfoKHR swapchain_ci = {.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
 	swapchain_ci.surface = surface;
 	swapchain_ci.minImageCount = images_count;
-	swapchain_ci.imageFormat = format;
-	swapchain_ci.imageColorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
+	swapchain_ci.imageFormat = surf_format.format;
+	swapchain_ci.imageColorSpace = surf_format.colorSpace;
 	swapchain_ci.imageExtent.width = swapchainExtent.width;
 	swapchain_ci.imageExtent.height = swapchainExtent.height;
 	swapchain_ci.imageArrayLayers = 1;
@@ -525,6 +537,10 @@ static void create_swapchain(VulkanDevice *device, void *hwnd)
 #endif
 }
 
+enum ImageFormat vulkan_get_surface_format(VulkanDevice *device)
+{
+	return device->swapchain_format.format;
+}
 
 // -- Graphics Programs
 void new_graphics_program(VulkanDevice *device, uint32_t handle, MaterialAsset material_asset)
