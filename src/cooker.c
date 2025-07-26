@@ -24,6 +24,10 @@ const char *relative_path;
 const char *source_dir;
 const char *cooking_dir;
 
+char* shader_includes_str[256];
+char* shader_includes_str_length[256];
+uint32_t shader_includes_length;
+
 #define COOKER_JSON_PARSE_FLAGS json_parse_flags_allow_c_style_comments | json_parse_flags_allow_trailing_comma
 
 uint32_t string_to_id(const char *s, size_t l)
@@ -36,7 +40,6 @@ uint32_t ufbx_string_to_id(ufbx_string s)
 {
 	return string_to_id(s.data, s.length);
 }
-
 	
 // An includer callback type for mapping an #include request to an include
 // result. The user_data parameter specifies the client context.  The
@@ -49,11 +52,14 @@ uint32_t ufbx_string_to_id(ufbx_string s)
 shaderc_include_result* resolve_include(void* user_data, const char* requested_source, int type, const char* requesting_source, size_t include_depth)
 {
 		
-	char *include_path = calloc(1, 128);
+	char *include_path = calloc(1, 512);
 	int include_path_length = snprintf(include_path, 128, "%sshaders\\%s", source_dir, requested_source);
 	struct Blob file = file_read_entire_file(include_path);
 	
 	printf("Including %s\n", include_path);
+	shader_includes_str[shader_includes_length] = include_path;
+	shader_includes_str_length[shader_includes_length] = include_path_length;
+	shader_includes_length += 1;
 
 	shaderc_include_result *result = calloc(sizeof(shaderc_include_result), 1);
 	result->source_name = include_path;
@@ -221,8 +227,15 @@ int cook_material()
 	// Save dep file to disk
 	char dep_content[512] = {0};
 	int32_t dep_cursor = 0;
+
+	for (uint32_t iinclude = 0; iinclude < shader_includes_length; ++iinclude) {
+		dep_cursor += snprintf(dep_content + dep_cursor, (512 - dep_cursor), "INPUT: %s\n", shader_includes_str[iinclude]);
+	}
+	
 	dep_cursor += snprintf(dep_content + dep_cursor, (512 - dep_cursor), "INPUT: %s\n", vertex_shader_path);
 	dep_cursor += snprintf(dep_content + dep_cursor, (512 - dep_cursor), "INPUT: %s\n", pixel_shader_path);
+
+	
 	dep_cursor += snprintf(dep_content + dep_cursor, (512 - dep_cursor), "OUTPUT: %s\n", dest_path);
 	file_write_entire_file(dep_path, (struct Blob){dep_content, dep_cursor});
 
