@@ -167,8 +167,8 @@ void battle_state_new_round(struct BattleContext *ctx)
 	struct BattleState *state = &ctx->battle_state;
 	
 	// Reset spatial components
-	Float3 p1_initial_pos = (Float3){-0.5f, 0.f, 0.f};
-	Float3 p2_initial_pos = (Float3){ 0.5f, 0.f, 0.f};
+	Float3 p1_initial_pos = (Float3){-1.1f, 0.f, 0.f};
+	Float3 p2_initial_pos = (Float3){ 1.1f, 0.f, 0.f};
 	spatial_component_set_position(&state->p1_entity.spatial, p1_initial_pos);
 	state->p1_entity.spatial.world_transform.cols[0] = (Float3){1.0f, 0.0f, 0.0f};
 	state->p1_entity.spatial.world_transform.cols[1] = (Float3){0.0f, 1.0f, 0.0f};
@@ -287,6 +287,39 @@ static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel can
 	return match_dir & match_action & end_of_animation & is_after_starting_frame;
 }
 
+static void player_translate_world(uint32_t iplayer, struct PlayerEntity **players, struct tek_Character **characters, uint32_t players_length, Float3 world_translate)
+{
+	float player_radius = characters[iplayer]->colision_radius;
+	Float3 player_position = players[iplayer]->spatial.world_transform.cols[3];
+
+	Float3 target_position = float3_add(player_position, world_translate);
+
+	bool found_col = false;
+	Float3 closest_position = {};
+	float closest_distance = -100.0f;
+	for (uint32_t iother = 0; iother < players_length; ++iother) {
+		if (iother != iplayer) {
+			float other_radius = characters[iother]->colision_radius;
+			Float3 other_position = players[iother]->spatial.world_transform.cols[3];
+
+			float distance = float3_distance(target_position, other_position);
+			float dd = distance - (player_radius + other_radius);
+			if (dd < 0 && dd > closest_distance) {
+				found_col = true;
+				closest_position = other_position;
+				closest_distance = dd;
+			}
+		}
+	}
+
+	float coef = 1.0f;
+	if (found_col && closest_distance < 0.0f) {
+		coef = 0.0f;
+	}
+
+	players[iplayer]->spatial.world_transform.cols[3] = float3_add(player_position, float3_mul_scalar(world_translate, coef));
+}
+
 enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct BattleInputs inputs)
 {
 	TracyCZoneN(f, "StateUpdate", true);
@@ -319,7 +352,10 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 	// apply pushback
 	for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
 		if (players[iplayer]->tek.pushback_remaining_frames > 0) {
-			players[iplayer]->spatial.world_transform.cols[3].x += players[iplayer]->tek.pushback_strength;
+
+			Float3 translation = {0};
+			translation.x = players[iplayer]->tek.pushback_strength;
+			player_translate_world(iplayer, players, characters, ARRAY_LENGTH(players), translation);
 			players[iplayer]->tek.pushback_remaining_frames -= 1;
 		}
 	}
@@ -476,7 +512,7 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 			skeletal_mesh_apply_pose(&nonplayers[iplayer]->mesh_instance, &nonplayers[iplayer]->pose);
 			// use root motion
 			Float3 root_translation = float3x4_transform_direction(players[iplayer]->spatial.world_transform, nonplayers[iplayer]->pose.root_motion_delta_translation);
-			players[iplayer]->spatial.world_transform.cols[3] = float3_add(players[iplayer]->spatial.world_transform.cols[3], root_translation);
+			player_translate_world(iplayer, players, characters, ARRAY_LENGTH(players), root_translation);
 		}
 		// Update animation component
 		players[iplayer]->animation.frame += 1;
@@ -645,6 +681,7 @@ void battle_render(struct BattleContext *ctx)
 		ImGui_Checkbox("draw grid", &nonstate->draw_grid);
 		ImGui_Checkbox("draw hurtboxes", &nonstate->draw_hurtboxes);
 		ImGui_Checkbox("draw hitboxes", &nonstate->draw_hitboxes);
+		ImGui_Checkbox("draw colisions", &nonstate->draw_colisions);
 	}
 	ImGui_End();
 
@@ -652,17 +689,19 @@ void battle_render(struct BattleContext *ctx)
 	debug_draw_reset();
 
 	// Evaluate anims
-	for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
-		struct AnimSkeleton const *anim_skeleton = asset_library_get_anim_skeleton(ctx->assets, players[iplayer]->anim_skeleton.anim_skeleton_id);
-		struct Animation const *animation = asset_library_get_animation(ctx->assets, players[iplayer]->animation.animation_id);
-		// Debug draw animated pose
-		for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ibone++) {
-			Float3 p;
-			p.x = F34(nonplayers[iplayer]->pose.global_transforms[ibone], 0, 3);
-			p.y = F34(nonplayers[iplayer]->pose.global_transforms[ibone], 1, 3);
-			p.z = F34(nonplayers[iplayer]->pose.global_transforms[ibone], 2, 3);
-			p = float3x4_transform_point(players[iplayer]->spatial.world_transform, p);
-			debug_draw_point(p);
+	if (nonstate->draw_bones) {
+		for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
+			struct AnimSkeleton const *anim_skeleton = asset_library_get_anim_skeleton(ctx->assets, players[iplayer]->anim_skeleton.anim_skeleton_id);
+			struct Animation const *animation = asset_library_get_animation(ctx->assets, players[iplayer]->animation.animation_id);
+			// Debug draw animated pose
+			for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ibone++) {
+				Float3 p;
+				p.x = F34(nonplayers[iplayer]->pose.global_transforms[ibone], 0, 3);
+				p.y = F34(nonplayers[iplayer]->pose.global_transforms[ibone], 1, 3);
+				p.z = F34(nonplayers[iplayer]->pose.global_transforms[ibone], 2, 3);
+				p = float3x4_transform_point(players[iplayer]->spatial.world_transform, p);
+				debug_draw_point(p);
+			}
 		}
 	}
 
@@ -677,6 +716,8 @@ void battle_render(struct BattleContext *ctx)
 			}
 		}
 	}
+	
+	// debug draw hitboxes cylinders
 	if (nonstate->draw_hitboxes) {
 		for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
 			struct tek_Move *current_move = tek_character_find_move(characters[iplayer], players[iplayer]->tek.current_move_id);
@@ -693,6 +734,16 @@ void battle_render(struct BattleContext *ctx)
 				float height = characters[iplayer]->hitboxes_height[ihitbox];
 				debug_draw_cylinder(center, radius, height, DD_GREEN);
 			}
+		}
+	}
+
+	if (nonstate->draw_colisions) {
+		for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
+			float radius = characters[iplayer]->colision_radius;
+			Float3 center = players[iplayer]->spatial.world_transform.cols[3];
+			float height = 2.0;
+			center.z += height * 0.5;
+			debug_draw_cylinder(center, radius, height, DD_GREEN);
 		}
 	}
 	// debug draw grid

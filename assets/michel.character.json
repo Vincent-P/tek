@@ -2,6 +2,7 @@
     "name": "michel",
     "skeletal_mesh": "Michel_GEO",
     "anim_skeleton": "rig",
+    "radius": 0.4,
     "moves": [
 	// generic moves
 	{

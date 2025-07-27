@@ -89,6 +89,8 @@ struct BattleNonState
 	bool draw_grid;
 	bool draw_hurtboxes;
 	bool draw_hitboxes;
+	bool draw_colisions;
+	bool draw_bones;
 	// player handles
 	// session connection
 };

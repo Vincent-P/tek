@@ -324,6 +324,7 @@ void tek_read_character_json()
 	for (struct json_object_element_s* it = object->start; it != NULL; it = it->next) {
 
 		json_object_get_string_id(it, "name", &character.id);
+		json_object_get_float(it, "radius", &character.colision_radius);
 		json_object_get_string_id(it, "skeletal_mesh", &character.skeletal_mesh_id);
 		json_object_get_string_id(it, "anim_skeleton", &character.anim_skeleton_id);
 		
