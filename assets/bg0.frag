@@ -2,6 +2,7 @@
 #extension GL_EXT_scalar_block_layout : enable
 
 #include "hash.h"
+#include "pbr.h"
 
 layout(location = 0) out vec4 outColor;
 
@@ -40,7 +41,7 @@ float sdScene(vec3 p)
 	float d = 0.0;
 	// d = sdSphere(p, 1.0);
 	// infinite plane (100x100)
-	d = sdBox(p, vec3(50.0, 50.0, 0.01));
+	d = sdBox(p, vec3(50.0, 10.0, 0.01));
 	return d;
 }
 
@@ -49,14 +50,6 @@ vec3 unproject_dir(vec3 dir)
 	vec4 result = (c_.invproj * vec4(dir, 1.0));
 	result.xyz /= result.w;
 	return result.xyz;
-}
-
-vec3 skyTex(vec3 ray)
-{
-	vec3 top = vec3(0.24,0.27,0.41);
-	vec3 mid = vec3(0.07,0.11,0.21);
-	float f = max(0.01, ray.z);
-	return mix(mid, top, f);
 }
 
 vec3 calcNormal( in vec3 p) // for function f(p)
@@ -93,16 +86,30 @@ vec4 ray_march(uvec3 seed, vec2 clip_space, out float depth, out vec3 worldpos)
 	vec3 p = ray.pos+ray.dir*t;
 	vec3 normal = calcNormal(p);
 	vec3 shading = vec3(0.0);
+	vec3 view = normalize(-ray.dir);
+
+	brdf_params_t params;
+	params.BaseColor = vec3(0.33);
+	params.Metallic = 0.5;
+	params.Roughness = 0.99;
+	params.Reflectance = 0.5;
+	params.Emissive = vec3(0.0);
+	params.AmbientOcclusion = 1.0;
+
+	vec3 r = reflect(-view, normal);
+
 	#define SAMPLES 8
 	for (int i = 0; i < SAMPLES; ++i)
 	{
 		uvec3 rng = pcg3d(uvec3(seed.xy, i));
 		vec3 random_dir = hash_to_float3(rng);
 		vec3 cosine_weighted_dir = normalize(normal + random_dir);
-		shading += skyTex(cosine_weighted_dir);
+		
+		shading += skyTex(cosine_weighted_dir) * BRDF(normal, view, cosine_weighted_dir, params);
 	}
-	vec3 albedo = vec3(0.33);
-	shading = (albedo / float(SAMPLES)) * shading;
+	
+	shading = shading / float(SAMPLES);
+	shading += skyTex(r) * BRDF_Specular(normal, view, r, params);
 
 	worldpos = p;
 	return (h < 0.01) ? vec4(shading, 1) : background;

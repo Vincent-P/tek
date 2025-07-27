@@ -23,6 +23,7 @@ layout(scalar, buffer_reference, buffer_reference_align=8) readonly buffer BoneM
 layout(scalar, push_constant) uniform uPushConstant {
     mat4 proj;
     mat4x3 view;
+    mat4x3 invview;
     mat4x3 transform;
     BoneMatricesBuffer bones_buffer;
     MeshVertexBuffer vbuffer;

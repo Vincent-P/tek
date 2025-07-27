@@ -32,6 +32,7 @@ struct SkeletalMeshConstants
 {
 	Float4x4 proj;
 	Float3x4 view;
+	Float3x4 invview;
 	Float3x4 transform;
 	uint64_t bones_matrices_buffer;
 	uint64_t vbuffer;
@@ -542,6 +543,7 @@ void renderer_render(Renderer *renderer)
 		struct SkeletalMeshConstants constants = {0};
 		constants.proj = renderer->proj;
 		constants.view = renderer->view;
+		constants.invview = renderer->invview;
 		constants.transform = *dynamic_data_transform;
 		constants.bones_matrices_buffer = buffer_get_gpu_address(renderer->device, renderer->constant_buffer) + renderer->constant_offset;
 		constants.vbuffer = buffer_get_gpu_address(renderer->device, renderer->mesh_vbuffer);
