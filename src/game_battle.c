@@ -110,9 +110,34 @@ struct BattleInputs battle_read_input(struct Inputs const *inputs)
 		input.player1 |= BATTLE_INPUT_RKICK;
 	}
 
+	if (inputs->gamepad_buttons_is_pressed[InputGamepadButtons_DPAD_UP]) {
+		input.player2 |= BATTLE_INPUT_UP;
+	}
+	if (inputs->gamepad_buttons_is_pressed[InputGamepadButtons_DPAD_RIGHT]) {
+		input.player2 |= BATTLE_INPUT_BACK;
+	}
+	if (inputs->gamepad_buttons_is_pressed[InputGamepadButtons_DPAD_DOWN]) {
+		input.player2 |= BATTLE_INPUT_DOWN;
+	}
+	if (inputs->gamepad_buttons_is_pressed[InputGamepadButtons_DPAD_LEFT]) {
+		input.player2 |= BATTLE_INPUT_FORWARD;
+	}
+	if (inputs->gamepad_buttons_is_pressed[InputGamepadButtons_WEST]) {
+		input.player2 |= BATTLE_INPUT_LPUNCH;
+	}
+	if (inputs->gamepad_buttons_is_pressed[InputGamepadButtons_NORTH]) {
+		input.player2 |= BATTLE_INPUT_RPUNCH;
+	}
+	if (inputs->gamepad_buttons_is_pressed[InputGamepadButtons_SOUTH]) {
+		input.player2 |= BATTLE_INPUT_LKICK;
+	}
+	if (inputs->gamepad_buttons_is_pressed[InputGamepadButtons_EAST]) {
+		input.player2 |= BATTLE_INPUT_RKICK;
+	}
+
 	input.player1 = battle_clean_socd_input(input.player1);
 	input.player2 = battle_clean_socd_input(input.player2);
-	
+
 	return input;
 }
 
@@ -149,15 +174,15 @@ void battle_state_init_player(struct BattleContext *ctx, struct PlayerEntity *p,
 	render_instance_data.mesh = skeletal_mesh;
 	render_instance_data.dynamic_data_mesh = &pn->mesh_instance;
 	render_instance_data.dynamic_data_spatial = &p->spatial;
-	renderer_register_skeletal_mesh_instance(ctx->renderer, render_instance_data);	
+	renderer_register_skeletal_mesh_instance(ctx->renderer, render_instance_data);
 }
 
 void battle_state_init(struct BattleContext *ctx)
 {
 	battle_state_new_round(ctx);
-	
-	struct BattleState *state = &ctx->battle_state;	
-	struct BattleNonState *nonstate = &ctx->battle_non_state;	
+
+	struct BattleState *state = &ctx->battle_state;
+	struct BattleNonState *nonstate = &ctx->battle_non_state;
 	battle_state_init_player(ctx, &state->p1_entity, &nonstate->p1_nonentity);
 	battle_state_init_player(ctx, &state->p2_entity, &nonstate->p2_nonentity);
 }
@@ -165,7 +190,7 @@ void battle_state_init(struct BattleContext *ctx)
 void battle_state_new_round(struct BattleContext *ctx)
 {
 	struct BattleState *state = &ctx->battle_state;
-	
+
 	// Reset spatial components
 	Float3 p1_initial_pos = (Float3){-1.1f, 0.f, 0.f};
 	Float3 p2_initial_pos = (Float3){ 1.1f, 0.f, 0.f};
@@ -179,7 +204,7 @@ void battle_state_new_round(struct BattleContext *ctx)
 	state->p2_entity.spatial.world_transform.cols[1] = (Float3){0.0f, 1.0f, 0.0f};
 	state->p2_entity.spatial.world_transform.cols[2] = (Float3){0.0f, 0.0f, 1.0f};
 	spatial_component_target(&state->p2_entity.spatial, p1_initial_pos);
-	
+
 	// Reset tek component
 	struct tek_Character *c1 = tek_characters + state->p1_entity.tek.character_id;
 	struct tek_Character *c2 = tek_characters + state->p2_entity.tek.character_id;
@@ -192,13 +217,13 @@ void battle_state_new_round(struct BattleContext *ctx)
 	state->p1_entity.anim_skeleton.anim_skeleton_id = c1->anim_skeleton_id;
 	state->p1_entity.animation.animation_id = 3108588149; // idle
 	state->p1_entity.animation.frame = 0;
-	
+
 	state->p2_entity.anim_skeleton.anim_skeleton_id = c2->anim_skeleton_id;
 	state->p2_entity.animation.animation_id = 3108588149; // idle
 	state->p2_entity.animation.frame = 0;
 
 	// Reset camera
-	struct BattleNonState *nonstate = &ctx->battle_non_state;	
+	struct BattleNonState *nonstate = &ctx->battle_non_state;
 	nonstate->camera_distance = 3.0f;
 	nonstate->camera.position = (Float3){1.0f, -5.0f, 1.0f};
 	nonstate->camera.vertical_fov = 40.0f;
@@ -223,8 +248,8 @@ static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel can
 
 	uint32_t input_index = (player.current_input_index + (INPUT_BUFFER_SIZE - 0)) % INPUT_BUFFER_SIZE;
 	enum BattleInputBits frame_input = player.input_buffer[input_index];
-	
-	BattleInput ACTION_MASK = (BATTLE_INPUT_LPUNCH | BATTLE_INPUT_RPUNCH | BATTLE_INPUT_LKICK | BATTLE_INPUT_RKICK);	
+
+	BattleInput ACTION_MASK = (BATTLE_INPUT_LPUNCH | BATTLE_INPUT_RPUNCH | BATTLE_INPUT_LKICK | BATTLE_INPUT_RKICK);
 	BattleInput action_input = frame_input & ACTION_MASK;
 
 	tek_MotionInput current_motion = 0;
@@ -239,15 +264,15 @@ static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel can
 		uint32_t current_start_frame = player.input_buffer_frame_start[player.current_input_index % INPUT_BUFFER_SIZE];
 		uint32_t previous_start_frame = player.input_buffer_frame_start[previous_input_index];
 		uint32_t delta_frame = current_start_frame - (previous_start_frame + 1); // take only the last frame of the previous previous input as starting point.
-		
+
 		if (previous_input == 0 && previous_previous_input == BATTLE_INPUT_BACK && delta_frame <= 10) {
 			current_motion = TEK_MOTION_INPUT_BB;
 		}
-		
+
 	} else if ((frame_input & BATTLE_INPUT_UP) != 0) {
 		current_motion = TEK_MOTION_INPUT_U;
 	} else if ((frame_input & BATTLE_INPUT_FORWARD) != 0) {
-		
+
 		current_motion = TEK_MOTION_INPUT_F;
 
 		// look for another F to detect double tap back
@@ -274,7 +299,7 @@ static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel can
 		current_motion = TEK_MOTION_INPUT_D;
 	}
 	// TODO: match action even if dir don't match (jab while walking)
-	
+
 	bool match_dir = current_motion  == cancel.motion_input;
 	bool match_action = action_input == cancel.action_input;
 	bool end_of_animation = true;
@@ -283,7 +308,7 @@ static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel can
 		match_action = true;
 		end_of_animation = current_animation_end;
 	}
-	
+
 	return match_dir & match_action & end_of_animation & is_after_starting_frame;
 }
 
@@ -320,6 +345,59 @@ static void player_translate_world(uint32_t iplayer, struct PlayerEntity **playe
 	players[iplayer]->spatial.world_transform.cols[3] = float3_add(player_position, float3_mul_scalar(world_translate, coef));
 }
 
+static void _evaluate_hit_conditions(struct PlayerEntity *p1, struct PlayerEntity *p2, struct PlayerNonEntity *np1, struct PlayerNonEntity *np2, struct tek_Character *c1, struct tek_Character *c2)
+{
+	struct tek_Move *current_move = tek_character_find_move(c1, p1->tek.current_move_id);
+
+	if (current_move && current_move->hit_conditions_length > 0) {
+		uint32_t current = p1->animation.frame;
+		uint32_t first_active = current_move->startup;
+		uint32_t last_active = current_move->startup + current_move->active;
+		bool is_active = first_active <= current && current < last_active;
+		if (is_active) {
+			assert(current_move->hitbox < c1->hitboxes_length);
+			uint32_t ihitbox = current_move->hitbox;
+			Float3 hit_center = np1->hitboxes_position[ihitbox];
+			float hit_radius = c1->hitboxes_radius[ihitbox];
+			float hit_height = c1->hitboxes_height[ihitbox];
+
+			for (uint32_t ihurtbox = 0; ihurtbox < c2->hurtboxes_length; ++ihurtbox){
+				Float3 hurt_center = np2->hurtboxes_position[ihurtbox];
+				float hurt_radius = c2->hurtboxes_radius[ihurtbox];
+				float hurt_height = c2->hurtboxes_height[ihurtbox];
+
+				float x_dist = hit_center.x - hurt_center.x;
+				float y_dist = hit_center.y - hurt_center.y;
+				float hor_distance = sqrtf(x_dist*x_dist + y_dist*y_dist);
+				float vert_distance = fabs(hit_center.z - hurt_center.z);
+
+				bool inside_vert = vert_distance <= ((hit_height + hurt_height) / 2.0f);
+				bool inside_hor = hor_distance <= (hit_radius + hurt_radius);
+				bool inside = inside_vert & inside_hor;
+				if (inside) {
+					printf("HIIIIIIIIIIIIIIIIIIT hurtbox[%u] distance: %fx%f\n", ihurtbox, hor_distance, vert_distance);
+
+					struct tek_HitCondition hit_condition = current_move->hit_conditions[0];
+					struct tek_HitReactions *hit_reaction = tek_character_find_hit_reaction(c1, hit_condition.reactions_id);
+
+
+					bool is_blocking = true;
+					if (is_blocking) {
+						p2->tek.requested_move_id = hit_reaction->standing_block_move;
+
+						p2->tek.pushback_remaining_frames = 3;
+						p2->tek.pushback_strength = 0.1f;
+					} else {
+						p2->tek.hp -= hit_condition.damage;
+						p2->tek.requested_move_id = hit_reaction->standing_move;
+					}
+				}
+			}
+
+		}
+	}
+}
+
 enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct BattleInputs inputs)
 {
 	TracyCZoneN(f, "StateUpdate", true);
@@ -335,8 +413,8 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 		tek_characters + players[0]->tek.character_id,
 		tek_characters + players[1]->tek.character_id,
 	};
-	BattleInput pinputs[] = {inputs.player1, inputs.player2}; 
-	
+	BattleInput pinputs[] = {inputs.player1, inputs.player2};
+
 	// register input in the input buffer
 	for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
 		struct PlayerEntity *p = players[iplayer];
@@ -347,34 +425,37 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 			p->tek.input_buffer_frame_start[input_index] = state->frame_number;
 		}
 	}
-	
+
 	// -- gameplay update
 	// apply pushback
 	for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
 		if (players[iplayer]->tek.pushback_remaining_frames > 0) {
-
 			Float3 translation = {0};
 			translation.x = players[iplayer]->tek.pushback_strength;
+			if (iplayer == 0) {
+				translation.x = -translation.x;
+			}
+
 			player_translate_world(iplayer, players, characters, ARRAY_LENGTH(players), translation);
 			players[iplayer]->tek.pushback_remaining_frames -= 1;
 		}
 	}
-	
-	
+
+
 	// apply requested move from previous simulation
 	for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
 		uint32_t requested_move_id = players[iplayer]->tek.requested_move_id;
 		if (requested_move_id != 0) {
 			struct tek_Move *request_move = tek_character_find_move(characters[iplayer], requested_move_id);
 			struct Animation const *animation = asset_library_get_animation(ctx->assets, request_move->animation_id);
-			
+
 			players[iplayer]->animation.animation_id = request_move->animation_id;
 			players[iplayer]->animation.frame = 0;
 			players[iplayer]->tek.current_move_id = requested_move_id;
 			players[iplayer]->tek.requested_move_id = 0;
 		}
 	}
-	
+
 	// move request
 	for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
 		// find current move
@@ -387,11 +468,11 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 		cancel_ctx.animation_frame = players[iplayer]->animation.frame;
 		cancel_ctx.animation_length = animation->root_motion_track.translations.length;
 		uint32_t request_move_id = 0;
-		
+
 		struct tek_Cancel *cancel = NULL;
 		for (uint32_t imovecancel = 0; imovecancel < current_move->cancels_length; ++imovecancel) {
 			bool is_group = current_cancels[imovecancel].type == TEK_CANCEL_TYPE_LIST;
-			
+
 			if (!is_group) {
 				if (match_cancel(players[iplayer]->tek, current_cancels[imovecancel], cancel_ctx)) {
 					cancel = &current_cancels[imovecancel];
@@ -460,14 +541,14 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 	{
 		struct SpatialComponent *p1_root = &state->p1_entity.spatial;
 		struct SpatialComponent *p2_root = &state->p2_entity.spatial;
-	
+
 		Float3 target_pos = float3_add(p1_root->world_transform.cols[3], p2_root->world_transform.cols[3]);
 		target_pos.x *= 0.5f;
 		target_pos.y *= 0.5f;
 		target_pos.z *= 0.5f;
 		Float3 camera_pos = nonstate->camera.position;
 		float target_distance = float3_distance(target_pos, camera_pos);
-		
+
 		float ratio = 9.0f / 16.0f;
 		float fov_rad = nonstate->camera.vertical_fov * 2.0f * 3.14f / 360.0f;
 		float width_from_dist = ratio * 2.0f * tanf(fov_rad / 2.0f);
@@ -486,7 +567,7 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 
 		float const MINIMUM_DISTANCE = 3.5f;
 		float const CAMERA_SMOOTHING = 0.1f;
-		
+
 		float delta_dist = (ideal_distance - nonstate->camera_distance) * CAMERA_SMOOTHING;
 		nonstate->camera_distance += delta_dist;
 		if (nonstate->camera_distance < MINIMUM_DISTANCE) {
@@ -495,7 +576,7 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 
 		nonstate->camera.position = float3_add(target_pos, float3_mul_scalar(camera_dir, nonstate->camera_distance));
 		nonstate->camera.lookat = target_pos;
-		
+
 		nonstate->camera.position.z += 1.0f;
 		nonstate->camera.lookat.z += 1.0f;
 	}
@@ -542,69 +623,13 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 		}
 	}
 
-	// Evaluate hit
-	{
-		struct PlayerEntity *p1 = players[0];
-		struct PlayerEntity *p2 = players[1];
-		struct PlayerNonEntity *np1 = nonplayers[0];
-		struct PlayerNonEntity *np2 = nonplayers[1];
-		struct tek_Character *c1 = characters[0];
-		struct tek_Character *c2 = characters[1];
-		
-		struct tek_Move *current_move = tek_character_find_move(c1, p1->tek.current_move_id);
+	_evaluate_hit_conditions(players[0], players[1], nonplayers[0], nonplayers[1], characters[0], characters[1]);
+	_evaluate_hit_conditions(players[1], players[0], nonplayers[1], nonplayers[0], characters[1], characters[0]);
 
-		if (current_move && current_move->hit_conditions_length > 0) {
-			uint32_t current = p1->animation.frame;
-			uint32_t first_active = current_move->startup;
-			uint32_t last_active = current_move->startup + current_move->active;
-			bool is_active = first_active <= current && current < last_active;
-			if (is_active) {
-				assert(current_move->hitbox < c1->hitboxes_length);
-				uint32_t ihitbox = current_move->hitbox;
-				Float3 hit_center = np1->hitboxes_position[ihitbox];
-				float hit_radius = c1->hitboxes_radius[ihitbox];
-				float hit_height = c1->hitboxes_height[ihitbox];
-
-				for (uint32_t ihurtbox = 0; ihurtbox < c2->hurtboxes_length; ++ihurtbox){
-					Float3 hurt_center = np2->hurtboxes_position[ihurtbox];
-					float hurt_radius = c2->hurtboxes_radius[ihurtbox];
-					float hurt_height = c2->hurtboxes_height[ihurtbox];
-
-					float x_dist = hit_center.x - hurt_center.x;
-					float y_dist = hit_center.y - hurt_center.y;
-					float hor_distance = sqrtf(x_dist*x_dist + y_dist*y_dist);
-					float vert_distance = fabs(hit_center.z - hurt_center.z);
-
-					bool inside_vert = vert_distance <= ((hit_height + hurt_height) / 2.0f);
-					bool inside_hor = hor_distance <= (hit_radius + hurt_radius);
-					bool inside = inside_vert & inside_hor;
-					if (inside) {
-						printf("HIIIIIIIIIIIIIIIIIIT hurtbox[%u] distance: %fx%f\n", ihurtbox, hor_distance, vert_distance);
-
-						struct tek_HitCondition hit_condition = current_move->hit_conditions[0];
-						struct tek_HitReactions *hit_reaction = tek_character_find_hit_reaction(c1, hit_condition.reactions_id);
-
-
-						bool is_blocking = true;
-						if (is_blocking) {
-							p2->tek.requested_move_id = hit_reaction->standing_block_move;
-
-							p2->tek.pushback_remaining_frames = 3;
-							p2->tek.pushback_strength = 0.1f;
-						} else {
-							p2->tek.hp -= hit_condition.damage;
-							p2->tek.requested_move_id = hit_reaction->standing_move;
-						}
-					}
-				}
-
-			}
-		}
-	}
 
 	// post update: determine future game state
 	enum BattleFrameResult frame_result = BATTLE_FRAME_RESULT_CONTINUE;
-	
+
 	// someone won a round?
 	if (players[1]->tek.hp <= 0) {
 		// TODO: outro
@@ -617,7 +642,7 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 	}
 
 	// next frame
-	state->frame_number += 1;	
+	state->frame_number += 1;
 
 	TracyCZoneEnd(f);
 
@@ -640,7 +665,7 @@ void battle_render(struct BattleContext *ctx)
 		tek_characters + players[0]->tek.character_id,
 		tek_characters + players[1]->tek.character_id,
 	};
-	
+
 	struct TekPlayerComponent const *p1 = &state->p1_entity.tek;
 	if (ImGui_Begin("Player 1 inputs", NULL, 0)) {
 		if (ImGui_BeginTable("inputs", 2, ImGuiTableFlags_Borders)) {
@@ -716,7 +741,7 @@ void battle_render(struct BattleContext *ctx)
 			}
 		}
 	}
-	
+
 	// debug draw hitboxes cylinders
 	if (nonstate->draw_hitboxes) {
 		for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
