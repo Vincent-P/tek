@@ -175,6 +175,9 @@ void renderer_init(Renderer *renderer, struct AssetLibrary *assets, SDL_Window *
 	new_storage_buffer(renderer->device, renderer->constant_buffer, (64 << 10));
 
 	renderer_init_materials(renderer, assets);
+
+	renderer->main_camera.position = (Float3){1.0f, -5.0f, 1.0f};
+	renderer->main_camera.vertical_fov = 40.0f;
 }
 
 void renderer_init_materials(Renderer *renderer, struct AssetLibrary *assets)
