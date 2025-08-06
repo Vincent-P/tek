@@ -47,7 +47,7 @@ void main()
 	shading = shading / float(SAMPLES);
 #else
 	shading += skyTex(normal) * BRDF(normal, view, normal, params);
-	shading += (skyTex(r) * BRDF_Diffuse(normal, view, r, params));
+	shading += skyTex(r) * BRDF_Diffuse(normal, view, r, params);
 #endif
 
 	outColor = vec4(shading, 1.0);

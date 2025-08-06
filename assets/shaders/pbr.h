@@ -131,13 +131,36 @@ vec3 BRDF(vec3 n, vec3 v, vec3 l, brdf_params_t params)
     return result;
 }
 
-// Lights
+// -- Lights
+// Computes the camera's EV100 from exposure settings
+// aperture in f-stops
+// shutterSpeed in seconds
+// sensitivity in ISO
+float exposureSettings(float aperture, float shutterSpeed, float sensitivity) {
+    return log2((aperture * aperture) / shutterSpeed * 100.0 / sensitivity);
+}
+
+// Computes the exposure normalization factor from
+// the camera's EV100
+float exposure(float ev100) {
+    return 1.0 / (pow(2.0, ev100) * 1.2);
+}
+
+float PreExposeLight(highp float intensity)
+{
+    // sunny 16
+    highp float ev100 = exposureSettings(16, 1.0/100.0, 100.0);
+    highp float exposure = exposure(ev100);
+    return intensity * exposure;
+}
+
+
 
 vec3 skyTex(vec3 ray)
 {
-	vec3 top = 3.0 * vec3(0.1,0.27,0.61);
-	vec3 mid = 1.0 * vec3(0.2, 0.3, 0.7);
-	vec3 bottom = 3.0 * vec3(0.05,0.05,0.1);
+	vec3 top    = PreExposeLight(120000.0) * vec3(0.20, 0.27, 0.91);
+	vec3 mid    = PreExposeLight( 20000.0) * vec3(0.20, 0.30, 0.70);
+	vec3 bottom = PreExposeLight( 10000.0) * vec3(0.33, 0.33, 0.93);
 	vec3 target = (ray.z < 0.0) ? bottom : top;
 	return mix(mid, target, abs(ray.z));
 }

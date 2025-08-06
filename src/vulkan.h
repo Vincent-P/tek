@@ -35,13 +35,18 @@ enum RenderPassesId
 	RENDER_PASSES_COUNT,
 };
 
+// #define VULKAN_HDR_SUPPORT
+
 static struct RenderPass RENDER_PASSES[RENDER_PASSES_COUNT] =
 {
 	{"mesh", {PG_FORMAT_RGBA16F}, 1, PG_FORMAT_D32_SFLOAT, 4, true, true},
 	{"debugdraw", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_NONE, 1, false, false},
 	{"ui", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_NONE, 1, false, false},
-	// {"compositing", {PG_FORMAT_A2B10G10R10_UNORM_PACK32}, 1, PG_FORMAT_NONE, 1, false, false},
+#if defined(VULKAN_HDR_SUPPORT)
+	{"compositing", {PG_FORMAT_A2B10G10R10_UNORM_PACK32}, 1, PG_FORMAT_NONE, 1, false, false},
+#else
 	{"compositing", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_NONE, 1, false, false},
+#endif
 };
 
 enum VulkanTopology

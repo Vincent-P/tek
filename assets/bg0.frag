@@ -104,12 +104,10 @@ vec4 ray_march(uvec3 seed, vec2 clip_space, out float depth, out vec3 worldpos)
 		uvec3 rng = pcg3d(uvec3(seed.xy, i));
 		vec3 random_dir = hash_to_float3(rng);
 		vec3 cosine_weighted_dir = normalize(normal + random_dir);
-		
 		shading += skyTex(cosine_weighted_dir) * BRDF(normal, view, cosine_weighted_dir, params);
 	}
-	
 	shading = shading / float(SAMPLES);
-	shading += skyTex(r) * BRDF_Specular(normal, view, r, params);
+	shading += skyTex(r) * BRDF(normal, view, r, params);
 
 	worldpos = p;
 	return (h < 0.01) ? vec4(shading, 1) : background;
