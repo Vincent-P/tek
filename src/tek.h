@@ -94,16 +94,28 @@ struct tek_HitCondition
 	uint8_t requirements;
 };
 
+enum tek_HitLevel
+{
+	TEK_HIT_LEVEL_NONE = 0,
+	TEK_HIT_LEVEL_HIGH,
+	TEK_HIT_LEVEL_MID,
+	TEK_HIT_LEVEL_LOW,
+	TEK_HIT_LEVEL_UNBLOCKABLE,
+	TEK_HIT_LEVEL_COUNT,
+};
+
 struct tek_Move
 {
 	uint32_t id;
 	// animation
 	uint32_t animation_id;
+	// hit
+	enum tek_HitLevel hit_level;
+	uint8_t hitbox; // index in hitbox list
 	// frame data
 	uint8_t startup; // how long is the startup of the animation
 	uint8_t active; // how long is the move active
 	uint8_t recovery; // how long is the recovery
-	uint8_t hitbox; // index in hitbox list
 	// cancels
 	struct tek_Cancel cancels[MAX_CANCELS_PER_MOVE];
 	uint32_t cancels_length;

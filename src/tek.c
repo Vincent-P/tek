@@ -18,6 +18,14 @@ const char* tek_CancelCondition_str[TEK_CANCEL_CONDITION_COUNT] = {
 	"eoa",
 };
 
+const char* tek_HitLevel_str[TEK_HIT_LEVEL_COUNT] = {
+	"",
+	"high",
+	"mid",
+	"low",
+	"unblockable",
+};
+
 uint32_t string_to_id(const char *s, size_t l)
 {
 	XXH64_hash_t hash = XXH64(s, l, 0);
@@ -173,16 +181,29 @@ static void tek_read_json_move(struct tek_Character *character, struct json_obje
 			movename = json_value_as_string(it->value);
 		}
 		json_object_get_string_id(it, "animation", &move.animation_id);
+		
+		// hit
+		if (strcmp(it->name->string, "hit_level") == 0) {
+			struct json_string_s *hit_level = json_value_as_string(it->value);
+			for (enum tek_HitLevel ihit_level = 0; ihit_level < TEK_HIT_LEVEL_COUNT; ++ihit_level) {
+				if (strcmp(hit_level->string, tek_HitLevel_str[ihit_level]) == 0) {
+					move.hit_level = ihit_level;
+				}
+			}
+		}
+		json_object_get_u8(it, "hitbox", &move.hitbox);
+		
+		// frame data
 		json_object_get_u8(it, "startup", &move.startup);
 		json_object_get_u8(it, "active", &move.active);
 		json_object_get_u8(it, "recovery", &move.recovery);
-		json_object_get_u8(it, "hitbox", &move.hitbox);
+		
+		if (strcmp(it->name->string, "hit_conditions") == 0) {
+			hit_conditions = json_value_as_array(it->value);
+		}
 		
 		if (strcmp(it->name->string, "cancels") == 0) {
 			cancels = json_value_as_array(it->value);
-		}
-		if (strcmp(it->name->string, "hit_conditions") == 0) {
-			hit_conditions = json_value_as_array(it->value);
 		}
 	}
 	

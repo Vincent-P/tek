@@ -156,11 +156,13 @@
 	{
 	    "name": "jab",
 	    "animation": "rig|jab",
+	    // hit
+	    "hit_level": "high",
+	    "hitbox": 1, // index in list
 	    // frame data
 	    "startup": 10,
 	    "active": 1,
 	    "recovery": 20,
-	    "hitbox": 1, // index in list
 	    "hit_conditions": [
 		{
 		    "damage": 10,
@@ -179,11 +181,13 @@
 	{
 	    "name": "midpunch",
 	    "animation": "rig|midpunch",
+	    // hit
+	    "hit_level": "mid",
+	    "hitbox": 1, // index in list
 	    // frame data
 	    "startup": 13,
 	    "active": 1,
 	    "recovery": 20,
-	    "hitbox": 1, // index in list
 	    "hit_conditions": [
 		{
 		    "damage": 10,
@@ -202,11 +206,13 @@
 	{
 	    "name": "highkick",
 	    "animation": "rig|highkick",
+	    // hit
+	    "hit_level": "high",
+	    "hitbox": 2, // index in list
 	    // frame data
 	    "startup": 13,
 	    "active": 1,
 	    "recovery": 10,
-	    "hitbox": 2, // index in list
 	    "hit_conditions": [
 		{
 		    "damage": 10,
@@ -225,11 +231,13 @@
 	{
 	    "name": "lowkick",
 	    "animation": "rig|lowkick",
+	    // hit
+	    "hit_level": "low",
+	    "hitbox": 2, // index in list
 	    // frame data
 	    "startup": 19,
 	    "active": 1,
 	    "recovery": 10,
-	    "hitbox": 2, // index in list
 	    "hit_conditions": [
 		{
 		    "damage": 10,

@@ -43,9 +43,10 @@ void _display_tek_component(struct TekPlayerComponent *player)
 		struct tek_Move *move = &chara->moves[imove];
 		ImGui_PushID((const char*)move);
 		
-		ImGui_Text("Move[%u]: %s | %u cancels | %u hit conditions",
+		ImGui_Text("Move[%u]: %s | %s | %u cancels | %u hit conditions",
 			   move->id,
 			   chara->move_names[imove].string,
+			   tek_HitLevel_str[move->hit_level],
 			   move->cancels_length,
 			   move->hit_conditions_length);
 		
