@@ -1,13 +1,13 @@
 {
     "name": "michel",
-    "skeletal_mesh": "Michel_GEO",
-    "anim_skeleton": "rig",
+    "skeletal_mesh": "P2M_Regular",
+    "anim_skeleton": "P2M_Regular_Rig",
     "radius": 0.4,
     "moves": [
 	// generic moves
 	{
 	    "name": "standing idle",
-	    "animation": "rig|idle",
+	    "animation": "P2M_Regular_Rig|idle",
 	    "cancels": [
 		// special cancel to loop idle anim with iself, bypassing cancel to idle from standing moves
 		{
@@ -36,7 +36,7 @@
 	// f -> start walk, neutral, f -> dash
 	{
 	    "name": "standing walk forward start",
-	    "animation": "rig|walk_forward_start",
+	    "animation": "P2M_Regular_Rig|walk_forward_start",
 	    "cancels": [
 		{
 		    "to": "standing forward dash",
@@ -64,7 +64,7 @@
 	},
 	{
 	    "name": "standing walk forward loop",
-	    "animation": "rig|walk_forward",
+	    "animation": "P2M_Regular_Rig|walk_forward_loop",
 	    "cancels": [
 		// loop (should be last?)
 		{
@@ -95,7 +95,7 @@
 	},
 	{
 	    "name": "standing forward dash",
-	    "animation": "rig|forward_dash",
+	    "animation": "P2M_Regular_Rig|dash_forward",
 	    "cancels": [
 		// custom cancel to walk backward if we press b, TODO: blending over 5-10 frames
 		{
@@ -112,7 +112,7 @@
 	// walk backward
 	{
 	    "name": "standing walk backward",
-	    "animation": "rig|walk_backward",
+	    "animation": "P2M_Regular_Rig|walk_backward_loop",
 	    "cancels": [
 		// loop
 		{
@@ -140,7 +140,7 @@
 	// backward dash
 	{
 	    "name": "standing backward dash",
-	    "animation": "rig|backward_dash",
+	    "animation": "P2M_Regular_Rig|dash_backward",
 	    "cancels": [
 		{
 		    "type": "list",
@@ -155,7 +155,7 @@
 	},
 	{
 	    "name": "jab",
-	    "animation": "rig|jab",
+	    "animation": "P2M_Regular_Rig|jab",
 	    // hit
 	    "hit_level": "high",
 	    "hitbox": 1, // index in list
@@ -180,7 +180,7 @@
 	},
 	{
 	    "name": "midpunch",
-	    "animation": "rig|midpunch",
+	    "animation": "P2M_Regular_Rig|midpunch",
 	    // hit
 	    "hit_level": "mid",
 	    "hitbox": 1, // index in list
@@ -205,7 +205,7 @@
 	},
 	{
 	    "name": "highkick",
-	    "animation": "rig|highkick",
+	    "animation": "P2M_Regular_Rig|highkick",
 	    // hit
 	    "hit_level": "high",
 	    "hitbox": 2, // index in list
@@ -229,13 +229,38 @@
 	    ],
 	},
 	{
+	    "name": "steelpedal",
+	    "animation": "P2M_Regular_Rig|steel_pedal",
+	    // hit
+	    "hit_level": "mid",
+	    "hitbox": 2, // index in list
+	    // frame data
+	    "startup": 20,
+	    "active": 1,
+	    "recovery": 10,
+	    "hit_conditions": [
+		{
+		    "damage": 10,
+		    "reactions": "standing hit",
+		    "requirements": "none",
+		},
+	    ],
+	    // cancels
+	    "cancels": [
+		{
+		    "type": "list",
+		    "to": "standing moves",
+		},
+	    ],
+	},
+	{
 	    "name": "lowkick",
-	    "animation": "rig|lowkick",
+	    "animation": "P2M_Regular_Rig|lowkick",
 	    // hit
 	    "hit_level": "low",
 	    "hitbox": 2, // index in list
 	    // frame data
-	    "startup": 19,
+	    "startup": 20,
 	    "active": 1,
 	    "recovery": 10,
 	    "hit_conditions": [
@@ -256,7 +281,7 @@
 	// -- reactions
 	{
 	    "name": "standing hit",
-	    "animation": "rig|standing_hit_reaction_high",
+	    "animation": "P2M_Regular_Rig|hit_reaction_standing_high",
 	    "cancels": [
 	    	{
 		    "to": "standing idle",
@@ -266,7 +291,7 @@
 	},
 	{
 	    "name": "low hit",
-	    "animation": "rig|standing_hit_reaction_low",
+	    "animation": "P2M_Regular_Rig|hit_reaction_standing_low",
 	    "cancels": [
 	    	{
 		    "to": "standing idle",
@@ -276,7 +301,7 @@
 	},
 	{
 	    "name": "standing block",
-	    "animation": "rig|standing_block_mid",
+	    "animation": "P2M_Regular_Rig|hit_reaction_standing_block_mid",
 	    "cancels": [
 	    	{
 		    "to": "standing idle",
@@ -286,7 +311,7 @@
 	},
 	{
 	    "name": "crouch block",
-	    "animation": "rig|crouch_block",
+	    "animation": "P2M_Regular_Rig|hit_reaction_crouch_block",
 	    "cancels": [
 	    	{
 		    "to": "while standing",
@@ -296,7 +321,7 @@
 	},
 	{
 	    "name": "while standing",
-	    "animation": "rig|while_standing",
+	    "animation": "P2M_Regular_Rig|while_standing",
 	    "cancels": [
 	    	{
 		    "to": "standing idle",
@@ -325,6 +350,11 @@
 		},
 		{
 		    "to": "highkick",
+		    "action_input": 7, // LP(4) RP(5) LK(6) RK(7)
+		},
+		{
+		    "to": "steelpedal",
+		    "motion_input": 2, // b(2)
 		    "action_input": 7, // LP(4) RP(5) LK(6) RK(7)
 		},
 		{
@@ -361,106 +391,31 @@
     ],
     "hurtboxes": [
 	{
-	    "radius": 0.2,
-	    "height": 0.5,
-	    "bone": "DEF.spine",
-	},
-	{
-	    "radius": 0.2,
-	    "height": 0.5,
-	    "bone": "DEF.Neck",
-	},
-	{
-	    "radius": 0.2,
-	    "height": 0.1,
-	    "bone": "DEF.upper_arm.L.001",
-	},
-	{
-	    "radius": 0.2,
-	    "height": 0.1,
-	    "bone": "DEF.forearm.L.001",
-	},
-	{
-	    "radius": 0.2,
-	    "height": 0.1,
-	    "bone": "DEF.hand.L",
-	},
-	{
-	    "radius": 0.1,
-	    "height": 0.1,
-	    "bone": "DEF.thigh.L.001",
-	},
-	{
-	    "radius": 0.1,
-	    "height": 0.1,
-	    "bone": "DEF.shin.L",
-	},
-	{
-	    "radius": 0.1,
-	    "height": 0.2,
-	    "bone": "DEF.shin.L.001",
-	},
-	{
-	    "radius": 0.2,
-	    "height": 0.1,
-	    "bone": "DEF.toe.L",
-	},
-	{
-	    "radius": 0.2,
-	    "height": 0.1,
-	    "bone": "DEF.upper_arm.R.001",
-	},
-	{
-	    "radius": 0.2,
-	    "height": 0.1,
-	    "bone": "DEF.forearm.R.001",
-	},
-	{
-	    "radius": 0.2,
-	    "height": 0.1,
-	    "bone": "DEF.hand.R",
-	},
-	{
-	    "radius": 0.1,
-	    "height": 0.1,
-	    "bone": "DEF.thigh.R.001",
-	},
-	{
-	    "radius": 0.1,
-	    "height": 0.1,
-	    "bone": "DEF.shin.R",
-	},
-	{
-	    "radius": 0.1,
-	    "height": 0.2,
-	    "bone": "DEF.shin.R.001",
-	},
-	{
-	    "radius": 0.2,
-	    "height": 0.1,
-	    "bone": "DEF.toe.R",
+	    "radius": 0.4,
+	    "height": 2,
+	    "bone": "DEF-spine",
 	},
     ],
     "hitboxes": [
 	{
 	    "radius": 0.2,
 	    "height": 0.2,
-	    "bone": "DEF.hand.R",
+	    "bone": "DEF-hand.R",
 	},
 	{
 	    "radius": 0.2,
 	    "height": 0.2,
-	    "bone": "DEF.hand.L",
+	    "bone": "DEF-hand.L",
 	},
 	{
 	    "radius": 0.2,
 	    "height": 0.2,
-	    "bone": "DEF.toe.R",
+	    "bone": "DEF-toe.R",
 	},
 	{
 	    "radius": 0.2,
 	    "height": 0.2,
-	    "bone": "DEF.toe.L",
+	    "bone": "DEF-toe.L",
 	},
     ],
 }

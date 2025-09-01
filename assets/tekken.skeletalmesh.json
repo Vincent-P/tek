@@ -1,5 +1,5 @@
 {
     "source_file": "tekken.fbx",
-    "anim_skeleton": "rig", // name of the node containing the root bone
-    "mesh": "Michel_GEO",
+    "anim_skeleton": "P2M_Regular_Rig", // name of the node containing the root bone
+    "mesh": "P2M_Regular",
 }

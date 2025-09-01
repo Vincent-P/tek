@@ -1,6 +1,6 @@
 #pragma once
 
-#define MAX_BONES_PER_MESH 64
+#define MAX_BONES_PER_MESH 256
 #define MAX_ANIMATIONS_PER_ASSET 64
 
 #define AssetId uint32_t

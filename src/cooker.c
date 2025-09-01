@@ -350,7 +350,8 @@ int cook_fbx()
 	ufbx_pose *bind_pose = root_bone->bind_pose;
 	assert(bind_pose != NULL);
 	// get all bones
-	ufbx_node *bones[MAX_BONES_PER_MESH] = {root_bone};
+	ufbx_node **bones = (ufbx_node*)calloc(MAX_BONES_PER_MESH, sizeof(ufbx_node*));
+	bones[0] = root_bone;
 	uint32_t bones_length = 1;
 	for (size_t i = root_bone->typed_id + 1; i < scene->nodes.count; i++) {
 		ufbx_node *node = scene->nodes.data[i];
@@ -367,7 +368,7 @@ int cook_fbx()
 	fprintf(stderr, "Imported %u bones\n", bones_length);
 	fprintf(stderr, "Root bone: %s\n", root_bone->name.data);
 	// get bone parent indices
-	uint8_t bones_parent[MAX_BONES_PER_MESH] = {0};
+	uint8_t *bones_parent = calloc(MAX_BONES_PER_MESH, sizeof(uint8_t));
 	for (uint32_t ibone = 1; ibone < bones_length; ++ibone) {
 		uint32_t iparent = 0;
 		for (; iparent < ibone; ++iparent) {
@@ -379,7 +380,7 @@ int cook_fbx()
 		bones_parent[ibone] = iparent;
 	}
 	// Import animations
-	struct Animation animations[MAX_ANIMATIONS_PER_ASSET];
+	struct Animation *animations = calloc(MAX_ANIMATIONS_PER_ASSET, sizeof(struct Animation));
 	assert(scene->anim_stacks.count < MAX_ANIMATIONS_PER_ASSET);
 	for (size_t istack = 0; istack < scene->anim_stacks.count; istack++) {
 		ufbx_anim_stack *stack = scene->anim_stacks.data[istack];
@@ -388,9 +389,9 @@ int cook_fbx()
 		opts.key_reduction_enabled = false;
 		ufbx_baked_anim *bake = ufbx_bake_anim(scene, anim, &opts, NULL);
 		assert(bake);
-		fprintf(stderr, "Importing anim: %s (%zu frames)\n", stack->name.data, bake->nodes.count);
 		animations[istack].id = ufbx_string_to_id(stack->name);
 		animations[istack].skeleton_id = skeleton_id;
+		fprintf(stderr, "Importing anim %u: %s (%zu frames)\n", animations[istack].id, stack->name.data, bake->nodes.count);
 		for (size_t inode = 0; inode < bake->nodes.count; inode++) {
 			ufbx_baked_node *baked_node = &bake->nodes.data[inode];
 			ufbx_node *node = scene->nodes.data[baked_node->typed_id];
@@ -459,14 +460,16 @@ int cook_fbx()
 			struct FloatList scales = out_track->scales;
 			ufbx_baked_vec3_list baked_scales = baked_node->scale_keys;
 			for (uint32_t iscale = 0; iscale < baked_node->scale_keys.count; ++iscale) {
-				bool is_uniform = (fabs(baked_scales.data[iscale].value.x - baked_scales.data[iscale].value.y) < 0.001f);
-				is_uniform &= (fabs(baked_scales.data[iscale].value.y - baked_scales.data[iscale].value.z) < 0.001f);
+				bool is_uniform = (fabs(baked_scales.data[iscale].value.x - baked_scales.data[iscale].value.y) < 0.2f);
+				is_uniform &= (fabs(baked_scales.data[iscale].value.y - baked_scales.data[iscale].value.z) < 0.2f);
+				float sum = baked_scales.data[iscale].value.x + baked_scales.data[iscale].value.y + baked_scales.data[iscale].value.z;
+				float average = sum / 3.0f;
 				if (!is_uniform) {
 					fprintf(stderr, "non uniform scale found in anim %s bone %s\n", stack->name.data, node->name.data);
 					assert(!"non uniform scale!");
 				}
 						 
-				scales.data[iscale] = baked_scales.data[iscale].value.x;
+				scales.data[iscale] = average;
 			}
 		}
 	}
@@ -474,6 +477,10 @@ int cook_fbx()
 	// Import the character mesh
 	assert(mesh_node->mesh->skin_deformers.count == 1);
 	ufbx_skin_deformer *skin = mesh_node->mesh->skin_deformers.data[0];
+	for (uint32_t icluster = 0; icluster < skin->clusters.count; ++icluster) {
+		ufbx_skin_cluster *cluster = skin->clusters.data[icluster];
+		fprintf(stderr, "Found cluster %s\n", cluster->bone_node->name.data);
+	}
 	assert(skin->clusters.count <= MAX_BONES_PER_MESH);
 	uint32_t clusters_bone_identifier[MAX_BONES_PER_MESH] = {0};
 	ufbx_matrix clusters_geometry_to_bone[MAX_BONES_PER_MESH] = {0};
@@ -527,7 +534,7 @@ int cook_fbx()
 			uint32_t vertex_bones_normalized_weight[MAX_WEIGHTS] = {0};
 			uint32_t vertex = mesh_node->mesh->vertex_indices.data[index];
 			ufbx_skin_vertex skin_vertex = skin->vertices.data[vertex];
-			assert(skin_vertex.num_weights < MAX_WEIGHTS);
+			assert(skin_vertex.num_weights <= MAX_WEIGHTS);
 			float total_weight = 0.0f;
 			for (size_t i = 0; i < skin_vertex.num_weights; i++) {
 				ufbx_skin_weight skin_weight = skin->weights.data[skin_vertex.weight_begin + i];

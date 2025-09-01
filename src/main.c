@@ -62,7 +62,7 @@ static void load_assets(struct AssetLibrary *assets, struct Renderer *renderer)
 {
 	Serializer s = {0};
 
-	s = serialize_begin_read_file("cooking/1812931262");
+	s = serialize_begin_read_file("cooking/3227071964");
 	SkeletalMeshWithAnimationsAsset skeletal_mesh_with_animations;
 	Serialize_SkeletalMeshWithAnimationsAsset(&s, &skeletal_mesh_with_animations);
 	serialize_end_read_file(&s);

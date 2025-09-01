@@ -215,11 +215,11 @@ void battle_state_new_round(struct BattleContext *ctx)
 
 	// Reset animation
 	state->p1_entity.anim_skeleton.anim_skeleton_id = c1->anim_skeleton_id;
-	state->p1_entity.animation.animation_id = 3108588149; // idle
+	state->p1_entity.animation.animation_id = 491475036; // idle
 	state->p1_entity.animation.frame = 0;
 
 	state->p2_entity.anim_skeleton.anim_skeleton_id = c2->anim_skeleton_id;
-	state->p2_entity.animation.animation_id = 3108588149; // idle
+	state->p2_entity.animation.animation_id = 491475036; // idle
 	state->p2_entity.animation.frame = 0;
 
 	// Reset camera
@@ -361,35 +361,38 @@ static void _evaluate_hit_conditions(struct PlayerEntity *p1, struct PlayerEntit
 			float hit_radius = c1->hitboxes_radius[ihitbox];
 			float hit_height = c1->hitboxes_height[ihitbox];
 
-			for (uint32_t ihurtbox = 0; ihurtbox < c2->hurtboxes_length; ++ihurtbox){
-				Float3 hurt_center = np2->hurtboxes_position[ihurtbox];
-				float hurt_radius = c2->hurtboxes_radius[ihurtbox];
-				float hurt_height = c2->hurtboxes_height[ihurtbox];
+			if (hit_radius > 0.0f) {
+				for (uint32_t ihurtbox = 0; ihurtbox < c2->hurtboxes_length; ++ihurtbox){
+					Float3 hurt_center = np2->hurtboxes_position[ihurtbox];
+					float hurt_radius = c2->hurtboxes_radius[ihurtbox];
+					float hurt_height = c2->hurtboxes_height[ihurtbox];
 
-				float x_dist = hit_center.x - hurt_center.x;
-				float y_dist = hit_center.y - hurt_center.y;
-				float hor_distance = sqrtf(x_dist*x_dist + y_dist*y_dist);
-				float vert_distance = fabs(hit_center.z - hurt_center.z);
+					float x_dist = hit_center.x - hurt_center.x;
+					float y_dist = hit_center.y - hurt_center.y;
+					float hor_distance = sqrtf(x_dist*x_dist + y_dist*y_dist);
+					float vert_distance = fabs(hit_center.z - hurt_center.z);
 
-				bool inside_vert = vert_distance <= ((hit_height + hurt_height) / 2.0f);
-				bool inside_hor = hor_distance <= (hit_radius + hurt_radius);
-				bool inside = inside_vert & inside_hor;
-				if (inside) {
-					printf("HIIIIIIIIIIIIIIIIIIT hurtbox[%u] distance: %fx%f\n", ihurtbox, hor_distance, vert_distance);
+					bool is_valid = hurt_radius > 0.0f;
+					bool inside_vert = vert_distance <= ((hit_height + hurt_height) / 2.0f);
+					bool inside_hor = hor_distance <= (hit_radius + hurt_radius);
+					bool inside = is_valid & inside_vert & inside_hor;
+					if (inside) {
+						printf("HIIIIIIIIIIIIIIIIIIT hurtbox[%u] distance: %fx%f\n", ihurtbox, hor_distance, vert_distance);
 
-					struct tek_HitCondition hit_condition = current_move->hit_conditions[0];
-					struct tek_HitReactions *hit_reaction = tek_character_find_hit_reaction(c1, hit_condition.reactions_id);
+						struct tek_HitCondition hit_condition = current_move->hit_conditions[0];
+						struct tek_HitReactions *hit_reaction = tek_character_find_hit_reaction(c1, hit_condition.reactions_id);
 
 
-					bool is_blocking = true;
-					if (is_blocking) {
-						p2->tek.requested_move_id = hit_reaction->standing_block_move;
+						bool is_blocking = true;
+						if (is_blocking) {
+							p2->tek.requested_move_id = hit_reaction->standing_block_move;
 
-						p2->tek.pushback_remaining_frames = 3;
-						p2->tek.pushback_strength = 0.1f;
-					} else {
-						p2->tek.hp -= hit_condition.damage;
-						p2->tek.requested_move_id = hit_reaction->standing_move;
+							p2->tek.pushback_remaining_frames = 3;
+							p2->tek.pushback_strength = 0.1f;
+						} else {
+							p2->tek.hp -= hit_condition.damage;
+							p2->tek.requested_move_id = hit_reaction->standing_move;
+						}
 					}
 				}
 			}
