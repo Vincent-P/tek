@@ -7,9 +7,7 @@
 #include <math.h>
 #include <dcimgui.h>
 #include <tracy/tracy/TracyC.h>
-
-// #define CLAY_IMPLEMENTATION
-// #include <clay.h>
+#include <clay.h>
 
 #define ARRAY_LENGTH(x) (sizeof(x)/sizeof(*x))
 
@@ -23,6 +21,8 @@
 #include "debugdraw.h"
 #include "file.h"
 #include "watcher.h"
+#include "clay_integration.h"
+#include "drawer2d.h"
 
 #include <windows.h>
 
@@ -32,6 +32,7 @@ struct Application
 	struct Inputs inputs;
 	struct AssetLibrary assets;
 	struct Game game;
+	struct Drawer2D *drawer;
 	Renderer *renderer;
 
 	uint64_t current_time;
@@ -48,6 +49,7 @@ static void load_assets_materials(struct AssetLibrary *assets, struct Renderer *
 		"cooking/2455425701",
 		"cooking/295627051",
 		"cooking/4245599685",
+		"cooking/3339345721"
 	};
 	for (uint32_t i = 0; i < ARRAY_LENGTH(materials); ++i) {
 		struct MaterialAsset material = {0};
@@ -91,32 +93,18 @@ static void postload_assets(struct AssetLibrary *assets, struct Renderer *render
 	}
 }
 
-#if 0
-static void HandleClayErrors(Clay_ErrorData errorData)
-{
-	// See the Clay_ErrorData struct for more information
-	printf("%s", errorData.errorText.chars);
-	switch(errorData.errorType) {
-		// etc
-	}
-}
-#endif
-
 static void ImGui_ImplSDL3_PlatformSetImeData(ImGuiContext*, ImGuiViewport* viewport, ImGuiPlatformImeData* data);
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
 	struct Application *application = calloc(1, sizeof(struct Application));
 	*appstate = application;
 
-	// window init
 	inputs_init(&application->inputs);
 	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD);
 	application->window = SDL_CreateWindow("tek", 1920, 1080, SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
 
-	// load all assets
 	load_assets(&application->assets, application->renderer);
 	
-	// renderer and imgui init
 	ImGui_CreateContext(NULL);
 	ImGuiPlatformIO* platform_io = ImGui_GetPlatformIO();
 	platform_io->Renderer_RenderState = application;
@@ -126,24 +114,18 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 	// platform_io->Platform_OpenInShellFn = [](ImGuiContext*, const char* url) { return SDL_OpenURL(url) == 0; };
 	ImGuiViewport* viewport = ImGui_GetMainViewport();
 	viewport->PlatformHandle = (void*)(intptr_t)SDL_GetWindowID(application->window);
+
+	application->drawer = calloc(1, sizeof(struct Drawer2D));
+	
 	application->renderer = calloc(1, renderer_get_size());
 	renderer_init(application->renderer, &application->assets, application->window);
 
-	#if 0
-	// clay init
-	// Note: malloc is only used here as an example, any allocator that provides
-	// a pointer to addressable memory of at least totalMemorySize will work
-	uint64_t totalMemorySize = Clay_MinMemorySize();
-	Clay_Arena arena = Clay_CreateArenaWithCapacityAndMemory(totalMemorySize, malloc(totalMemorySize));
-	// Note: screenWidth and screenHeight will need to come from your environment, Clay doesn't handle window related tasks
 	int display_w, display_h;
 	SDL_GetWindowSizeInPixels(application->window, &display_w, &display_h);
-	Clay_Initialize(arena, (Clay_Dimensions) { display_w, display_h }, (Clay_ErrorHandler) { HandleClayErrors });
-#endif
+	clay_integration_init(display_w, display_h);
 
 	postload_assets(&application->assets, application->renderer);
 
-	// game init
 	application->game.assets = &application->assets;
 	application->game.renderer = application->renderer;
 	application->game.inputs = &application->inputs;
@@ -341,35 +323,6 @@ static void ImGui_ImplSDL3_PlatformSetImeData(ImGuiContext* ctx, ImGuiViewport* 
 		SDL_StartTextInput(window);
 }
 
-#if 0
-bool clay_process_event(struct Application *application, SDL_Event* event)
-{
-	ImGuiIO* io = ImGui_GetIO();
-
-	switch (event->type) {
-	case SDL_EVENT_MOUSE_MOTION:
-		{
-			float mouse_pos_x = (float)event->motion.x;
-			float mouse_pos_y = (float)event->motion.y;
-		        // Optional: Update internal pointer position for handling mouseover / click / touch events - needed for scrolling & debug tools
-			Clay_SetPointerState((Clay_Vector2) { mouse_pos_x, mouse_pos_y }, application->inputs.is_mouse_down);
-			return true;
-		}
-	case SDL_EVENT_MOUSE_WHEEL:
-		{
-			//IMGUI_DEBUG_LOG("wheel %.2f %.2f, precise %.2f %.2f\n", (float)event->wheel.x, (float)event->wheel.y, event->wheel.preciseX, event->wheel.preciseY);
-			float wheel_x = -event->wheel.x;
-			float wheel_y = event->wheel.y;
-
-			// Optional: Update internal pointer position for handling mouseover / click / touch events - needed for scrolling and debug tools
-			Clay_UpdateScrollContainers(true, (Clay_Vector2) { wheel_x, wheel_y }, 0.16f);
-			return true;
-		}
-	}
-	return false;
-}
-#endif
-
 bool imgui_process_event(struct Application *application, SDL_Event* event)
 {
 	ImGuiIO* io = ImGui_GetIO();
@@ -439,9 +392,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 
 	imgui_process_event(application, event);
 	inputs_process_event(event, &application->inputs);
-	#if 0
-	clay_process_event(application, event);
-	#endif
+	clay_integration_process_event(application, event);
 	
 	TracyCZoneEnd(f);	
 	return SDL_APP_CONTINUE;
@@ -479,13 +430,41 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 	bool opened = true;
 	ImGui_ShowDemoWindow(&opened);
 
-	#if 0
+	drawer2d_reset_frame(application->drawer);
+	
 	// Setup clay size
         // Optional: Update internal layout dimensions to support resizing
         Clay_SetLayoutDimensions((Clay_Dimensions) { display_w, display_h });
         // All clay layouts are declared between Clay_BeginLayout and Clay_EndLayout
         Clay_BeginLayout();
-	#endif
+
+	// test UI
+	
+	const Clay_Color COLOR_LIGHT = (Clay_Color) {224, 215, 210, 255};
+	const Clay_Color COLOR_RED = (Clay_Color) {168, 66, 28, 255};
+	const Clay_Color COLOR_ORANGE = (Clay_Color) {225, 138, 50, 255};
+	uint32_t profilePicture = 0;
+	// An example of laying out a UI with a fixed width sidebar and flexible width main content
+	CLAY({ .id = CLAY_ID("OuterContainer"), .layout = { .sizing = {CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0)}, .padding = CLAY_PADDING_ALL(16), .childGap = 16 }, .backgroundColor = {0,0,0,0} }) {
+		
+		
+		CLAY({
+				.id = CLAY_ID("SideBar"),
+				.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = { .width = CLAY_SIZING_FIXED(300), .height = CLAY_SIZING_GROW(0) }, .padding = CLAY_PADDING_ALL(16), .childGap = 16 },
+				.backgroundColor = COLOR_LIGHT
+			}) {
+
+			CLAY({ .id = CLAY_ID("ProfilePictureOuter"), .layout = { .layoutDirection = CLAY_LEFT_TO_RIGHT, .sizing = { .width = CLAY_SIZING_GROW(0) }, .padding = CLAY_PADDING_ALL(16), .childGap = 16, .childAlignment = { .y = CLAY_ALIGN_Y_CENTER } }, .backgroundColor = COLOR_RED }) {
+				
+				CLAY({ .id = CLAY_ID("ProfilePicture"), .layout = { .sizing = { .width = CLAY_SIZING_FIXED(60), .height = CLAY_SIZING_FIXED(60) }}, .image = { .imageData = &profilePicture } }) {}
+				CLAY_TEXT(CLAY_STRING("Clay - UI Library"), CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {255, 255, 255, 255} }));
+				
+			}
+
+		}
+		
+		CLAY({ .id = CLAY_ID("MainContent"), .layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0) } }, .backgroundColor = {0,0,0,16} }) {}
+        }
 
 	//
 
@@ -501,7 +480,15 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 	game_update(&application->game, &update_ctx);
 	
 	game_render(&application->game);
+	
+        Clay_RenderCommandArray clay_render_commands = Clay_EndLayout();
+	clay_integration_render(application->drawer, &clay_render_commands);
+	application->drawer->viewport_width = display_w;
+	application->drawer->viewport_height = display_h;
+	renderer_set_drawer2d(application->renderer, application->drawer);
+	
 	renderer_set_time(application->renderer, ((float)application->current_time) / 1000.0f);
+	
 	renderer_render(application->renderer);
 	
 	application->f += 1;
@@ -525,5 +512,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 #include "tek.c"
 #include <ufbx.c>
 #include "watcher.c"
+#include "clay_integration.c"
+#include "drawer2d.c"
 
 #include "editor.c"

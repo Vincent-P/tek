@@ -25,7 +25,7 @@ const char *source_dir;
 const char *cooking_dir;
 
 char* shader_includes_str[256];
-char* shader_includes_str_length[256];
+int shader_includes_str_length[256];
 uint32_t shader_includes_length;
 
 #define COOKER_JSON_PARSE_FLAGS json_parse_flags_allow_c_style_comments | json_parse_flags_allow_trailing_comma
@@ -350,7 +350,7 @@ int cook_fbx()
 	ufbx_pose *bind_pose = root_bone->bind_pose;
 	assert(bind_pose != NULL);
 	// get all bones
-	ufbx_node **bones = (ufbx_node*)calloc(MAX_BONES_PER_MESH, sizeof(ufbx_node*));
+	ufbx_node **bones = (ufbx_node**)calloc(MAX_BONES_PER_MESH, sizeof(ufbx_node*));
 	bones[0] = root_bone;
 	uint32_t bones_length = 1;
 	for (size_t i = root_bone->typed_id + 1; i < scene->nodes.count; i++) {

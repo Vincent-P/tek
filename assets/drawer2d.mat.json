@@ -1,0 +1,5 @@
+{
+    "vertex_shader": "drawer2d.vert",
+    "pixel_shader": "drawer2d.frag",
+    "render_pass": "ui",
+}

@@ -12,7 +12,7 @@
 
 // -- Device
 #define FRAME_COUNT 2
-// #define ENABLE_VALIDATION
+#define ENABLE_VALIDATION
 #define MAIN_MEMORY_SIZE (128 << 20)
 #define RT_MEMORY_SIZE (1 << 30)
 #define MEMORY_ALIGNMENT (256 << 10) // 64K not enough for depth rt ?? -> 256K needed for MSAA
@@ -539,7 +539,7 @@ static void create_swapchain(VulkanDevice *device, void *hwnd)
 
 enum ImageFormat vulkan_get_surface_format(VulkanDevice *device)
 {
-	return device->swapchain_format.format;
+	return (enum ImageFormat)device->swapchain_format.format;
 }
 
 // -- Graphics Programs
@@ -1191,7 +1191,7 @@ static void begin_render_pass_internal(VulkanDevice *device, VulkanFrame *frame,
 	pass->color_rts_length = pass_info.color_rts_length;
 	
 	bool has_depth = pass_info.depth_rt < ARRAY_LENGTH(device->rts) && device->rts[pass_info.depth_rt].image_view != VK_NULL_HANDLE;
-	has_depth = has_depth && device->rts[pass_info.depth_rt].format == PG_FORMAT_D32_SFLOAT;
+	has_depth = has_depth && device->rts[pass_info.depth_rt].format == (VkFormat)PG_FORMAT_D32_SFLOAT;
 	if (has_depth) {
 		VulkanRenderTarget *rt = device->rts + pass_info.depth_rt;
 		pass->depth_rt = rt;

@@ -1,5 +1,6 @@
 #include "renderer.h"
 #include "file.h"
+#include "drawer2d.h"
 
 #define RENDERER_SKELETAL_MESH_CAPACITY (8)
 #define RENDERER_MESH_VERTEX_CAPACITY (64 << 10)
@@ -55,6 +56,10 @@ struct Renderer
 	uint32_t depth_rt;
 	uint32_t output_rt;
 	uint32_t final_rt;
+	// drawer2d
+	uint32_t drawer2d_pso;
+	uint32_t drawer2d_ibuffer;
+	uint32_t drawer2d_vbuffer;
 	// imgui
 	uint32_t imgui_pso;
 	uint32_t imgui_fontatlas;
@@ -90,6 +95,7 @@ struct Renderer
 	struct Camera main_camera;
 	struct SkeletalMeshInstanceData skeletal_mesh_instances[2];
 	uint32_t skeletal_mesh_instances_length;
+	struct Drawer2D *drawer;
 };
 
 uint32_t renderer_get_size(void)
@@ -137,6 +143,12 @@ void renderer_init(Renderer *renderer, struct AssetLibrary *assets, SDL_Window *
 			  surface_format,
 			  1);
 
+	// Create drawer2d resources
+	renderer->drawer2d_ibuffer = 7;
+	renderer->drawer2d_vbuffer = 8;
+	new_index_buffer(renderer->device, renderer->drawer2d_ibuffer, DRAWER_2D_INDEX_CAPACITY * sizeof(uint32_t));
+	new_storage_buffer(renderer->device, renderer->drawer2d_vbuffer, DRAWER_2D_VERTEX_CAPACITY * sizeof(struct Vertex2D));
+
 	// Create imgui resources
 	renderer->imgui_fontatlas = 0;
 	renderer->imgui_ibuffer = 0;
@@ -182,6 +194,7 @@ void renderer_init(Renderer *renderer, struct AssetLibrary *assets, SDL_Window *
 
 void renderer_init_materials(Renderer *renderer, struct AssetLibrary *assets)
 {
+	struct MaterialAsset const *drawer2d_material = asset_library_get_material(assets, 3339345721);
 	struct MaterialAsset const *imgui_material = asset_library_get_material(assets, 3661877039);
 	struct MaterialAsset const *dd_material = asset_library_get_material(assets, 3200094153);
 	struct MaterialAsset const *mesh_material = asset_library_get_material(assets, 2455425701);
@@ -193,6 +206,9 @@ void renderer_init_materials(Renderer *renderer, struct AssetLibrary *assets)
 	
 	renderer->imgui_pso = 0;
 	new_graphics_program(renderer->device, renderer->imgui_pso, *imgui_material);
+	
+	renderer->drawer2d_pso = 7;
+	new_graphics_program(renderer->device, renderer->drawer2d_pso, *drawer2d_material);
 	
 	renderer->dd_pso = 1;
 	renderer->dd_line_pso = 2;
@@ -215,10 +231,6 @@ void renderer_init_materials(Renderer *renderer, struct AssetLibrary *assets)
 	new_graphics_program(renderer->device, renderer->compositing_pso, *compositing_material);
 }
 
-void renderer_set_time(Renderer *renderer, float t)
-{
-	renderer->time = t;
-}
 
 void renderer_create_render_skeletal_mesh(Renderer *renderer, struct SkeletalMeshAsset *asset, uint32_t handle)
 {
@@ -375,6 +387,54 @@ static void renderer_debug_draw_pass(Renderer *renderer, VulkanFrame *frame, Vul
 	vulkan_draw(renderer->device, pass, lines_draw);
 }
 
+static void renderer_drawer2d_pass(Renderer *renderer, VulkanFrame *frame, VulkanRenderPass *pass)
+{
+	struct Drawer2D *drawer = renderer->drawer;
+	float display_width = drawer->viewport_width;
+	float display_height = drawer->viewport_height;
+	
+	// Upload vertices
+	uint32_t vbuffer_size = buffer_get_size(renderer->device, renderer->drawer2d_vbuffer);
+	uint32_t ibuffer_size = buffer_get_size(renderer->device, renderer->drawer2d_ibuffer);
+	assert(vbuffer_size == sizeof(drawer->current_vertices));
+	assert(ibuffer_size == sizeof(drawer->current_indices));
+
+	struct Vertex2D *vertices_gpu = buffer_get_mapped_pointer(renderer->device, renderer->drawer2d_vbuffer);
+	uint32_t *indices_gpu = buffer_get_mapped_pointer(renderer->device, renderer->drawer2d_ibuffer);
+
+	memcpy(vertices_gpu, drawer->current_vertices, sizeof(drawer->current_vertices));
+	memcpy(indices_gpu, drawer->current_indices, sizeof(drawer->current_indices));
+
+	// Render
+	struct Drawer2DPushConstants
+	{
+		float scale[2];
+		float translation[2];
+		uint64_t vbuffer;
+	} constants;
+	constants.scale[0] = 2.0f / display_width;
+	constants.scale[1] = 2.0f / display_height;
+	constants.translation[0] = -1.0f;
+	constants.translation[1] = -1.0f;
+	constants.vbuffer = buffer_get_gpu_address(renderer->device, renderer->drawer2d_vbuffer);
+	
+	vulkan_push_constants(renderer->device, pass, &constants, sizeof(constants));
+	vulkan_bind_index_buffer(renderer->device, pass, renderer->drawer2d_ibuffer);
+	vulkan_bind_graphics_pso(renderer->device, pass, renderer->drawer2d_pso);
+	vulkan_insert_debug_label(renderer->device, pass, "drawer2d");
+
+	// Apply scissor/clipping rectangle
+	struct VulkanScissor scissor = {};
+	scissor.x = 0;
+	scissor.y = 0;
+	scissor.w = display_width;
+	scissor.h = display_height;
+	vulkan_set_scissor(renderer->device, pass, scissor);
+
+	struct VulkanDraw draw = {drawer->current_indices_length, 1, 0, 0, 0};
+	vulkan_draw(renderer->device, pass, draw);
+}
+
 static void renderer_imgui_pass(Renderer *renderer, VulkanFrame *frame, VulkanRenderPass *pass)
 {
 	ImGui_Render();
@@ -477,6 +537,17 @@ void renderer_set_main_camera(Renderer *renderer, struct Camera camera)
 {
 	renderer->main_camera = camera;
 }
+
+void renderer_set_time(Renderer *renderer, float t)
+{
+	renderer->time = t;
+}
+
+void renderer_set_drawer2d(Renderer *renderer, struct Drawer2D *drawer)
+{
+	renderer->drawer = drawer;
+}
+
 
 void renderer_render(Renderer *renderer)
 {
@@ -591,6 +662,7 @@ void renderer_render(Renderer *renderer)
 	
 	struct VulkanBeginPassInfo ui_pass_info = (struct VulkanBeginPassInfo){RENDER_PASSES_UI, {renderer->output_rt}, 1};
 	begin_render_pass(renderer->device, &frame, &pass, ui_pass_info);
+	renderer_drawer2d_pass(renderer, &frame, &pass);
 	renderer_imgui_pass(renderer, &frame, &pass);
 	end_render_pass(renderer->device, &pass);
 	

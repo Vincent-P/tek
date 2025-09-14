@@ -60,5 +60,6 @@ void renderer_register_skeletal_mesh_instance(Renderer *renderer, struct Skeleta
 void renderer_clear_skeletal_mesh_instances(Renderer *renderer);
 // runtime
 void renderer_set_main_camera(Renderer *renderer, struct Camera camera);
-void renderer_render(Renderer *renderer);
 void renderer_set_time(Renderer *renderer, float t);
+void renderer_set_drawer2d(Renderer *renderer, struct Drawer2D *drawer);
+void renderer_render(Renderer *renderer);
