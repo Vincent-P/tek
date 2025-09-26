@@ -1,5 +1,13 @@
 #include "drawer2d.h"
 
+void drawer2d_init(struct Drawer2D *drawer)
+{
+	uint32_t atlas_size = atlas2d_get_size(1024, 256);
+	drawer->atlas = (struct Atlas2D*)calloc(1, atlas_size);
+
+	atlas2d_init(drawer->atlas, 1024, 256);
+}
+
 void drawer2d_reset_frame(struct Drawer2D *drawer)
 {
 	drawer->current_vertices_length = 0;

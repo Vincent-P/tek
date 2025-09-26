@@ -39,6 +39,7 @@ struct Application
 	uint64_t f;
 };
 
+
 static void load_assets_materials(struct AssetLibrary *assets, struct Renderer *renderer)
 {
 	Serializer s = {0};
@@ -116,6 +117,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 	viewport->PlatformHandle = (void*)(intptr_t)SDL_GetWindowID(application->window);
 
 	application->drawer = calloc(1, sizeof(struct Drawer2D));
+	drawer2d_init(application->drawer);
 	
 	application->renderer = calloc(1, renderer_get_size());
 	renderer_init(application->renderer, &application->assets, application->window);
@@ -514,5 +516,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 #include "watcher.c"
 #include "clay_integration.c"
 #include "drawer2d.c"
+#include "atlas2d.c"
 
 #include "editor.c"
