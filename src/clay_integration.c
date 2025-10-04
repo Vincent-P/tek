@@ -4,12 +4,22 @@
 #include "drawer2d.h"
 
 
-Clay_Dimensions clay_integration_measure_text(Clay_StringSlice text, Clay_TextElementConfig *config, void *userData) {
+Clay_Dimensions clay_integration_measure_text(Clay_StringSlice text, Clay_TextElementConfig *config, void *user_data) {
+	struct Drawer2D *drawer = user_data;
+	
 	// Clay_TextElementConfig contains members such as fontId, fontSize, letterSpacing etc
 	// Note: Clay_String->chars is not guaranteed to be null terminated
+
+	struct DrawerTextInfo text_options = {0};
+	text_options.size_px = config->fontSize;
+		
+	float bounds_x = 0.0f;
+	float bounds_y = 0.0f;
+	drawer2d_text_bounds(drawer, text.chars, text.length, text_options, &bounds_x, &bounds_y);
+
 	return (Clay_Dimensions) {
-		.width = text.length * config->fontSize, // <- this will only work for monospace fonts, see the renderers/ directory for more advanced text measurement
-		.height = config->fontSize
+		.width = bounds_x,
+		.height = bounds_y,
 	};
 }
 
@@ -22,7 +32,7 @@ void clay_integration_error_callback(Clay_ErrorData errorData)
 	}
 }
 
-void clay_integration_init(int display_width, int display_height)
+void clay_integration_init(struct Drawer2D *drawer, int display_width, int display_height)
 {
 	// clay init
 	// Note: malloc is only used here as an example, any allocator that provides
@@ -31,8 +41,9 @@ void clay_integration_init(int display_width, int display_height)
 	Clay_Arena arena = Clay_CreateArenaWithCapacityAndMemory(totalMemorySize, malloc(totalMemorySize));
 	// Note: screenWidth and screenHeight will need to come from your environment, Clay doesn't handle window related tasks
 	Clay_Initialize(arena, (Clay_Dimensions) { display_width, display_height }, (Clay_ErrorHandler) { clay_integration_error_callback });
-	Clay_SetMeasureTextFunction(clay_integration_measure_text, NULL);
-	// Clay_SetDebugModeEnabled(true);
+	Clay_SetMeasureTextFunction(clay_integration_measure_text, drawer);
+
+	Clay_SetDebugModeEnabled(true);
 }
 
 bool clay_integration_process_event(struct Application *application, SDL_Event* event)
@@ -40,6 +51,8 @@ bool clay_integration_process_event(struct Application *application, SDL_Event* 
 	ImGuiIO* io = ImGui_GetIO();
 
 	switch (event->type) {
+	case SDL_EVENT_MOUSE_BUTTON_DOWN:
+	case SDL_EVENT_MOUSE_BUTTON_UP:
 	case SDL_EVENT_MOUSE_MOTION:
 		{
 			float mouse_pos_x = (float)event->motion.x;
@@ -93,16 +106,31 @@ void clay_integration_render(struct Drawer2D *drawer, Clay_RenderCommandArray *c
 		} break;
 		case CLAY_RENDER_COMMAND_TYPE_TEXT: {
 			Clay_TextRenderData *config = &rcmd->renderData.text;
+			Clay_StringSlice text = config->stringContents;
 
-			uint32_t color = clay_color_to_u32(config->textColor);
-			drawer2d_draw_rect(drawer, bounding_box.y, bounding_box.x, bounding_box.width, bounding_box.height, color);
+			struct DrawerTextInfo text_options = {0};
+			text_options.size_px = config->fontSize;
+			text_options.color = clay_color_to_u32(config->textColor);
+			drawer2d_draw_text(drawer, text.chars, text.length, bounding_box.y, bounding_box.x, bounding_box.width, bounding_box.height, text_options);
 
-			// TTF_Font *font = data->fonts[config->fontId];
-			// TTF_SetFontSize(font, config->fontSize);
-			// TTF_Text *text = TTF_CreateText(data->textEngine, font, config->stringContents.chars, config->stringContents.length);
-			// TTF_SetTextColor(text, config->textColor.r, config->textColor.g, config->textColor.b, config->textColor.a);
-			// TTF_DrawRendererText(text, rect.x, rect.y);
-			// TTF_DestroyText(text);
+			/**
+			fonsSetFont(_sclay.fonts, fonts[config->fontId]);
+			uint32_t color = sfons_rgba(
+						    config->textColor.r,
+						    config->textColor.g,
+						    config->textColor.b,
+						    config->textColor.a);
+			fonsSetColor(_sclay.fonts, color);
+			fonsSetSpacing(_sclay.fonts, config->letterSpacing * _sclay.dpi_scale);
+			fonsSetAlign(_sclay.fonts, FONS_ALIGN_LEFT | FONS_ALIGN_TOP);
+			fonsSetSize(_sclay.fonts, config->fontSize * _sclay.dpi_scale);
+			sgl_matrix_mode_modelview();
+			sgl_push_matrix();
+			sgl_scale(1.0f/_sclay.dpi_scale, 1.0f/_sclay.dpi_scale, 1.0f);
+			fonsDrawText(_sclay.fonts, bbox.x*_sclay.dpi_scale, bbox.y*_sclay.dpi_scale,
+				     text.chars, text.chars + text.length);
+			sgl_pop_matrix();
+			**/
 		} break;
 		case CLAY_RENDER_COMMAND_TYPE_BORDER: {
 			Clay_BorderRenderData *config = &rcmd->renderData.border;

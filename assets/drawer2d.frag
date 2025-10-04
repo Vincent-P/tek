@@ -1,10 +1,13 @@
 #version 450
 #include "bindless.h"
 
+#define GLYPH_CACHE_TEXTURE_INPUT 4
+
 layout(location = 0) out vec4 outColor;
 
 layout(location = 0) in struct {
     vec4 color;
+    vec2 uv;
 } g_in;
 
 
@@ -21,7 +24,10 @@ vec3 RemoveSRGBCurve(vec3 sRGB)
 
 void main()
 {
+    float coverage = texture(global_textures[GLYPH_CACHE_TEXTURE_INPUT], g_in.uv).r;
+    
     vec4 color = g_in.color;
+    color.a = color.a * coverage;
     color.rgb = RemoveSRGBCurve(color.rgb);
     color.rgb *= color.a; // apply occlusion
     outColor = color;

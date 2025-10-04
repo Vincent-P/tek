@@ -21,6 +21,7 @@
 #define VK_PROGRAM_CAPACITY 64
 #define VK_RT_CAPACITY 16
 #define VK_TEXTURE_CAPACITY 16
+#define VK_BUFFER_TEXTURE_COPY_CAPACITY 64
 
 typedef struct VulkanGraphicsProgram
 {
@@ -59,8 +60,8 @@ typedef struct VulkanTexture
 	uint32_t memory_offset;
 	uint32_t width;
 	uint32_t height;
-	uint32_t upload_offset; // temp
 	uint32_t upload_size; // temp
+	bool had_first_upload;
 } VulkanTexture;
 
 struct VulkanDevice
@@ -106,6 +107,8 @@ struct VulkanDevice
 	VulkanBuffer buffers[VK_BUFFER_CAPACITY];
 	VulkanRenderTarget rts[VK_RT_CAPACITY];
 	VulkanTexture textures[VK_TEXTURE_CAPACITY];
+	struct VulkanBufferTextureCopy buffer_texture_copies[VK_BUFFER_TEXTURE_COPY_CAPACITY];
+	uint32_t buffer_texture_copies_length;
 	uint32_t upload_buffer; // TEMP
 	uint32_t upload_buffer_offset;
 	VkSampler default_sampler;
@@ -735,6 +738,12 @@ void new_storage_buffer(VulkanDevice *device, uint32_t handle, uint32_t size)
 	new_buffer_internal(device, handle, size, 0, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 }
 
+void new_upload_buffer(VulkanDevice *device, uint32_t handle, uint32_t size)
+{
+	new_buffer_internal(device, handle, size, 0, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+}
+
+
 void* buffer_get_mapped_pointer(VulkanDevice *device, uint32_t handle)
 {
 	assert(handle < ARRAY_LENGTH(device->buffers));
@@ -894,12 +903,20 @@ void new_texture(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t
 	device->textures[handle].height = height;
 
 	// temp: prepare upload
-	device->textures[handle].upload_offset = device->upload_buffer_offset;
-	device->textures[handle].upload_size = size;
+
 	assert(device->upload_buffer_offset + size <= device->buffers[device->upload_buffer].size);
 	memcpy((char*)device->buffers[device->upload_buffer].mapped + device->upload_buffer_offset,
 	       data,
 	       size);
+
+
+	vulkan_copy_buffer_to_texture(device, (struct VulkanBufferTextureCopy){.buffer = device->upload_buffer,
+					       .texture = handle,
+					       .offset = device->upload_buffer_offset,
+					       .width  = width,
+					       .height = height,
+		});
+
 	device->upload_buffer_offset += size;
 }
 
@@ -1014,39 +1031,43 @@ void begin_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t *out_swapcha
 		*out_swapchain_h = device->swapchain_height;
 	}
 
-	// temp: process uploads
-	for (uint32_t itexture = 0; itexture < VK_TEXTURE_CAPACITY; ++itexture) {
-		if (device->textures[itexture].upload_size > 0) {
-			set_image_layout(frame->cmd, device->textures[itexture].image,
-				 VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+	for (uint32_t icopy = 0; icopy < device->buffer_texture_copies_length; ++icopy) {
+		struct VulkanBufferTextureCopy copy = device->buffer_texture_copies[icopy];
+
+		VkImageLayout initial_layout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
+		if (device->textures[copy.texture].had_first_upload == false) {
+			device->textures[copy.texture].had_first_upload = true;
+			initial_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+		}
+		set_image_layout(frame->cmd, device->textures[copy.texture].image,
+				 initial_layout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 				 VK_ACCESS_NONE, VK_PIPELINE_STAGE_NONE,
 				 VK_PIPELINE_STAGE_TRANSFER_BIT);
 
-			VkBufferImageCopy region = {0};
-			region.bufferOffset = device->textures[itexture].upload_offset;
-			region.bufferRowLength = device->textures[itexture].width;
-			region.bufferImageHeight = device->textures[itexture].height;
-			region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-			region.imageSubresource.layerCount = 1;
-			region.imageExtent.width = device->textures[itexture].width;
-			region.imageExtent.height = device->textures[itexture].height;
-			region.imageExtent.depth = 1;
-			vkCmdCopyBufferToImage(frame->cmd,
-					       device->buffers[device->upload_buffer].buffer,
-					       device->textures[itexture].image,
-					       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-					       1,
-					       &region);
+		VkBufferImageCopy region = {0};
+		region.bufferOffset = copy.offset;
+		region.bufferRowLength = copy.width;
+		region.bufferImageHeight = copy.height;
+		region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		region.imageSubresource.layerCount = 1;
+		region.imageOffset.x = copy.x_offset;
+		region.imageOffset.y = copy.y_offset;
+		region.imageExtent.width = copy.width;
+		region.imageExtent.height = copy.height;
+		region.imageExtent.depth = 1;
+		vkCmdCopyBufferToImage(frame->cmd,
+				       device->buffers[copy.buffer].buffer,
+				       device->textures[copy.texture].image,
+				       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				       1,
+				       &region);
 			
-			set_image_layout(frame->cmd, device->textures[itexture].image,
+		set_image_layout(frame->cmd, device->textures[copy.texture].image,
 				 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
 				 VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
 				 VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT);
-		
-			device->textures[itexture].upload_offset = 0;
-			device->textures[itexture].upload_size = 0;
-		}
 	}
+	device->buffer_texture_copies_length = 0;
 	TracyCZoneEnd(f);
 }
 
@@ -1152,6 +1173,14 @@ void end_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t output_rt_hand
 	TracyCZoneEnd(present);
 	
 	TracyCZoneEnd(f);
+}
+
+void vulkan_copy_buffer_to_texture(VulkanDevice *device, struct VulkanBufferTextureCopy copy)
+{
+	assert(device->buffer_texture_copies_length + 1 < VK_BUFFER_TEXTURE_COPY_CAPACITY);
+
+	device->buffer_texture_copies[device->buffer_texture_copies_length] = copy;
+	device->buffer_texture_copies_length += 1;
 }
 
 static void begin_render_pass_internal(VulkanDevice *device, VulkanFrame *frame, VulkanRenderPass *pass, struct VulkanBeginPassInfo pass_info, VkImageLayout color_layout, VkImageLayout depth_layout)

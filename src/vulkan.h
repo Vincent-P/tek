@@ -98,6 +98,18 @@ union VulkanClearColor
 	uint32_t u32[4];
 };
 
+struct VulkanBufferTextureCopy
+{
+	uint32_t buffer;
+	uint32_t texture;
+	uint32_t offset;
+	uint32_t width;
+	uint32_t height;
+	uint32_t x_offset;
+	uint32_t y_offset;
+};
+
+// resources
 uint32_t vulkan_get_device_size(void);
 void vulkan_create_device(VulkanDevice *device, void *hwnd);
 enum ImageFormat vulkan_get_surface_format(VulkanDevice *device);
@@ -109,6 +121,7 @@ void new_compute_program(VulkanDevice *device, uint32_t handle, ComputeProgramAs
 
 void new_index_buffer(VulkanDevice *device, uint32_t handle, uint32_t size);
 void new_storage_buffer(VulkanDevice *device, uint32_t handle, uint32_t size);
+void new_upload_buffer(VulkanDevice *device, uint32_t handle, uint32_t size);
 void* buffer_get_mapped_pointer(VulkanDevice *device, uint32_t handle);
 uint64_t buffer_get_gpu_address(VulkanDevice *device, uint32_t handle);
 uint32_t buffer_get_size(VulkanDevice *device, uint32_t handle);
@@ -118,8 +131,12 @@ void resize_render_target(VulkanDevice *device, uint32_t handle, uint32_t width,
 
 void new_texture(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t height, int format, void *data, uint32_t size);
 
+// runtime
 void begin_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t *out_swapchain_w, uint32_t *out_swapchain_h);
 void end_frame(VulkanDevice *device, VulkanFrame *fame, uint32_t output_rt);
+
+void vulkan_copy_buffer_to_texture(VulkanDevice *device, struct VulkanBufferTextureCopy copy);
+
 void begin_render_pass(VulkanDevice *device, VulkanFrame *frame, VulkanRenderPass *pass, struct VulkanBeginPassInfo pass_info);
 void begin_render_pass_discard(VulkanDevice *device, VulkanFrame *frame, VulkanRenderPass *pass, struct VulkanBeginPassInfo pass_info);
 

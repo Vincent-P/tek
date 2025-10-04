@@ -5,6 +5,7 @@
 #define RENDERER_SKELETAL_MESH_CAPACITY (8)
 #define RENDERER_MESH_VERTEX_CAPACITY (64 << 10)
 #define RENDERER_MESH_INDEX_CAPACITY (64 << 10)
+#define RENDERER_UPLOAD_BUFFER_SIZE (64 << 20)
 
 
 struct DdVert
@@ -90,6 +91,8 @@ struct Renderer
 	float time;
 	uint32_t constant_buffer;
 	uint32_t constant_offset;
+	uint32_t upload_buffer;
+	uint32_t upload_offset;
 	bool is_hdr;
 	// scene
 	struct Camera main_camera;
@@ -185,6 +188,9 @@ void renderer_init(Renderer *renderer, struct AssetLibrary *assets, SDL_Window *
 
 	renderer->constant_buffer = 6;
 	new_storage_buffer(renderer->device, renderer->constant_buffer, (64 << 10));
+	
+	renderer->upload_buffer = 10;
+	new_upload_buffer(renderer->device, renderer->upload_buffer, RENDERER_UPLOAD_BUFFER_SIZE);
 
 	renderer_init_materials(renderer, assets);
 
@@ -278,6 +284,40 @@ void renderer_clear_skeletal_mesh_instances(Renderer *renderer)
 {
 	renderer->skeletal_mesh_instances_length = 0;
 }
+
+void* renderer_temp_allocate_gpu(Renderer *renderer, uint32_t size)
+{
+	if (renderer->upload_offset + size > RENDERER_UPLOAD_BUFFER_SIZE) {
+		return NULL;
+	}
+
+	char *data = buffer_get_mapped_pointer(renderer->device, renderer->upload_buffer);
+	uint32_t offset = renderer->upload_offset;
+	renderer->upload_offset += size;
+	return data + offset;
+}
+
+void renderer_upload_texture(Renderer* renderer, struct RendererTextureUpload upload)
+{
+	char *upload_begin = buffer_get_mapped_pointer(renderer->device, renderer->upload_buffer);
+	char *upload_end = upload_begin + RENDERER_UPLOAD_BUFFER_SIZE;
+	assert(upload_begin <= upload.temp_data && upload.temp_data < upload_end);
+	uint32_t buffer_offset = (uint32_t)((uint64_t)((char*)upload.temp_data - upload_begin));
+
+	assert(upload.width > 0);
+	assert(upload.height > 0);
+	
+	vulkan_copy_buffer_to_texture(renderer->device, (struct VulkanBufferTextureCopy){
+			.buffer = renderer->upload_buffer,
+			.texture = upload.texture,
+			.offset = buffer_offset,
+			.width  = upload.width,
+			.height = upload.height,
+			.x_offset = upload.x_offset,
+			.y_offset = upload.y_offset,
+		});
+}
+
 
 static void renderer_debug_draw_pass(Renderer *renderer, VulkanFrame *frame, VulkanRenderPass *pass)
 {
@@ -569,6 +609,7 @@ void renderer_render(Renderer *renderer)
 		resize_render_target(renderer->device, renderer->final_rt, swapchain_width, swapchain_height);
 	}
 	vulkan_bind_texture(renderer->device, &frame, renderer->imgui_fontatlas, 0);
+	vulkan_bind_texture(renderer->device, &frame, renderer->drawer->glyph_cache_texture, 4);
 
 	VulkanRenderPass pass = {0};
 	union VulkanClearColor clear_color = {0};
@@ -684,6 +725,9 @@ void renderer_render(Renderer *renderer)
 	end_render_pass(renderer->device, &pass);
 
 	end_frame(renderer->device, &frame, renderer->final_rt);
+
+	// reset per-frame state
+	renderer->upload_offset = 0;
 
 	TracyCZoneEnd(f);
 }

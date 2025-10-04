@@ -62,7 +62,9 @@ uint32_t atlas2d_quadtree_index_child(uint32_t level, uint32_t tile, uint32_t ch
 
 uint32_t atlas2d_get_size(uint32_t size, uint32_t min_alloc_size)
 {
-	uint32_t level_count = atlas2d_tzcnt(size) - atlas2d_tzcnt(min_alloc_size);
+	assert(is_pow2(size));
+	assert(is_pow2(min_alloc_size));
+	uint32_t level_count = atlas2d_tzcnt(size) - atlas2d_tzcnt(min_alloc_size) + 1;
 	uint32_t total_tiles_count = 0;
 	for (uint32_t ilevel = 0; ilevel <= level_count; ++ilevel) {
 		uint32_t tiles_count_per_level = 1 << (ilevel * 2);
@@ -73,10 +75,12 @@ uint32_t atlas2d_get_size(uint32_t size, uint32_t min_alloc_size)
 
 void atlas2d_init(struct Atlas2D *atlas, uint32_t size, uint32_t min_alloc_size)
 {
+	assert(is_pow2(size));
+	assert(is_pow2(min_alloc_size));
 	atlas->size = size;
 	atlas->min_alloc_size = min_alloc_size;
 	atlas->tiles = (struct atlas2d_Tile*)(atlas+1);
-	atlas->levels_count = atlas2d_tzcnt(size) - atlas2d_tzcnt(min_alloc_size);
+	atlas->levels_count = atlas2d_tzcnt(size) - atlas2d_tzcnt(min_alloc_size) + 1;
 	uint32_t total_tiles_count = 0;
 	for (uint32_t ilevel = 0; ilevel <= atlas->levels_count; ++ilevel) {
 		uint32_t tiles_count_per_level = 1 << (ilevel * 2);
@@ -156,7 +160,12 @@ uint32_t atlas2d_find_tile(struct Atlas2D *atlas, uint32_t parent_level, uint32_
 
 bool atlas2d_allocate(struct Atlas2D *atlas, uint32_t size, struct atlas2d_Allocation *alloc)
 {
-	uint32_t desired_level = atlas2d_tzcnt(atlas->size) - atlas2d_tzcnt(size);
+	uint32_t size_pow2 = next_pow2(size);
+
+	uint32_t desired_level = atlas2d_tzcnt(atlas->size) - atlas2d_tzcnt(size_pow2);
+	if (desired_level >= atlas->levels_count) {
+		desired_level = atlas->levels_count - 1;
+	}
 
 	uint32_t found_tile_index = atlas2d_find_tile(atlas, 0, 0, desired_level);
 	if (found_tile_index >= atlas->tiles_count) {

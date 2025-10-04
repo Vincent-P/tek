@@ -18,4 +18,4 @@ set tracy_flags=/D TRACY_ENABLE
 set tracy_link_flags=tracy.lib
 set ggpo_link_flags=ggpo.lib Winmm.lib ws2_32.lib
 cl.exe src/main.c %common_flags% %vulkan_flags% /link /out:game.exe %sdl_link_flags% %vulkan_link_flags% %imgui_link_flags% %tracy_link_flags% %ggpo_link_flags% /DEBUG:FULL
-cl.exe src/cooker.c %common_flags% %vulkan_flags% /link /out:cooker.exe %vulkan_link_flags% shaderc_shared.lib /DEBUG:FULL
+:: cl.exe src/cooker.c %common_flags% %vulkan_flags% /link /out:cooker.exe %vulkan_link_flags% shaderc_shared.lib /DEBUG:FULL

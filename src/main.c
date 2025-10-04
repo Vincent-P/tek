@@ -11,6 +11,7 @@
 
 #define ARRAY_LENGTH(x) (sizeof(x)/sizeof(*x))
 
+#include "core.h"
 #include "asset.h"
 #include "vulkan.h"
 #include "renderer.h"
@@ -116,15 +117,15 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 	ImGuiViewport* viewport = ImGui_GetMainViewport();
 	viewport->PlatformHandle = (void*)(intptr_t)SDL_GetWindowID(application->window);
 
-	application->drawer = calloc(1, sizeof(struct Drawer2D));
-	drawer2d_init(application->drawer);
-	
 	application->renderer = calloc(1, renderer_get_size());
 	renderer_init(application->renderer, &application->assets, application->window);
+	
+	application->drawer = calloc(1, sizeof(struct Drawer2D));
+	drawer2d_init(application->drawer, application->renderer);
 
 	int display_w, display_h;
 	SDL_GetWindowSizeInPixels(application->window, &display_w, &display_h);
-	clay_integration_init(display_w, display_h);
+	clay_integration_init(application->drawer, display_w, display_h);
 
 	postload_assets(&application->assets, application->renderer);
 
@@ -400,6 +401,16 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 	return SDL_APP_CONTINUE;
 }
 
+static void HandleButtonInteraction(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData) {
+	printf("button: %d!\n", pointerInfo.state);
+					
+	bool *pressed = (bool *)userData;
+	// Pointer state allows you to detect mouse down / hold / release
+	if (pointerInfo.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
+		*pressed = true;
+	}
+}
+
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
 	TracyCZoneN(appiterate, "MainLoop", true);
@@ -461,6 +472,18 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 				CLAY({ .id = CLAY_ID("ProfilePicture"), .layout = { .sizing = { .width = CLAY_SIZING_FIXED(60), .height = CLAY_SIZING_FIXED(60) }}, .image = { .imageData = &profilePicture } }) {}
 				CLAY_TEXT(CLAY_STRING("Clay - UI Library"), CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {255, 255, 255, 255} }));
 				
+			}
+
+			// Button
+			Clay_TextElementConfig *main_buttons_text = CLAY_TEXT_CONFIG({ .fontSize = 16, .textColor = {255, 255, 255, 255} });
+			bool local_pressed = false;
+			CLAY({.id =CLAY_ID("local"), .layout = { .padding = CLAY_PADDING_ALL(8) } }) {
+				Clay_OnHover(HandleButtonInteraction, (uintptr_t)&local_pressed);
+				CLAY_TEXT(CLAY_STRING("Local battle"), main_buttons_text);
+
+			}
+			if (local_pressed) {
+				printf("Local battle!\n");
 			}
 
 		}
