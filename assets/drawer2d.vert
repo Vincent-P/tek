@@ -6,6 +6,10 @@ struct Drawer2DVert
 {
     vec2 pos;
     vec2 uv;
+    float clip_left;
+    float clip_top;
+    float clip_right;
+    float clip_bottom;
     uint col;
 };
 
@@ -31,4 +35,9 @@ void main()
     g_out.color = unpackUnorm4x8(vertex.col);
     g_out.uv = vertex.uv;
     gl_Position = vec4(vertex.pos * c_.scale + c_.translate, 0.0, 1.0);
+
+    gl_ClipDistance[0] = vertex.pos.y - vertex.clip_top;
+    gl_ClipDistance[1] = vertex.clip_bottom - vertex.pos.y;
+    gl_ClipDistance[2] = vertex.pos.x - vertex.clip_left;
+    gl_ClipDistance[3] = vertex.clip_right - vertex.pos.x;
 }

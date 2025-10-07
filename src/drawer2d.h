@@ -8,6 +8,10 @@ struct Vertex2D
 	float y;
 	float u;
 	float v;
+    	float clip_left;
+	float clip_top;
+	float clip_right;
+	float clip_bottom;
 	uint32_t color;
 };
 
@@ -16,6 +20,11 @@ struct Drawer2D
 	uint32_t current_color;
 	float viewport_width;
 	float viewport_height;
+    
+	float clip_x;
+	float clip_y;
+	float clip_w;
+	float clip_h;
 
 	uint32_t current_vertices_length;	
 	uint32_t current_indices_length;
@@ -29,6 +38,9 @@ struct Drawer2D
 
 void drawer2d_init(struct Drawer2D *drawer, struct Renderer *renderer);
 void drawer2d_reset_frame(struct Drawer2D *drawer);
+
+void drawer2d_set_clip_rect(struct Drawer2D *drawer, float x, float y, float w, float h);
+
 void drawer2d_draw_rect(struct Drawer2D *drawer, float top, float left, float width, float height, uint32_t color);
 
 struct DrawerTextInfo

@@ -155,17 +155,11 @@ void clay_integration_render(struct Drawer2D *drawer, Clay_RenderCommandArray *c
 		} break;
 		case CLAY_RENDER_COMMAND_TYPE_SCISSOR_START: {
 			Clay_BoundingBox boundingBox = rcmd->boundingBox;
-			// currentClippingRectangle = (SDL_Rect) {
-			//	.x = boundingBox.x,
-			//	.y = boundingBox.y,
-			//	.w = boundingBox.width,
-			//	.h = boundingBox.height,
-			// };
-			// SDL_SetRenderClipRect(data->renderer, &currentClippingRectangle);
+			drawer2d_set_clip_rect(drawer, boundingBox.x, boundingBox.y, boundingBox.width, boundingBox.height);
 			break;
 		}
 		case CLAY_RENDER_COMMAND_TYPE_SCISSOR_END: {
-			// SDL_SetRenderClipRect(data->renderer, NULL);
+			drawer2d_set_clip_rect(drawer, 0.0f, 0.0f, 9999.9f, 9999.9f);
 			break;
 		}
 		case CLAY_RENDER_COMMAND_TYPE_IMAGE: {

@@ -67,6 +67,14 @@ void drawer2d_reset_frame(struct Drawer2D *drawer)
 	drawer->current_indices_length = 0;
 }
 
+void drawer2d_set_clip_rect(struct Drawer2D *drawer, float x, float y, float w, float h)
+{
+    drawer->clip_x = x;
+    drawer->clip_y = y;
+    drawer->clip_w = w;
+    drawer->clip_h = h;
+}
+
 static void _drawer2d_draw_rect(struct Drawer2D *drawer, float top, float left, float width, float height, uint32_t color, uint32_t texture, float u0, float u1, float v0, float v1)
 {
 	assert(drawer->current_vertices_length + 4 < DRAWER_2D_VERTEX_CAPACITY);
@@ -75,10 +83,15 @@ static void _drawer2d_draw_rect(struct Drawer2D *drawer, float top, float left, 
 	uint32_t v = drawer->current_vertices_length;
 	uint32_t i = drawer->current_indices_length;
 
-	drawer->current_vertices[v + 0] = (struct Vertex2D){.x = left,         .y = top,          .u = u0, .v = v0, .color = color};
-	drawer->current_vertices[v + 1] = (struct Vertex2D){.x = left + width, .y = top,          .u = u1, .v = v0, .color = color};
-	drawer->current_vertices[v + 2] = (struct Vertex2D){.x = left,         .y = top + height, .u = u0, .v = v1, .color = color};
-	drawer->current_vertices[v + 3] = (struct Vertex2D){.x = left + width, .y = top + height, .u = u1, .v = v1, .color = color};
+	float clip_left = drawer->clip_x;
+	float clip_top = drawer->clip_y;
+	float clip_right = drawer->clip_x + drawer->clip_w;
+	float clip_bottom = drawer->clip_y + drawer->clip_h;
+
+	drawer->current_vertices[v + 0] = (struct Vertex2D){.x = left,         .y = top,          .u = u0, .v = v0, clip_left, clip_top, clip_right, clip_bottom, .color = color};
+	drawer->current_vertices[v + 1] = (struct Vertex2D){.x = left + width, .y = top,          .u = u1, .v = v0, clip_left, clip_top, clip_right, clip_bottom, .color = color};
+	drawer->current_vertices[v + 2] = (struct Vertex2D){.x = left,         .y = top + height, .u = u0, .v = v1, clip_left, clip_top, clip_right, clip_bottom, .color = color};
+	drawer->current_vertices[v + 3] = (struct Vertex2D){.x = left + width, .y = top + height, .u = u1, .v = v1, clip_left, clip_top, clip_right, clip_bottom, .color = color};
 
 	drawer->current_indices[i + 0] = v + 0;
 	drawer->current_indices[i + 1] = v + 2;
