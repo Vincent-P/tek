@@ -90,8 +90,6 @@ struct VulkanDevice
 	VkCommandPool command_pool[FRAME_COUNT];
 	VkCommandBuffer command_buffer[FRAME_COUNT];
 	VkFence command_fence[FRAME_COUNT];
-	VkSemaphore swapchain_acquire_semaphore[FRAME_COUNT];
-	VkSemaphore swapchain_present_semaphore[FRAME_COUNT];
 	uint32_t current_frame;
 	// swapchain
 	VkSwapchainKHR swapchain;
@@ -102,6 +100,8 @@ struct VulkanDevice
 	VkSurfaceFormatKHR swapchain_format;
 	void *swapchain_last_wnd;
 	VkImage swapchain_images[MAX_BACKBUFFER_COUNT];
+	VkSemaphore swapchain_acquire_semaphore[MAX_BACKBUFFER_COUNT];
+	VkSemaphore swapchain_present_semaphore[MAX_BACKBUFFER_COUNT];
 	// resources
 	VulkanGraphicsProgram graphics_psos[VK_PROGRAM_CAPACITY];
 	VulkanBuffer buffers[VK_BUFFER_CAPACITY];
@@ -278,10 +278,12 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 		fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 		res = vkCreateFence(device->device, &fence_info, NULL, &device->command_fence[iframe]);
 		assert(res == VK_SUCCESS);
+	}
+	for (uint32_t ibackbuffer = 0; ibackbuffer < MAX_BACKBUFFER_COUNT; ++ibackbuffer) {
 		VkSemaphoreCreateInfo semaphore_info = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-		res = vkCreateSemaphore(device->device, &semaphore_info, NULL, &device->swapchain_acquire_semaphore[iframe]);
+		res = vkCreateSemaphore(device->device, &semaphore_info, NULL, &device->swapchain_acquire_semaphore[ibackbuffer]);
 		assert(res == VK_SUCCESS);		
-		res = vkCreateSemaphore(device->device, &semaphore_info, NULL, &device->swapchain_present_semaphore[iframe]);
+		res = vkCreateSemaphore(device->device, &semaphore_info, NULL, &device->swapchain_present_semaphore[ibackbuffer]);
 		assert(res == VK_SUCCESS);
 	}
 
@@ -439,14 +441,23 @@ static void create_swapchain(VulkanDevice *device, void *hwnd)
 	if (formatCount == 1 && surfFormats[0].format == VK_FORMAT_UNDEFINED) {
 		surf_format.format = VK_FORMAT_B8G8R8A8_UNORM;
 		surf_format.colorSpace  = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-	// Otherwise, look for HDR format
 	} else {
 		for (uint32_t iformat = 0; iformat < formatCount; ++iformat) {
-			if (surfFormats[iformat].format == VK_FORMAT_A2B10G10R10_UNORM_PACK32
-			    && surfFormats[iformat].colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT) {
-				surf_format = surfFormats[iformat];
-				break;
-			}
+#if defined(VULKAN_HDR_SUPPORT)
+		    // Otherwise, look for HDR format
+		    if (surfFormats[iformat].format == VK_FORMAT_A2B10G10R10_UNORM_PACK32
+			&& surfFormats[iformat].colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT) {
+			surf_format = surfFormats[iformat];
+			break;
+		    }
+#else
+		    // Otherwise, look for SDR format
+		    if (surfFormats[iformat].format == VK_FORMAT_R8G8B8A8_UNORM
+			&& surfFormats[iformat].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+			surf_format = surfFormats[iformat];
+			break;
+		    }
+#endif
 		}
 	}
 	free(surfFormats);
@@ -870,14 +881,14 @@ void new_texture(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t
 	image_requirements.pCreateInfo = &image_info;
 	VkMemoryRequirements2 mem_requirements = {.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
 	vkGetDeviceImageMemoryRequirements(device->device, &image_requirements, &mem_requirements);
-	assert(((mem_requirements.memoryRequirements.memoryTypeBits >> device->main_memory_type_index) & 1) != 0); // check that our memory supports this render_target
+	assert(((mem_requirements.memoryRequirements.memoryTypeBits >> device->rt_type_index) & 1) != 0); // check that our memory supports this render_target
 	assert(mem_requirements.memoryRequirements.alignment <= MEMORY_ALIGNMENT);
 	oa_allocation_t allocation = {0};
 	uint32_t rounded_up_size = (mem_requirements.memoryRequirements.size + MEMORY_ALIGNMENT - 1) / MEMORY_ALIGNMENT;
-	int alloc_res = oa_allocate(&device->main_memory_allocator, rounded_up_size, &allocation);
+	int alloc_res = oa_allocate(&device->rt_memory_allocator, rounded_up_size, &allocation);
 	assert(alloc_res == 0);
 	uint32_t real_offset = allocation.offset * MEMORY_ALIGNMENT;
-	res = vkBindImageMemory(device->device, image, device->main_memory, real_offset);
+	res = vkBindImageMemory(device->device, image, device->rt_memory, real_offset);
 	assert(res == VK_SUCCESS);
 
 	// create image view
@@ -1084,8 +1095,8 @@ void end_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t output_rt_hand
 				    VK_NULL_HANDLE,
 				    &ibackbuffer);
 	TracyCZoneEnd(acquire);
-	assert(res == VK_SUCCESS || res == VK_SUBOPTIMAL_KHR);
-	if (res == VK_SUBOPTIMAL_KHR)
+	assert(res == VK_SUCCESS || res == VK_SUBOPTIMAL_KHR || res == VK_ERROR_OUT_OF_DATE_KHR);
+	if (res == VK_SUBOPTIMAL_KHR || res == VK_ERROR_OUT_OF_DATE_KHR)
 		device->should_recreate_swapchain = 1;
 	
 	// -- prepare present
@@ -1143,7 +1154,7 @@ void end_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t output_rt_hand
 	VkCommandBufferSubmitInfo command_buffer_info = {.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO};
 	command_buffer_info.commandBuffer = frame->cmd;
 	VkSemaphoreSubmitInfo signal_semaphore_info = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO};
-	signal_semaphore_info.semaphore = device->swapchain_present_semaphore[frame->iframe];
+	signal_semaphore_info.semaphore = device->swapchain_present_semaphore[ibackbuffer];
 	signal_semaphore_info.stageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 	VkSubmitInfo2 submit_info = {.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2};
 	submit_info.waitSemaphoreInfoCount = 1;
@@ -1163,12 +1174,12 @@ void end_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t output_rt_hand
 	present_info.swapchainCount = 1;
 	present_info.pSwapchains = &device->swapchain;
 	present_info.pImageIndices = &ibackbuffer;
-	present_info.pWaitSemaphores = &device->swapchain_present_semaphore[frame->iframe];
+	present_info.pWaitSemaphores = &device->swapchain_present_semaphore[ibackbuffer];
 	present_info.waitSemaphoreCount = 1;
 	present_info.pResults = NULL;
 	res = vkQueuePresentKHR(device->graphics_queue, &present_info);
-	assert(res == VK_SUCCESS || res == VK_SUBOPTIMAL_KHR);
-	if (res == VK_SUBOPTIMAL_KHR)
+	assert(res == VK_SUCCESS || res == VK_SUBOPTIMAL_KHR || res == VK_ERROR_OUT_OF_DATE_KHR);
+	if (res == VK_SUBOPTIMAL_KHR|| res == VK_ERROR_OUT_OF_DATE_KHR)
 		device->should_recreate_swapchain = 1;
 	TracyCZoneEnd(present);
 	
