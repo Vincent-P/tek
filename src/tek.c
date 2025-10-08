@@ -6,6 +6,8 @@
 #include <xxhash.h>
 #endif
 
+// #define TEK_DEBUG_PRINT_JSON
+
 const char* tek_CancelType_str[TEK_CANCEL_TYPE_COUNT] = {
 	"single",
 	"loop",
@@ -38,7 +40,9 @@ bool json_object_get_string_id(struct json_object_element_s *it, const char *fie
 		struct json_string_s *s = json_value_as_string(it->value);
 		if (s != NULL) {
 			*id = string_to_id(s->string, s->string_size);
+#if defined(TEK_DEBUG_PRINT_JSON)
 			fprintf(stderr, "[json] read string %s = %s (%u)\n", field_name, s->string, *id);
+#endif
 			return true;
 		}
 	}
@@ -52,7 +56,9 @@ bool json_object_get_u8(struct json_object_element_s *it, const char *field_name
 		if (n != NULL) {
 			int value = atol(n->number);
 			*u8 = (uint8_t)value;
+#if defined(TEK_DEBUG_PRINT_JSON)
 			fprintf(stderr, "[json] read u8 %s = %u\n", field_name, (uint32_t)*u8);
+#endif
 			return true;
 		}
 	}
@@ -65,7 +71,9 @@ bool json_object_get_float(struct json_object_element_s *it, const char *field_n
 		struct json_number_s *n = json_value_as_number(it->value);
 		if (n != NULL) {
 			*f = strtof(n->number, NULL);
+#if defined(TEK_DEBUG_PRINT_JSON)
 			fprintf(stderr, "[json] read float %s = %f\n", field_name, (double)*f);
+#endif
 			return true;
 		}
 	}

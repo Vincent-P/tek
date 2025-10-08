@@ -120,11 +120,13 @@ bool glyph_cache_get_rasterized_glyph(struct GlyphCache *glyph_cache, int32_t co
 	int bitmap_top = 0;
 	unsigned char *bitmap = stbtt_GetCodepointBitmap(font, 0.0f, scale, codepoint, &bitmap_width, &bitmap_height, &bitmap_left, &bitmap_top);
 
+#if 0
 	for (int j = 0; j < bitmap_height; ++j) {
 		for (int i = 0; i < bitmap_width; ++i)
 			putchar(" .:ioVM@"[bitmap[j*bitmap_width+i]>>5]);
 		putchar('\n');
 	}
+#endif
 
 	int advance_width = 0;
 	int left_side_bearing = 0;

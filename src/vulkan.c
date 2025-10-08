@@ -139,7 +139,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverity
 						     const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
 						     void *user_data)
 {
-	printf("%s\n", pCallbackData->pMessage);
+	fprintf(stderr, "[vulkan] %s\n", pCallbackData->pMessage);
 	__debugbreak();
 	return VK_FALSE;
 }
@@ -239,7 +239,7 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 		}
 	}
 	queue_info.queueFamilyIndex = device->graphics_family_idx;
-	printf("queue family index: %u\n", queue_info.queueFamilyIndex);
+	fprintf(stderr, "[vulkan] queue family index: %u\n", queue_info.queueFamilyIndex);
 	const char *device_extensions[] = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 		VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
@@ -294,18 +294,18 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	uint32_t MEMORY_MASK = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 	for (uint32_t i = 0; i < mem_props.memoryTypeCount; ++i) {
 		VkMemoryPropertyFlags flags = mem_props.memoryTypes[i].propertyFlags;
-		printf("memoryType[%u] = %u (heap %u)\n", i, flags, mem_props.memoryTypes[i].heapIndex);
+		fprintf(stderr, "[vulkan] memoryType[%u] = %u (heap %u)\n", i, flags, mem_props.memoryTypes[i].heapIndex);
 		// Look for GPU memory that is accessible from the CPU
 		if (flags == MEMORY_MASK) {
 			if (main_memory_type_index == -1) {
 				main_memory_type_index = i;
-				printf("main memory = memoryType[%u]\n", i);
+				fprintf(stderr, "[vulkan] main memory = memoryType[%u]\n", i);
 				break;
 			}
 		}
 		// Look for GPU memory that is accessible from the CPU
 		if (flags == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT && rt_type_index == -1) {
-			printf("rt memory = memoryType[%u]\n", i);
+			fprintf(stderr, "[vulkan] rt memory = memoryType[%u]\n", i);
 			rt_type_index = i;
 		}
 	}
@@ -421,7 +421,7 @@ static void create_swapchain(VulkanDevice *device, void *hwnd)
 	
 #endif
 
-	printf("Creating a %ux%u swapchain\n", width, height);
+	fprintf(stderr, "[vulkan] Creating a %ux%u swapchain\n", width, height);
 	
 	// Get the list of VkFormats that are supported:
 	uint32_t formatCount;
@@ -482,7 +482,7 @@ static void create_swapchain(VulkanDevice *device, void *hwnd)
 	VkPresentModeKHR swapchainPresentMode = VK_PRESENT_MODE_FIFO_RELAXED_KHR;
 	uint32_t images_count = surfCapabilities.minImageCount;
 	assert(images_count < MAX_BACKBUFFER_COUNT);
-	printf("swapchain backbuffer count %u\n", images_count);
+	fprintf(stderr, "[vulkan] swapchain backbuffer count %u\n", images_count);
 
 	VkSurfaceTransformFlagBitsKHR preTransform = surfCapabilities.currentTransform;
 	if (surfCapabilities.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR) {
@@ -694,7 +694,7 @@ void new_buffer_internal(VulkanDevice *device, uint32_t handle,uint32_t size, Vk
 	buf_requirements.pCreateInfo = &buffer_info;
 	VkMemoryRequirements2 mem_requirements = {.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
 	vkGetDeviceBufferMemoryRequirements(device->device, &buf_requirements, &mem_requirements);
-	printf("memoryTypesBits = %u 0x%x\n", mem_requirements.memoryRequirements.memoryTypeBits, mem_requirements.memoryRequirements.memoryTypeBits);
+	fprintf(stderr, "[vulkan] memoryTypesBits = %u 0x%x\n", mem_requirements.memoryRequirements.memoryTypeBits, mem_requirements.memoryRequirements.memoryTypeBits);
 	VkDeviceMemory memory = device->main_memory;
 	void *memory_mapped = device->main_memory_mapped;
 	bool main_memory_support = ((mem_requirements.memoryRequirements.memoryTypeBits >> device->main_memory_type_index) & 1) != 0;
@@ -715,7 +715,7 @@ void new_buffer_internal(VulkanDevice *device, uint32_t handle,uint32_t size, Vk
 	// Get CPU address
 	void *mapped = (char*)memory_mapped + real_offset;
 	
-	printf("cpu: %p | gpu: %p | size: %u\n", mapped, (void*)gpu_address, size);
+	fprintf(stderr, "[vulkan] cpu: %p | gpu: %p | size: %u\n", mapped, (void*)gpu_address, size);
 	
 	assert(device->buffers[handle].buffer == VK_NULL_HANDLE);
 	
