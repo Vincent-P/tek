@@ -26,7 +26,7 @@ Clay_Dimensions clay_integration_measure_text(Clay_StringSlice text, Clay_TextEl
 void clay_integration_error_callback(Clay_ErrorData errorData)
 {
 	// See the Clay_ErrorData struct for more information
-	printf("%s", errorData.errorText.chars);
+	fprintf(stderr, "[clay] %s\n", errorData.errorText.chars);
 	switch(errorData.errorType) {
 		// etc
 	}
@@ -49,29 +49,19 @@ void clay_integration_init(struct Drawer2D *drawer, int display_width, int displ
 bool clay_integration_process_event(struct Application *application, SDL_Event* event)
 {
 	ImGuiIO* io = ImGui_GetIO();
-
 	switch (event->type) {
-	case SDL_EVENT_MOUSE_BUTTON_DOWN:
-	case SDL_EVENT_MOUSE_BUTTON_UP:
-	case SDL_EVENT_MOUSE_MOTION:
-		{
-			float mouse_pos_x = (float)event->motion.x;
-			float mouse_pos_y = (float)event->motion.y;
-		        // Optional: Update internal pointer position for handling mouseover / click / touch events - needed for scrolling & debug tools
-			Clay_SetPointerState((Clay_Vector2) { mouse_pos_x, mouse_pos_y }, application->inputs.is_mouse_down);
-			return true;
-		}
-	case SDL_EVENT_MOUSE_WHEEL:
-		{
-			//IMGUI_DEBUG_LOG("wheel %.2f %.2f, precise %.2f %.2f\n", (float)event->wheel.x, (float)event->wheel.y, event->wheel.preciseX, event->wheel.preciseY);
-			float wheel_x = -event->wheel.x;
-			float wheel_y = event->wheel.y;
-
-			// Optional: Update internal pointer position for handling mouseover / click / touch events - needed for scrolling and debug tools
-			Clay_UpdateScrollContainers(true, (Clay_Vector2) { wheel_x, wheel_y }, 0.16f);
-			return true;
-		}
-	}
+        case SDL_EVENT_MOUSE_MOTION:
+		Clay_SetPointerState((Clay_Vector2) { event->motion.x, event->motion.y }, event->motion.state & SDL_BUTTON_LMASK);
+		break;
+        case SDL_EVENT_MOUSE_BUTTON_DOWN:
+		Clay_SetPointerState((Clay_Vector2) { event->button.x, event->button.y }, event->button.button == SDL_BUTTON_LEFT);
+		break;
+        case SDL_EVENT_MOUSE_WHEEL:
+		Clay_UpdateScrollContainers(true, (Clay_Vector2) { event->wheel.x, event->wheel.y }, 0.01f);
+		break;
+        default:
+		break;
+	};
 	return false;
 }
 

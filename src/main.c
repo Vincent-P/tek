@@ -401,16 +401,6 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 	return SDL_APP_CONTINUE;
 }
 
-static void HandleButtonInteraction(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData) {
-	printf("button: %d!\n", pointerInfo.state);
-					
-	bool *pressed = (bool *)userData;
-	// Pointer state allows you to detect mouse down / hold / release
-	if (pointerInfo.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
-		*pressed = true;
-	}
-}
-
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
 	TracyCZoneN(appiterate, "MainLoop", true);
@@ -440,9 +430,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 	}
 	ImGui_NewFrame();
 
-	bool opened = true;
-	ImGui_ShowDemoWindow(&opened);
-
 	drawer2d_reset_frame(application->drawer);
 	
 	// Setup clay size
@@ -450,48 +437,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         Clay_SetLayoutDimensions((Clay_Dimensions) { display_w, display_h });
         // All clay layouts are declared between Clay_BeginLayout and Clay_EndLayout
         Clay_BeginLayout();
-
-	// test UI
-	
-	const Clay_Color COLOR_LIGHT = (Clay_Color) {224, 215, 210, 255};
-	const Clay_Color COLOR_RED = (Clay_Color) {168, 66, 28, 255};
-	const Clay_Color COLOR_ORANGE = (Clay_Color) {225, 138, 50, 255};
-	uint32_t profilePicture = 0;
-	// An example of laying out a UI with a fixed width sidebar and flexible width main content
-	CLAY({ .id = CLAY_ID("OuterContainer"), .layout = { .sizing = {CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0)}, .padding = CLAY_PADDING_ALL(16), .childGap = 16 }, .backgroundColor = {0,0,0,0} }) {
-		
-		
-		CLAY({
-				.id = CLAY_ID("SideBar"),
-				.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = { .width = CLAY_SIZING_FIXED(300), .height = CLAY_SIZING_GROW(0) }, .padding = CLAY_PADDING_ALL(16), .childGap = 16 },
-				.backgroundColor = COLOR_LIGHT
-			}) {
-
-			CLAY({ .id = CLAY_ID("ProfilePictureOuter"), .layout = { .layoutDirection = CLAY_LEFT_TO_RIGHT, .sizing = { .width = CLAY_SIZING_GROW(0) }, .padding = CLAY_PADDING_ALL(16), .childGap = 16, .childAlignment = { .y = CLAY_ALIGN_Y_CENTER } }, .backgroundColor = COLOR_RED }) {
-				
-				CLAY({ .id = CLAY_ID("ProfilePicture"), .layout = { .sizing = { .width = CLAY_SIZING_FIXED(60), .height = CLAY_SIZING_FIXED(60) }}, .image = { .imageData = &profilePicture } }) {}
-				CLAY_TEXT(CLAY_STRING("Clay - UI Library"), CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {255, 255, 255, 255} }));
-				
-			}
-
-			// Button
-			Clay_TextElementConfig *main_buttons_text = CLAY_TEXT_CONFIG({ .fontSize = 16, .textColor = {255, 255, 255, 255} });
-			bool local_pressed = false;
-			CLAY({.id =CLAY_ID("local"), .layout = { .padding = CLAY_PADDING_ALL(8) } }) {
-				Clay_OnHover(HandleButtonInteraction, (uintptr_t)&local_pressed);
-				CLAY_TEXT(CLAY_STRING("Local battle"), main_buttons_text);
-
-			}
-			if (local_pressed) {
-				printf("Local battle!\n");
-			}
-
-		}
-		
-		CLAY({ .id = CLAY_ID("MainContent"), .layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0) } }, .backgroundColor = {0,0,0,16} }) {}
-        }
-
-	//
 
 	uint64_t new_time = SDL_GetTicks();
 	uint64_t previous_frame_time = new_time - application->current_time;
@@ -540,5 +485,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 #include "clay_integration.c"
 #include "drawer2d.c"
 #include "atlas2d.c"
+#include "ui.c"
 
 #include "editor.c"

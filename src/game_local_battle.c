@@ -332,4 +332,76 @@ void local_battle_render(void **state_data)
 	if (state->battle_replay_state != BATTLE_REPLAY_STATE_END) {
 		battle_render(&state->battle_context);
 	}
+
+
+	float p1_hp_filled = state->battle_context.battle_state.p1_entity.tek.hp * 0.01f;
+	float p2_hp_filled = state->battle_context.battle_state.p2_entity.tek.hp * 0.01f;
+	
+	CLAY({
+			.id = CLAY_ID("OuterContainer"),
+			.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = {CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0)}, .padding = CLAY_PADDING_ALL(16), .childGap = 16 },
+			.backgroundColor = {0,0,0,0}
+		}) {
+		
+		CLAY({.id = CLAY_ID("HeaderBar"), .layout = { .sizing = {.width = CLAY_SIZING_GROW(0)}, .childGap = 16}}) {
+
+			CLAY({
+					.id = CLAY_IDI("PlayerBar", 1),
+					.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = {.width = CLAY_SIZING_GROW(0)}, .padding = CLAY_PADDING_ALL(16), .childGap = 16 },
+					.backgroundColor = {0, 0, 0, 64}
+				}) {
+
+				CLAY({
+						.id = CLAY_IDI("HealthBar", 1),
+						.layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(50) }},
+						.backgroundColor = {0, 0, 255, 255}
+					}) {
+
+					CLAY({.id = CLAY_IDI("EmptyHealth", 1),
+							.layout = { .sizing = { .width = CLAY_SIZING_PERCENT(1.0f - p1_hp_filled), .height = CLAY_SIZING_GROW(0) }},
+							.backgroundColor = {0, 0, 0, 255},
+						});
+					CLAY({.id = CLAY_IDI("FilledHealth", 1),
+							.layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0) }},
+							.backgroundColor = {240, 240, 240, 255},
+						});
+				}
+
+				CLAY_TEXT(CLAY_STRING("SuperBob"), CLAY_TEXT_CONFIG({ .fontSize = 16, .textColor = {255, 255, 255, 255}, .textAlignment = CLAY_TEXT_ALIGN_LEFT }));
+			}
+
+			CLAY_TEXT(CLAY_STRING("59"), CLAY_TEXT_CONFIG({ .fontSize = 50, .textColor = {255, 255, 255, 255} }));
+
+			CLAY({
+					.id = CLAY_IDI("PlayerBar", 2),
+					.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = {.width = CLAY_SIZING_GROW(0)}, .padding = CLAY_PADDING_ALL(16), .childGap = 16, .childAlignment = {.x = CLAY_ALIGN_X_RIGHT} },
+					.backgroundColor = {0, 0, 0, 64}
+				}) {
+
+				CLAY({
+						.id = CLAY_IDI("HealthBar", 2),
+						.layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(50) }},
+						.backgroundColor = {0, 0, 255, 255}
+					}) {
+					
+					CLAY({.id = CLAY_IDI("FilledHealth", 2),
+							.layout = { .sizing = { .width = CLAY_SIZING_PERCENT(p2_hp_filled), .height = CLAY_SIZING_GROW(0) }},
+							.backgroundColor = {240, 240, 240, 255},
+						});
+					CLAY({.id = CLAY_IDI("EmptyHealth", 2),
+							.layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0) }},
+							.backgroundColor = {0, 0, 0, 255},
+						});
+				}
+				
+				CLAY_TEXT(CLAY_STRING("Seb"), CLAY_TEXT_CONFIG({ .fontSize = 16, .textColor = {255, 255, 255, 255}, .textAlignment = CLAY_TEXT_ALIGN_RIGHT }));
+				
+			}
+
+			
+		}
+
+		
+	}
+
 }

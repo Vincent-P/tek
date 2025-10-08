@@ -383,7 +383,7 @@ static void _evaluate_hit_conditions(struct PlayerEntity *p1, struct PlayerEntit
 						struct tek_HitReactions *hit_reaction = tek_character_find_hit_reaction(c1, hit_condition.reactions_id);
 
 
-						bool is_blocking = true;
+						bool is_blocking = false;
 						if (is_blocking) {
 							p2->tek.requested_move_id = hit_reaction->standing_block_move;
 
