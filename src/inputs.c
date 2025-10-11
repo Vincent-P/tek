@@ -49,6 +49,8 @@ bool inputs_process_event(SDL_Event *event, struct Inputs *inputs)
 			inputs->buttons_is_pressed[InputButtons_L] = is_button_down;
 		} else if (event->key.scancode == SDL_SCANCODE_SEMICOLON) {
 			inputs->buttons_is_pressed[InputButtons_SEMICOLON] = is_button_down;
+		} else if (event->key.scancode == SDL_SCANCODE_ESCAPE) {
+			inputs->buttons_is_pressed[InputButtons_Escape] = is_button_down;
 		}
 
 	}

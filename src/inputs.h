@@ -14,6 +14,7 @@ enum InputButtons
 	InputButtons_K,
 	InputButtons_L,
 	InputButtons_SEMICOLON,
+	InputButtons_Escape,
 	InputButtons_Count,
 };
 
