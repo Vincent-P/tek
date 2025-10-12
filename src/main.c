@@ -24,6 +24,7 @@
 #include "watcher.h"
 #include "clay_integration.h"
 #include "drawer2d.h"
+#include "ui.h"
 
 #include <windows.h>
 
@@ -433,6 +434,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 	ImGui_NewFrame();
 
 	drawer2d_reset_frame(application->drawer);
+	ui_new_frame();
 	
 	// Setup clay size
         // Optional: Update internal layout dimensions to support resizing

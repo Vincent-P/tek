@@ -669,31 +669,6 @@ void battle_render(struct BattleContext *ctx)
 		tek_characters + players[1]->tek.character_id,
 	};
 
-	struct TekPlayerComponent const *p1 = &state->p1_entity.tek;
-	if (ImGui_Begin("Player 1 inputs", NULL, 0)) {
-		if (ImGui_BeginTable("inputs", 2, ImGuiTableFlags_Borders)) {
-			uint32_t input_last_frame = state->frame_number;
-			for (uint32_t i = 0; i < INPUT_BUFFER_SIZE; i++) {
-				uint32_t input_index = (p1->current_input_index + (INPUT_BUFFER_SIZE - i)) % INPUT_BUFFER_SIZE;
-				enum BattleInputBits input = p1->input_buffer[input_index];
-				uint32_t input_duration = input_last_frame - p1->input_buffer_frame_start[input_index];
-				input_last_frame = p1->input_buffer_frame_start[input_index];
-
-				ImGui_TableNextRow();
-				ImGui_TableSetColumnIndex(0);
-				char input_label[32] = {0};
-				sprintf(input_label, "%s %s", _get_motion_label(input), _get_action_label(input));
-				ImGui_TextUnformatted(input_label);
-
-				ImGui_TableSetColumnIndex(1);
-				char duration_label[32] = {0};
-				sprintf(duration_label, "%u", input_duration);
-				ImGui_TextUnformatted(duration_label);
-			}
-			ImGui_EndTable();
-		}
-	}
-	ImGui_End();
 	ed_display_player_entity("Player 1", &state->p1_entity);
 	ed_display_player_entity("Player 2", &state->p2_entity);
 

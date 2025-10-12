@@ -541,6 +541,64 @@ void local_battle_render(void **data_data)
 
 
 			}
+
+			CLAY({.id = CLAY_ID("HUD"), .layout = { .layoutDirection = CLAY_LEFT_TO_RIGHT, .sizing = {.width = CLAY_SIZING_GROW(0)} }}) {
+
+				CLAY({
+						.id = CLAY_IDI("PlayerInput", 1),
+						.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = {.width = CLAY_SIZING_FIT(0), .height = CLAY_SIZING_GROW(0)}, .padding = CLAY_PADDING_ALL(16), .childGap = 16 },
+					}) {
+					struct BattleState* battle_state = &data->battle_context.battle_state;
+					struct TekPlayerComponent const *p1 = &battle_state->p1_entity.tek;
+
+					uint32_t input_last_frame = battle_state->frame_number;
+					for (uint32_t i = 0; i < INPUT_BUFFER_SIZE; i++) {
+						uint32_t input_index = (p1->current_input_index + (INPUT_BUFFER_SIZE - i)) % INPUT_BUFFER_SIZE;
+						enum BattleInputBits input = p1->input_buffer[input_index];
+						uint32_t input_duration = input_last_frame - p1->input_buffer_frame_start[input_index];
+						input_last_frame = p1->input_buffer_frame_start[input_index];
+
+						char label[64] = {0};
+						uint32_t label_length = sprintf(label, "%s %s - %u", _get_motion_label(input), _get_action_label(input), input_duration);
+
+						Clay_String label_string = (Clay_String){
+							.isStaticallyAllocated = false,
+							.length = label_length,
+							.chars = ui_string(label, label_length),
+						};
+						CLAY_TEXT(label_string, CLAY_TEXT_CONFIG({ .fontSize = 16, .textColor = {0, 0, 0, 255}, .textAlignment = CLAY_TEXT_ALIGN_RIGHT }));
+					}
+				}
+				
+				CLAY({.id = CLAY_ID("Empty"), .layout = { .sizing = {CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0)}}}) {}
+				
+				CLAY({
+						.id = CLAY_IDI("PlayerInput", 2),
+						.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = {.width = CLAY_SIZING_FIT(0), .height = CLAY_SIZING_GROW(0)}, .padding = CLAY_PADDING_ALL(16), .childGap = 16, .childAlignment = {.x = CLAY_ALIGN_X_RIGHT} },
+					}) {
+					struct BattleState* battle_state = &data->battle_context.battle_state;
+					struct TekPlayerComponent const *p2 = &battle_state->p2_entity.tek;
+
+					uint32_t input_last_frame = battle_state->frame_number;
+					for (uint32_t i = 0; i < INPUT_BUFFER_SIZE; i++) {
+						uint32_t input_index = (p2->current_input_index + (INPUT_BUFFER_SIZE - i)) % INPUT_BUFFER_SIZE;
+						enum BattleInputBits input = p2->input_buffer[input_index];
+						uint32_t input_duration = input_last_frame - p2->input_buffer_frame_start[input_index];
+						input_last_frame = p2->input_buffer_frame_start[input_index];
+
+						char label[64] = {0};
+						uint32_t label_length = sprintf(label, "%s %s - %u", _get_motion_label(input), _get_action_label(input), input_duration);
+
+						Clay_String label_string = (Clay_String){
+							.isStaticallyAllocated = false,
+							.length = label_length,
+							.chars = ui_string(label, label_length),
+						};
+						CLAY_TEXT(label_string, CLAY_TEXT_CONFIG({ .fontSize = 16, .textColor = {0, 0, 0, 255}, .textAlignment = CLAY_TEXT_ALIGN_RIGHT }));
+					}
+				}
+			}
+
 		}
 
 		// pause menu
