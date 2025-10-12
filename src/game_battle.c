@@ -85,53 +85,53 @@ struct BattleInputs battle_read_input(struct Inputs const *inputs)
 {
 	struct BattleInputs input = {0};
 
-	if (inputs->buttons_is_pressed[InputButtons_W]) {
+	if (inputs->buttons_is_down[InputButtons_W]) {
 		input.player1 |= BATTLE_INPUT_UP;
 	}
-	if (inputs->buttons_is_pressed[InputButtons_A]) {
+	if (inputs->buttons_is_down[InputButtons_A]) {
 		input.player1 |= BATTLE_INPUT_BACK;
 	}
-	if (inputs->buttons_is_pressed[InputButtons_S]) {
+	if (inputs->buttons_is_down[InputButtons_S]) {
 		input.player1 |= BATTLE_INPUT_DOWN;
 	}
-	if (inputs->buttons_is_pressed[InputButtons_D]) {
+	if (inputs->buttons_is_down[InputButtons_D]) {
 		input.player1 |= BATTLE_INPUT_FORWARD;
 	}
-	if (inputs->buttons_is_pressed[InputButtons_U]) {
+	if (inputs->buttons_is_down[InputButtons_U]) {
 		input.player1 |= BATTLE_INPUT_LPUNCH;
 	}
-	if (inputs->buttons_is_pressed[InputButtons_I]) {
+	if (inputs->buttons_is_down[InputButtons_I]) {
 		input.player1 |= BATTLE_INPUT_RPUNCH;
 	}
-	if (inputs->buttons_is_pressed[InputButtons_J]) {
+	if (inputs->buttons_is_down[InputButtons_J]) {
 		input.player1 |= BATTLE_INPUT_LKICK;
 	}
-	if (inputs->buttons_is_pressed[InputButtons_K]) {
+	if (inputs->buttons_is_down[InputButtons_K]) {
 		input.player1 |= BATTLE_INPUT_RKICK;
 	}
 
-	if (inputs->gamepad_buttons_is_pressed[InputGamepadButtons_DPAD_UP]) {
+	if (inputs->gamepad_buttons_is_down[InputGamepadButtons_DPAD_UP]) {
 		input.player2 |= BATTLE_INPUT_UP;
 	}
-	if (inputs->gamepad_buttons_is_pressed[InputGamepadButtons_DPAD_RIGHT]) {
+	if (inputs->gamepad_buttons_is_down[InputGamepadButtons_DPAD_RIGHT]) {
 		input.player2 |= BATTLE_INPUT_BACK;
 	}
-	if (inputs->gamepad_buttons_is_pressed[InputGamepadButtons_DPAD_DOWN]) {
+	if (inputs->gamepad_buttons_is_down[InputGamepadButtons_DPAD_DOWN]) {
 		input.player2 |= BATTLE_INPUT_DOWN;
 	}
-	if (inputs->gamepad_buttons_is_pressed[InputGamepadButtons_DPAD_LEFT]) {
+	if (inputs->gamepad_buttons_is_down[InputGamepadButtons_DPAD_LEFT]) {
 		input.player2 |= BATTLE_INPUT_FORWARD;
 	}
-	if (inputs->gamepad_buttons_is_pressed[InputGamepadButtons_WEST]) {
+	if (inputs->gamepad_buttons_is_down[InputGamepadButtons_WEST]) {
 		input.player2 |= BATTLE_INPUT_LPUNCH;
 	}
-	if (inputs->gamepad_buttons_is_pressed[InputGamepadButtons_NORTH]) {
+	if (inputs->gamepad_buttons_is_down[InputGamepadButtons_NORTH]) {
 		input.player2 |= BATTLE_INPUT_RPUNCH;
 	}
-	if (inputs->gamepad_buttons_is_pressed[InputGamepadButtons_SOUTH]) {
+	if (inputs->gamepad_buttons_is_down[InputGamepadButtons_SOUTH]) {
 		input.player2 |= BATTLE_INPUT_LKICK;
 	}
-	if (inputs->gamepad_buttons_is_pressed[InputGamepadButtons_EAST]) {
+	if (inputs->gamepad_buttons_is_down[InputGamepadButtons_EAST]) {
 		input.player2 |= BATTLE_INPUT_RKICK;
 	}
 

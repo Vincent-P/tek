@@ -1,5 +1,22 @@
 #include "inputs.h"
 
+const char* InputButtons_str[InputButtons_Count] =
+	{
+		"W",
+		"A",
+		"S",
+		"D",
+		"U",
+		"I",
+		"O",
+		"P",
+		"J",
+		"K",
+		"L",
+		"SEMICOLON",
+		"Escape",
+	};
+
 void inputs_init(struct Inputs *inputs)
 {
 
@@ -24,44 +41,49 @@ bool inputs_process_event(SDL_Event *event, struct Inputs *inputs)
 	// inputs
 	bool is_button_down = event->type ==  SDL_EVENT_KEY_DOWN;
 	bool is_button_up = event->type ==  SDL_EVENT_KEY_UP;
+
+#define UPDATE_BUTTON(X)					\
+	if (inputs->buttons_ended_down[X] != is_button_down) {	\
+		inputs->buttons_transitions_count[X] += 1;	\
+		inputs->buttons_ended_down[X] = is_button_down; \
+	}
+	
 	if (is_button_up || is_button_down) {
 		if (event->key.scancode == SDL_SCANCODE_W) {
-			inputs->buttons_is_pressed[InputButtons_W] = is_button_down;
+			UPDATE_BUTTON(InputButtons_W);
 		} else if (event->key.scancode == SDL_SCANCODE_A) {
-			inputs->buttons_is_pressed[InputButtons_A] = is_button_down;
+			UPDATE_BUTTON(InputButtons_A);
 		} else if (event->key.scancode == SDL_SCANCODE_S) {
-			inputs->buttons_is_pressed[InputButtons_S] = is_button_down;
+			UPDATE_BUTTON(InputButtons_S);
 		} else if (event->key.scancode == SDL_SCANCODE_D) {
-			inputs->buttons_is_pressed[InputButtons_D] = is_button_down;
+			UPDATE_BUTTON(InputButtons_D);
 		} else if (event->key.scancode == SDL_SCANCODE_U) {
-			inputs->buttons_is_pressed[InputButtons_U] = is_button_down;
+			UPDATE_BUTTON(InputButtons_U);
 		} else if (event->key.scancode == SDL_SCANCODE_I) {
-			inputs->buttons_is_pressed[InputButtons_I] = is_button_down;
+			UPDATE_BUTTON(InputButtons_I);
 		} else if (event->key.scancode == SDL_SCANCODE_O) {
-			inputs->buttons_is_pressed[InputButtons_O] = is_button_down;
+			UPDATE_BUTTON(InputButtons_O);
 		} else if (event->key.scancode == SDL_SCANCODE_P) {
-			inputs->buttons_is_pressed[InputButtons_P] = is_button_down;
+			UPDATE_BUTTON(InputButtons_P);
 		} else if (event->key.scancode == SDL_SCANCODE_J) {
-			inputs->buttons_is_pressed[InputButtons_J] = is_button_down;
+			UPDATE_BUTTON(InputButtons_J);
 		} else if (event->key.scancode == SDL_SCANCODE_K) {
-			inputs->buttons_is_pressed[InputButtons_K] = is_button_down;
+			UPDATE_BUTTON(InputButtons_K);
 		} else if (event->key.scancode == SDL_SCANCODE_L) {
-			inputs->buttons_is_pressed[InputButtons_L] = is_button_down;
+			UPDATE_BUTTON(InputButtons_L);
 		} else if (event->key.scancode == SDL_SCANCODE_SEMICOLON) {
-			inputs->buttons_is_pressed[InputButtons_SEMICOLON] = is_button_down;
+			UPDATE_BUTTON(InputButtons_SEMICOLON);
 		} else if (event->key.scancode == SDL_SCANCODE_ESCAPE) {
-			inputs->buttons_is_pressed[InputButtons_Escape] = is_button_down;
+			UPDATE_BUTTON(InputButtons_Escape);
 		}
-
 	}
 
 	bool is_gamepad_down = event->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN;
 	bool is_gamepad_up = event->type == SDL_EVENT_GAMEPAD_BUTTON_UP;
 	if (is_gamepad_down || is_gamepad_up) {
 		assert((SDL_GamepadButton)InputGamepadButtons_COUNT == SDL_GAMEPAD_BUTTON_COUNT);
-
 		SDL_JoystickID which = event->gbutton.which;
-		inputs->gamepad_buttons_is_pressed[event->gbutton.button] = is_gamepad_down;
+		inputs->gamepad_buttons_is_down[event->gbutton.button] = is_gamepad_down;
 	}
 
 
@@ -72,4 +94,24 @@ bool inputs_process_event(SDL_Event *event, struct Inputs *inputs)
 	}
 
 	return true;
+}
+
+void inputs_begin_frame(struct Inputs *inputs)
+{
+	for (uint32_t ibutton = 0; ibutton < InputButtons_Count; ++ibutton) {
+		inputs->buttons_is_down[ibutton] = inputs->buttons_ended_down[ibutton];
+		inputs->buttons_was_pressed[ibutton] = inputs->buttons_ended_down[ibutton] && (inputs->buttons_transitions_count[ibutton] % 2 == 1);
+		
+		inputs->buttons_transitions_count[ibutton] = 0;
+	}
+}
+
+void inputs_imgui(struct Inputs *inputs)
+{
+	for (uint32_t ibutton = 0; ibutton < InputButtons_Count; ++ibutton) {
+		ImGui_Text("%s transitions: %u", InputButtons_str[ibutton], inputs->buttons_transitions_count[ibutton]);
+		
+		ImGui_Text("%s %s", InputButtons_str[ibutton], inputs->buttons_is_down[ibutton] ? "down" : "up");
+		ImGui_Text("%s %s", InputButtons_str[ibutton], inputs->buttons_was_pressed[ibutton] ? "pressed" : "not pressed");
+	}
 }

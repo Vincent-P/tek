@@ -184,12 +184,12 @@ struct GameUpdateResult local_battle_update(void** data_data, struct GameUpdateC
 	ImGui_End();
 
 	if (data->state != LOCAL_BATTLE_STATE_PAUSE) {
-		if (data->inputs->buttons_is_pressed[InputButtons_Escape] || data->inputs->gamepad_buttons_is_pressed[InputGamepadButtons_START]) {
+		if (data->inputs->buttons_was_pressed[InputButtons_Escape] || data->inputs->gamepad_buttons_is_down[InputGamepadButtons_START]) {
 			data->pause_previous_state = data->state;
 			data->state = LOCAL_BATTLE_STATE_PAUSE;
 		}
 	} else {
-		if (data->inputs->buttons_is_pressed[InputButtons_Escape] || data->inputs->gamepad_buttons_is_pressed[InputGamepadButtons_START]) {
+		if (data->inputs->buttons_was_pressed[InputButtons_Escape] || data->inputs->gamepad_buttons_is_down[InputGamepadButtons_START]) {
 			data->pause_resume_pressed = true;
 		}
 	}

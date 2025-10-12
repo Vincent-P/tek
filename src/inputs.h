@@ -56,12 +56,19 @@ struct Inputs
 	SDL_Gamepad *gamepads[INPUTS_GAMEPAD_CAPACITY];
 	uint32_t gamepads_count;
 
-	bool gamepad_buttons_is_pressed[InputGamepadButtons_COUNT];
+	bool gamepad_buttons_is_down[InputGamepadButtons_COUNT];
 
-
-	bool buttons_is_pressed[InputButtons_Count];
+	// event feed
+	bool buttons_transitions_count[InputButtons_Count];
+	bool buttons_ended_down[InputButtons_Count];
+	// from events
+	bool buttons_is_down[InputButtons_Count];
+	bool buttons_was_pressed[InputButtons_Count];
+	
 	bool is_mouse_down;
 };
 
 void inputs_init(struct Inputs *inputs);
 bool inputs_process_event(SDL_Event *event, struct Inputs *inputs);
+void inputs_begin_frame(struct Inputs *inputs);
+void inputs_imgui(struct Inputs *inputs);

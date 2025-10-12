@@ -414,6 +414,8 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 		renderer_init_materials(application->renderer, &application->assets);
 	}
 
+	 inputs_begin_frame(&application->inputs);
+
 	// Setup display size (every frame to accommodate for window resizing)
 	ImGuiIO *io = ImGui_GetIO();
 	int w, h;
@@ -441,6 +443,8 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 	uint64_t new_time = SDL_GetTicks();
 	uint64_t previous_frame_time = new_time - application->current_time;
 	application->current_time = new_time;
+	
+	inputs_imgui(&application->inputs);
 
 	struct GameUpdateContext update_ctx = {};
 	update_ctx.inputs = application->inputs;
