@@ -37,16 +37,14 @@ void mainmenu_render(void **state_data)
 {
 	struct MainMenuState *state = *state_data;
 		
-	const Clay_Color COLOR_LIGHT = (Clay_Color) {36, 64, 17, 255};
-	const Clay_Color COLOR_RED = (Clay_Color) {168, 66, 28, 255};
-	const Clay_Color COLOR_ORANGE = (Clay_Color) {225, 138, 50, 255};
-	uint32_t profilePicture = 0;
-	CLAY({ .id = CLAY_ID("OuterContainer"), .layout = { .sizing = {CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0)}, .padding = CLAY_PADDING_ALL(16), .childGap = 16 }, .backgroundColor = {0,0,0,0} }) {
-		
+	CLAY({ .id = CLAY_ID("OuterContainer"), .layout = { .sizing = {CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0)}, .padding = CLAY_PADDING_ALL(16), .childGap = 16 }}) {
+
+
 		CLAY({
-				.id = CLAY_ID("SideBar"),
+				.id = CLAY_ID("Floating"),
 				.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = { .width = CLAY_SIZING_FIXED(300), .height = CLAY_SIZING_FIT(0) }, .padding = CLAY_PADDING_ALL(16), .childGap = 16 },
-				.backgroundColor = COLOR_LIGHT
+				.floating = { .attachTo = CLAY_ATTACH_TO_PARENT, .attachPoints = { .element = CLAY_ATTACH_POINT_CENTER_BOTTOM, .parent = CLAY_ATTACH_POINT_CENTER_CENTER } },
+				.backgroundColor = {0, 0, 0, 128}
 			}) {
 
 			ui_button("Local battle", &state->local_pressed);

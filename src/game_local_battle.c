@@ -91,7 +91,7 @@ struct LocalBattleData
 void local_battle_new_match(struct LocalBattleData *data)
 {
 	data->state = LOCAL_BATTLE_STATE_PLAYING;
-	
+
 	memset(&data->battle_context, 0, sizeof(data->battle_context));
 
 	data->battle_context.assets = data->game->assets;
@@ -170,16 +170,13 @@ struct GameUpdateResult local_battle_update(void** data_data, struct GameUpdateC
 	struct LocalBattleData *data = *data_data;
 
 	if (ImGui_Begin("Local Battle", NULL, 0)) {
-		ImGui_Text("battle accumulator: %llu", data->accumulator);
-		ImGui_Text("battle time: %llu", data->t);
-		ImGui_Text("battle frame: %u", data->battle_context.battle_state.frame_number);
-		ImGui_Text("replay frame: %u", data->replay_initial_context.battle_state.frame_number + data->watching_frame);
-		ImGui_Separator();
 		if (ImGui_Button("Pause")) {
 			data->pause_previous_state = data->state;
 			data->state = LOCAL_BATTLE_STATE_PAUSE;
 		}
-		ImGui_Separator();
+		ImGui_SameLine();
+		ImGui_TextUnformatted("|");
+		ImGui_SameLine();
 	}
 	ImGui_End();
 
@@ -198,7 +195,8 @@ struct GameUpdateResult local_battle_update(void** data_data, struct GameUpdateC
 	case LOCAL_BATTLE_STATE_PLAYING: {
 		if (ImGui_Begin("Local Battle", NULL, 0)) {
 
-			ImGui_Text("Replay");
+			ImGui_Text("Replay:");
+			ImGui_SameLine();
 
 			switch (data->replay_recorder_state) {
 			case REPLAY_RECORDER_STATE_INACTIVE: {
@@ -206,6 +204,7 @@ struct GameUpdateResult local_battle_update(void** data_data, struct GameUpdateC
 					data->playing_state = LOCAL_BATTLE_PLAYING_STATE_RECORDING;
 					data->replay_recorder_state = REPLAY_RECORDER_STATE_START_RECORD;
 				}
+				ImGui_SameLine();
 				break;
 			}
 			case REPLAY_RECORDER_STATE_START_RECORD: {
@@ -215,6 +214,7 @@ struct GameUpdateResult local_battle_update(void** data_data, struct GameUpdateC
 				if (ImGui_Button("Stop")) {
 					data->replay_recorder_state = REPLAY_RECORDER_STATE_STOP_RECORD;
 				}
+				ImGui_SameLine();
 				break;
 			}
 			case REPLAY_RECORDER_STATE_STOP_RECORD: {
@@ -227,6 +227,7 @@ struct GameUpdateResult local_battle_update(void** data_data, struct GameUpdateC
 					data->state = LOCAL_BATTLE_STATE_WATCHING;
 					data->replay_watcher_state = REPLAY_WATCHER_STATE_START_PLAY;
 				}
+				ImGui_SameLine();
 			}
 		}
 		ImGui_End();
@@ -235,11 +236,15 @@ struct GameUpdateResult local_battle_update(void** data_data, struct GameUpdateC
 
 	case LOCAL_BATTLE_STATE_WATCHING: {
 		if (ImGui_Begin("Local Battle", NULL, 0)) {
-			ImGui_Text("Replay");
+			ImGui_SameLine();
+			ImGui_Text("Replay:");
+			ImGui_SameLine();
 			ImGui_Text("%u/%u", data->watching_frame, data->replay_length);
+			ImGui_SameLine();
 			if (ImGui_Button("Exit replay")) {
 				data->replay_watcher_state = REPLAY_WATCHER_STATE_EXIT;
 			}
+			ImGui_SameLine();
 
 			int advance = 0;
 			if (ImGui_Button("<<<")) {
@@ -476,6 +481,9 @@ void local_battle_render(void **data_data)
 
 	float p1_hp_filled = data->battle_context.battle_state.p1_entity.tek.hp * 0.01f;
 	float p2_hp_filled = data->battle_context.battle_state.p2_entity.tek.hp * 0.01f;
+	int rounds_first_to = data->battle_context.battle_non_state.rounds_first_to;
+	int rounds_p1_won = data->battle_context.battle_non_state.rounds_p1_won;
+	int rounds_p2_won = data->battle_context.battle_non_state.rounds_p2_won;
 
 	CLAY({
 			.id = CLAY_ID("OuterContainer"),
@@ -507,8 +515,21 @@ void local_battle_render(void **data_data)
 								.backgroundColor = {240, 240, 240, 255},
 							});
 					}
-
-					CLAY_TEXT(CLAY_STRING("SuperBob"), CLAY_TEXT_CONFIG({ .fontSize = 16, .textColor = {255, 255, 255, 255}, .textAlignment = CLAY_TEXT_ALIGN_LEFT }));
+					CLAY({.id = CLAY_IDI("PlayerInfo", 1), .layout = {.sizing = {CLAY_SIZING_GROW(0)}}}) {
+						CLAY({.id = CLAY_IDI("PlayerName", 1)}) {
+							CLAY_TEXT(CLAY_STRING("SuperBob"), CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {255, 255, 255, 255}}));
+					        }
+						CLAY({.id = CLAY_IDI("PlayerFill", 1), .layout = {.sizing = {CLAY_SIZING_GROW(0)}}}) { }
+						CLAY({.id = CLAY_IDI("PlayerRounds", 1)}) {
+							for (int i = 1; i <= rounds_first_to; ++i) {
+								if (i <= rounds_p1_won) {
+									CLAY_TEXT(CLAY_STRING("X"), CLAY_TEXT_CONFIG({.fontSize = 32, .textColor = {255, 255, 255, 255}}));
+								} else {
+									CLAY_TEXT(CLAY_STRING("O"), CLAY_TEXT_CONFIG({.fontSize = 32, .textColor = {255, 255, 255, 255}}));
+								}
+							}
+					        }
+					}
 				}
 
 				CLAY_TEXT(CLAY_STRING("59"), CLAY_TEXT_CONFIG({ .fontSize = 50, .textColor = {255, 255, 255, 255} }));
@@ -535,7 +556,21 @@ void local_battle_render(void **data_data)
 							});
 					}
 
-					CLAY_TEXT(CLAY_STRING("Seb"), CLAY_TEXT_CONFIG({ .fontSize = 16, .textColor = {255, 255, 255, 255}, .textAlignment = CLAY_TEXT_ALIGN_RIGHT }));
+					CLAY({.id = CLAY_IDI("PlayerInfo", 2), .layout = {.sizing = {CLAY_SIZING_GROW(0)}}}) {
+						CLAY({.id = CLAY_IDI("PlayerRounds", 2)}) {
+							for (int i = 1; i <= rounds_first_to; ++i) {
+								if (i <= rounds_p2_won) {
+									CLAY_TEXT(CLAY_STRING("X"), CLAY_TEXT_CONFIG({.fontSize = 32, .textColor = {255, 255, 255, 255}}));
+								} else {
+									CLAY_TEXT(CLAY_STRING("O"), CLAY_TEXT_CONFIG({.fontSize = 32, .textColor = {255, 255, 255, 255}}));
+								}
+							}
+					        }
+						CLAY({.id = CLAY_IDI("PlayerFill", 2), .layout = {.sizing = {CLAY_SIZING_GROW(0)}}}) { }
+						CLAY({.id = CLAY_IDI("PlayerName", 2)}) {
+							CLAY_TEXT(CLAY_STRING("Seb"), CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {255, 255, 255, 255}}));
+					        }
+					}
 
 				}
 
@@ -566,12 +601,12 @@ void local_battle_render(void **data_data)
 							.length = label_length,
 							.chars = ui_string(label, label_length),
 						};
-						CLAY_TEXT(label_string, CLAY_TEXT_CONFIG({ .fontSize = 16, .textColor = {0, 0, 0, 255}, .textAlignment = CLAY_TEXT_ALIGN_RIGHT }));
+						CLAY_TEXT(label_string, CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {0, 0, 0, 255}}));
 					}
 				}
-				
+
 				CLAY({.id = CLAY_ID("Empty"), .layout = { .sizing = {CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0)}}}) {}
-				
+
 				CLAY({
 						.id = CLAY_IDI("PlayerInput", 2),
 						.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = {.width = CLAY_SIZING_FIT(0), .height = CLAY_SIZING_GROW(0)}, .padding = CLAY_PADDING_ALL(16), .childGap = 16, .childAlignment = {.x = CLAY_ALIGN_X_RIGHT} },
@@ -594,7 +629,7 @@ void local_battle_render(void **data_data)
 							.length = label_length,
 							.chars = ui_string(label, label_length),
 						};
-						CLAY_TEXT(label_string, CLAY_TEXT_CONFIG({ .fontSize = 16, .textColor = {0, 0, 0, 255}, .textAlignment = CLAY_TEXT_ALIGN_RIGHT }));
+						CLAY_TEXT(label_string, CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {0, 0, 0, 255} }));
 					}
 				}
 			}
@@ -603,28 +638,27 @@ void local_battle_render(void **data_data)
 
 		// pause menu
 		if (data->state == LOCAL_BATTLE_STATE_PAUSE) {
-			CLAY({.id = CLAY_ID("PAUSE_FRAME"), .floating = { .attachTo = CLAY_ATTACH_TO_PARENT }, .layout = {.sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0)}}, .backgroundColor = {0, 0, 0, 128}} ) {
-				CLAY({
-						.id = CLAY_ID("SideBar"),
-						.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = { .width = CLAY_SIZING_FIXED(300), .height = CLAY_SIZING_FIT(0) }, .padding = CLAY_PADDING_ALL(16), .childGap = 16 },
-						.backgroundColor = {128, 128, 128, 255},
-					}) {
+			CLAY({
+					.id = CLAY_ID("Floating"),
+					.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = { .width = CLAY_SIZING_FIT(300), .height = CLAY_SIZING_FIT(0) }, .padding = CLAY_PADDING_ALL(16), .childGap = 16 },
+					.floating = { .offset = {0, 16}, .attachTo = CLAY_ATTACH_TO_PARENT, .attachPoints = { .element = CLAY_ATTACH_POINT_CENTER_BOTTOM, .parent = CLAY_ATTACH_POINT_CENTER_CENTER } },
+					.backgroundColor = {0, 0, 0, 128}
+				}) {
 
-					ui_button("Resume", &data->pause_resume_pressed);
-					ui_button("Options", &data->pause_options_pressed);
-					ui_button("Return to main menu", &data->pause_mainmenu_pressed);
-				}
+				ui_button("Resume", &data->pause_resume_pressed);
+				ui_button("Options", &data->pause_options_pressed);
+				ui_button("Return to main menu", &data->pause_mainmenu_pressed);
 			}
 		}
 
 		if (data->state == LOCAL_BATTLE_STATE_END) {
 			CLAY({.id = CLAY_ID("END_FRAME"), .floating = { .attachTo = CLAY_ATTACH_TO_PARENT }, .layout = {.sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0)}}, .backgroundColor = {0, 0, 0, 128}} ) {
 				CLAY({
-						.id = CLAY_ID("SideBar"),
-						.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = { .width = CLAY_SIZING_FIXED(300), .height = CLAY_SIZING_FIT(0) }, .padding = CLAY_PADDING_ALL(16), .childGap = 16 },
-						.backgroundColor = {128, 128, 128, 255},
+						.id = CLAY_ID("Floating"),
+						.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = { .width = CLAY_SIZING_FIT(300), .height = CLAY_SIZING_FIT(0) }, .padding = CLAY_PADDING_ALL(16), .childGap = 16 },
+						.floating = { .offset = {0, 16}, .attachTo = CLAY_ATTACH_TO_PARENT, .attachPoints = { .element = CLAY_ATTACH_POINT_CENTER_BOTTOM, .parent = CLAY_ATTACH_POINT_CENTER_CENTER } },
+						.backgroundColor = {0, 0, 0, 128}
 					}) {
-
 					ui_button("Rematch", &data->end_rematch_pressed);
 					ui_button("Return to main menu", &data->end_mainmenu_pressed);
 				}

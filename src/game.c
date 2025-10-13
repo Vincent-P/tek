@@ -9,7 +9,7 @@ void game_update(struct Game *game, struct GameUpdateContext const* ctx)
 {
 	debug_draw_reset();
 
-	if (ImGui_Begin("Game", NULL, 0)) {
+	if (ImGui_Begin("Debug", NULL, 0)) {
 		ImGui_Text("current time: %llu", ctx->current_time);
 		ImGui_Text("frame: %llu", ctx->f);
 		ImGui_Text("previous frame time: %llu", ctx->previous_frame_time);

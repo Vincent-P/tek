@@ -446,7 +446,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 	uint64_t previous_frame_time = new_time - application->current_time;
 	application->current_time = new_time;
 	
-	inputs_imgui(&application->inputs);
+	// inputs_imgui(&application->inputs);
 
 	struct GameUpdateContext update_ctx = {};
 	update_ctx.inputs = application->inputs;

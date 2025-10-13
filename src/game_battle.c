@@ -672,11 +672,7 @@ void battle_render(struct BattleContext *ctx)
 	ed_display_player_entity("Player 1", &state->p1_entity);
 	ed_display_player_entity("Player 2", &state->p2_entity);
 
-	if (ImGui_Begin("Battle", NULL, 0)) {
-		ImGui_Text("First To %d", nonstate->rounds_first_to);
-		ImGui_Text("P1: %d", nonstate->rounds_p1_won);
-		ImGui_Text("P2: %d", nonstate->rounds_p2_won);
-		ImGui_Text("");
+	if (ImGui_Begin("Debug", NULL, 0)) {
 		ImGui_DragFloat3Ex("camera position", &nonstate->camera.position.x, 0.1f, 0.0f, 0.0f, "%.3f", 0);
 		ImGui_DragFloat3Ex("camera lookat", &nonstate->camera.lookat.x, 0.1f, 0.0f, 0.0f, "%.3f", 0);
 		ImGui_DragFloat("camera fov", &nonstate->camera.vertical_fov);
