@@ -784,7 +784,17 @@ void battle_render(struct BattleContext *ctx)
 		debug_draw_line(o, z, DD_BLUE);
 	}
 
-	renderer_set_main_camera(ctx->renderer, nonstate->camera);
+
+	// interpolate camera for smooth movement
+	float coef = 0.05f;
+	nonstate->camera_display.position.x = (nonstate->camera_display.position.x)*(1.0-coef) + (nonstate->camera.position.x)*(coef);
+	nonstate->camera_display.position.y = (nonstate->camera_display.position.y)*(1.0-coef) + (nonstate->camera.position.y)*(coef);
+	nonstate->camera_display.position.z = (nonstate->camera_display.position.z)*(1.0-coef) + (nonstate->camera.position.z)*(coef);
+	nonstate->camera_display.lookat.x = (nonstate->camera_display.lookat.x)*(1.0-coef) + (nonstate->camera.lookat.x)*(coef);
+	nonstate->camera_display.lookat.y = (nonstate->camera_display.lookat.y)*(1.0-coef) + (nonstate->camera.lookat.y)*(coef);
+	nonstate->camera_display.lookat.z = (nonstate->camera_display.lookat.z)*(1.0-coef) + (nonstate->camera.lookat.z)*(coef);
+	nonstate->camera_display.vertical_fov = (nonstate->camera_display.vertical_fov)*(1.0-coef) + (nonstate->camera.vertical_fov)*(coef);
+	renderer_set_main_camera(ctx->renderer, nonstate->camera_display);
 
 	TracyCZoneEnd(f);
 }

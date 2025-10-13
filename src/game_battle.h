@@ -14,7 +14,7 @@ enum BattleInputBits
 	BATTLE_INPUT_UP        = (1 << 1),
 	BATTLE_INPUT_FORWARD   = (1 << 2),
 	BATTLE_INPUT_DOWN      = (1 << 3),
-	
+
 	BATTLE_INPUT_LPUNCH    = (1 << 4),
 	BATTLE_INPUT_RPUNCH    = (1 << 5),
 	BATTLE_INPUT_LKICK     = (1 << 6),
@@ -84,6 +84,7 @@ struct BattleNonState
 	struct PlayerNonEntity p2_nonentity;
 	// rendering
 	Camera camera;
+	Camera camera_display;
 	float camera_distance;
 	int camera_focus; // 0 = none, 1 = p1, 2 = p2
 	bool draw_grid;
