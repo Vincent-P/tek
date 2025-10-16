@@ -28,6 +28,11 @@ typedef struct VulkanGraphicsProgram
 	VkPipeline pipeline;
 } VulkanGraphicsProgram;
 
+typedef struct VulkanComputeProgram
+{
+	VkPipeline pipeline;
+} VulkanComputeProgram;
+
 typedef struct VulkanBuffer
 {
 	oa_allocation_t allocation;
@@ -104,6 +109,7 @@ struct VulkanDevice
 	VkSemaphore swapchain_present_semaphore[MAX_BACKBUFFER_COUNT];
 	// resources
 	VulkanGraphicsProgram graphics_psos[VK_PROGRAM_CAPACITY];
+	VulkanComputeProgram compute_psos[VK_PROGRAM_CAPACITY];
 	VulkanBuffer buffers[VK_BUFFER_CAPACITY];
 	VulkanRenderTarget rts[VK_RT_CAPACITY];
 	VulkanTexture textures[VK_TEXTURE_CAPACITY];
@@ -169,7 +175,7 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 #if defined(ENABLE_VALIDATION)
 	instance_layers_length = 1;
 #endif
-	
+
 	VkApplicationInfo app_info  	= {.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO};
 	app_info.pApplicationName   	= "tek";
 	app_info.applicationVersion 	= VK_MAKE_VERSION(1, 0, 0);
@@ -184,7 +190,7 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	create_info.ppEnabledExtensionNames	= instance_extensions;
 	VkResult res = vkCreateInstance(&create_info, NULL, &device->instance);
 	assert(res == VK_SUCCESS);
-	
+
 #if defined(ENABLE_VALIDATION)
 	device->my_vkCreateDebugUtilsMessengerEXT  = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(device->instance, "vkCreateDebugUtilsMessengerEXT");
 	device->my_vkDestroyDebugUtilsMessengerEXT = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(device->instance, "vkDestroyDebugUtilsMessengerEXT");
@@ -205,7 +211,7 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	}
 #endif
 
-	
+
 	/// --- Pick physical device
 	VkPhysicalDevice physical_devices[16] = {0};
 	uint32_t physical_devices_count = 16;
@@ -257,10 +263,10 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	res = vkCreateDevice(device->physical_device, &dci, NULL, &device->device);
 	assert(res == VK_SUCCESS);
 	vkGetDeviceQueue(device->device, device->graphics_family_idx, 0, &device->graphics_queue);
-	
+
 	device->my_vkCmdPushDescriptorSetKHR = (PFN_vkCmdPushDescriptorSetKHR)vkGetDeviceProcAddr(device->device, "vkCmdPushDescriptorSetKHR");
 	assert(device->my_vkCmdPushDescriptorSetKHR != NULL);
-	
+
 	// -- Create command buffers
 	for (uint32_t iframe = 0; iframe < FRAME_COUNT; ++iframe) {
 		VkCommandPoolCreateInfo command_pool_info = {.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
@@ -282,12 +288,12 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	for (uint32_t ibackbuffer = 0; ibackbuffer < MAX_BACKBUFFER_COUNT; ++ibackbuffer) {
 		VkSemaphoreCreateInfo semaphore_info = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 		res = vkCreateSemaphore(device->device, &semaphore_info, NULL, &device->swapchain_acquire_semaphore[ibackbuffer]);
-		assert(res == VK_SUCCESS);		
+		assert(res == VK_SUCCESS);
 		res = vkCreateSemaphore(device->device, &semaphore_info, NULL, &device->swapchain_present_semaphore[ibackbuffer]);
 		assert(res == VK_SUCCESS);
 	}
 
-	
+
 	// -- Prepare device memory
 	VkPhysicalDeviceMemoryProperties mem_props = {0};
 	vkGetPhysicalDeviceMemoryProperties(device->physical_device, &mem_props);
@@ -341,7 +347,7 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	VkSamplerCreateInfo sampler_info = {.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
 	res = vkCreateSampler(device->device, &sampler_info, NULL, &device->default_sampler);
 	assert(res == VK_SUCCESS);
-	
+
 	// -- Prepare descriptor layout
 	VkDescriptorSetLayoutBinding bindings[2] = {
 		{
@@ -369,7 +375,7 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	VkDescriptorSetLayout desc_layout = VK_NULL_HANDLE;
 	res = vkCreateDescriptorSetLayout(device->device, &desc_layout_info, NULL, &desc_layout);
 	assert(res == VK_SUCCESS);
-	
+
 	VkPushConstantRange push_constants_ranges[] = {
 		// {stage, offset, size}
 		{VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT, 0, 256},
@@ -389,15 +395,15 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 static void create_swapchain(VulkanDevice *device, void *hwnd)
 {
 	vkDeviceWaitIdle(device->device);
-	
+
 	VkSwapchainKHR old_swapchain = device->swapchain;
-	
+
 	uint32_t width = 256;
 	uint32_t height = 256;
 	VkSurfaceKHR surface = NULL;
 
 #if defined(_WIN32)
-	
+
 	RECT client_rect = {0};
 	BOOL win32_res = GetClientRect(hwnd, &client_rect);
 	assert(win32_res);
@@ -414,17 +420,17 @@ static void create_swapchain(VulkanDevice *device, void *hwnd)
 
 	width = g_wnd.w;
 	height = g_wnd.h;
-	
+
 	struct VkWaylandSurfaceCreateInfoKHR create_info = {.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR};
 	create_info.display = g_display;
 	create_info.surface = g_surface;
 	VkResult res = vkCreateWaylandSurfaceKHR(device->instance, &create_info, NULL, &surface);
 	assert(res == VK_SUCCESS);
-	
+
 #endif
 
 	fprintf(stderr, "[vulkan] Creating a %ux%u swapchain\n", width, height);
-	
+
 	// Get the list of VkFormats that are supported:
 	uint32_t formatCount;
 	res = vkGetPhysicalDeviceSurfaceFormatsKHR(device->physical_device, surface, &formatCount, NULL);
@@ -570,7 +576,7 @@ void new_graphics_program_ex(VulkanDevice *device, uint32_t handle, MaterialAsse
 	struct RenderPass renderpass = RENDER_PASSES[material_asset.render_pass_id];
 
 	bool const has_pixel_shader = material_asset.pixel_shader_bytecode.size > 0;
-	
+
 	VkShaderModuleCreateInfo vshader_module = {.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
 	vshader_module.codeSize = material_asset.vertex_shader_bytecode.size;
 	vshader_module.pCode = material_asset.vertex_shader_bytecode.data;
@@ -591,23 +597,23 @@ void new_graphics_program_ex(VulkanDevice *device, uint32_t handle, MaterialAsse
 	if (has_pixel_shader) {
 		ShaderStagesCount = 2;
 	}
-	
+
 	VkPipelineVertexInputStateCreateInfo VertexInputState = {.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
-	
+
 	VkPipelineInputAssemblyStateCreateInfo InputAssemblyState = {.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
 	InputAssemblyState.topology = (VkPrimitiveTopology)spec.topology;
-	
+
 	VkPipelineTessellationStateCreateInfo TessellationState = {.sType = VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO};
 
 	VkPipelineViewportStateCreateInfo ViewportState = {.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
 	ViewportState.viewportCount = 1;
 	ViewportState.scissorCount = 1;
-	
+
 	VkPipelineRasterizationStateCreateInfo RasterizationState = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
 	RasterizationState.polygonMode = (VkPolygonMode)spec.fillmode;
 	RasterizationState.cullMode = VK_CULL_MODE_NONE;
 	RasterizationState.frontFace = VK_FRONT_FACE_CLOCKWISE;
-	
+
 	VkPipelineMultisampleStateCreateInfo MultisampleState = {.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
 	MultisampleState.rasterizationSamples = renderpass.multisamples;
 
@@ -631,11 +637,11 @@ void new_graphics_program_ex(VulkanDevice *device, uint32_t handle, MaterialAsse
 		AttachmentBlendStates[iattachment].alphaBlendOp = VK_BLEND_OP_ADD;
 		AttachmentBlendStates[iattachment].colorWriteMask = 0xf;
 	}
-	
+
 	VkPipelineColorBlendStateCreateInfo ColorBlendState = {.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
 	ColorBlendState.attachmentCount = has_pixel_shader ? renderpass.color_formats_length : 0;
 	ColorBlendState.pAttachments = AttachmentBlendStates;
-	
+
 	VkDynamicState dynamic_states[] = {
 		// viewport
 		VK_DYNAMIC_STATE_VIEWPORT,
@@ -678,8 +684,9 @@ void new_compute_program(VulkanDevice *device, uint32_t handle, ComputeProgramAs
 	VkShaderModuleCreateInfo shader_module = {.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
 	shader_module.codeSize = program_asset.shader_bytecode.size;
 	shader_module.pCode = program_asset.shader_bytecode.data;
-	
+
 	VkComputePipelineCreateInfo pipeline_info =  {.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
+	pipeline_info.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	pipeline_info.stage.pNext = &shader_module;
 	pipeline_info.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
 	pipeline_info.stage.pName = "main";
@@ -688,11 +695,14 @@ void new_compute_program(VulkanDevice *device, uint32_t handle, ComputeProgramAs
 	VkPipeline pipeline = VK_NULL_HANDLE;
 	VkResult res = vkCreateComputePipelines(device->device, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &pipeline);
 	assert(res == VK_SUCCESS);
+
+	// assert(device->compute_psos[handle].pipeline == VK_NULL_HANDLE);
+	device->compute_psos[handle].pipeline = pipeline;
 }
 
 // -- Buffers
 void new_buffer_internal(VulkanDevice *device, uint32_t handle,uint32_t size, VkBufferCreateFlags flags, VkBufferUsageFlagBits  usage)
-{	
+{
 	VkBufferCreateInfo buffer_info = {.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
 	buffer_info.flags = flags;
 	buffer_info.size = size;
@@ -700,7 +710,7 @@ void new_buffer_internal(VulkanDevice *device, uint32_t handle,uint32_t size, Vk
 	VkBuffer buffer = VK_NULL_HANDLE;
 	VkResult res = vkCreateBuffer(device->device, &buffer_info, NULL, &buffer);
 	assert(res == VK_SUCCESS);
-	
+
 	VkDeviceBufferMemoryRequirements buf_requirements = {.sType = VK_STRUCTURE_TYPE_DEVICE_BUFFER_MEMORY_REQUIREMENTS};
 	buf_requirements.pCreateInfo = &buffer_info;
 	VkMemoryRequirements2 mem_requirements = {.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
@@ -725,11 +735,11 @@ void new_buffer_internal(VulkanDevice *device, uint32_t handle,uint32_t size, Vk
 	uint64_t gpu_address  = vkGetBufferDeviceAddress(device->device, &address_info);
 	// Get CPU address
 	void *mapped = (char*)memory_mapped + real_offset;
-	
+
 	fprintf(stderr, "[vulkan] cpu: %p | gpu: %p | size: %u\n", mapped, (void*)gpu_address, size);
-	
+
 	assert(device->buffers[handle].buffer == VK_NULL_HANDLE);
-	
+
 	device->buffers[handle].allocation = allocation;
 	device->buffers[handle].buffer = buffer;
 	device->buffers[handle].mapped = mapped;
@@ -804,7 +814,7 @@ void new_render_target(VulkanDevice *device, uint32_t handle, uint32_t width, ui
 	VkImage image = VK_NULL_HANDLE;
 	VkResult res = vkCreateImage(device->device, &image_info, NULL, &image);
 	assert(res == VK_SUCCESS);
-	
+
 	VkDeviceImageMemoryRequirements image_requirements = {.sType = VK_STRUCTURE_TYPE_DEVICE_IMAGE_MEMORY_REQUIREMENTS};
 	image_requirements.pCreateInfo = &image_info;
 	VkMemoryRequirements2 mem_requirements = {.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
@@ -871,12 +881,12 @@ void new_texture(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t
 	image_info.arrayLayers = 1;
 	image_info.samples = VK_SAMPLE_COUNT_1_BIT;
 	image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-	image_info.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	image_info.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
 	image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	VkImage image = VK_NULL_HANDLE;
 	VkResult res = vkCreateImage(device->device, &image_info, NULL, &image);
 	assert(res == VK_SUCCESS);
-	
+
 	VkDeviceImageMemoryRequirements image_requirements = {.sType = VK_STRUCTURE_TYPE_DEVICE_IMAGE_MEMORY_REQUIREMENTS};
 	image_requirements.pCreateInfo = &image_info;
 	VkMemoryRequirements2 mem_requirements = {.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
@@ -938,7 +948,7 @@ static void set_image_layout(VkCommandBuffer cmd, VkImage image, VkImageLayout o
 {
 	VkPipelineStageFlags DEPTH_TEST_MASK = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
 	bool is_depth = ((src_stages & DEPTH_TEST_MASK) != 0) || ((dst_stages & DEPTH_TEST_MASK) != 0);
-	
+
 	VkImageMemoryBarrier2 image_barrier = {.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2};
 	image_barrier.srcStageMask = src_stages;
 	image_barrier.srcAccessMask = srcAccessMask;
@@ -968,7 +978,7 @@ static void set_image_layout(VkCommandBuffer cmd, VkImage image, VkImageLayout o
 			image_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
 		}
 		break;
-		
+
         case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
 		assert(false); // deprecated
 		image_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
@@ -1002,7 +1012,7 @@ void begin_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t *out_swapcha
 {
 	TracyCZoneN(f, "Vulkan begin frame", true);
 	frame->iframe = device->current_frame % FRAME_COUNT;
-	
+
 	VkResult res = VK_SUCCESS;
 	// -- wait for command buffer to finish
 	TracyCZoneN(wait, "wait for GPU", true);
@@ -1072,7 +1082,7 @@ void begin_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t *out_swapcha
 				       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 				       1,
 				       &region);
-			
+
 		set_image_layout(frame->cmd, device->textures[copy.texture].image,
 				 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
 				 VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -1098,12 +1108,12 @@ void end_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t output_rt_hand
 	assert(res == VK_SUCCESS || res == VK_SUBOPTIMAL_KHR || res == VK_ERROR_OUT_OF_DATE_KHR);
 	if (res == VK_SUBOPTIMAL_KHR || res == VK_ERROR_OUT_OF_DATE_KHR)
 		device->should_recreate_swapchain = 1;
-	
+
 	// -- prepare present
 	TracyCZoneN(blit, "Blit to backbuffer", true);
 	if (output_rt_handle < ARRAY_LENGTH(device->rts) && device->rts[output_rt_handle].image != VK_NULL_HANDLE) {
 		VulkanRenderTarget *output_rt = device->rts + output_rt_handle;
-		
+
 		set_image_layout(frame->cmd, output_rt->image,
 				 VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
 				 VK_ACCESS_NONE, VK_PIPELINE_STAGE_NONE,
@@ -1121,7 +1131,7 @@ void end_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t output_rt_hand
 		region.srcOffsets[1].y = output_rt->height;
 		region.srcOffsets[1].z = 1;
 		region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		region.dstSubresource.layerCount = 1;	
+		region.dstSubresource.layerCount = 1;
 		region.dstOffsets[1].x = device->swapchain_width;
 		region.dstOffsets[1].y = device->swapchain_height;
 		region.dstOffsets[1].z = 1;
@@ -1129,7 +1139,7 @@ void end_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t output_rt_hand
 			       device->swapchain_images[ibackbuffer], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 			       1, &region,
 			       VK_FILTER_NEAREST);
-	
+
 		set_image_layout(frame->cmd, device->swapchain_images[ibackbuffer],
 				 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
 				 VK_ACCESS_TRANSFER_WRITE_BIT , VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -1182,7 +1192,7 @@ void end_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t output_rt_hand
 	if (res == VK_SUBOPTIMAL_KHR|| res == VK_ERROR_OUT_OF_DATE_KHR)
 		device->should_recreate_swapchain = 1;
 	TracyCZoneEnd(present);
-	
+
 	TracyCZoneEnd(f);
 }
 
@@ -1218,7 +1228,7 @@ static void begin_render_pass_internal(VulkanDevice *device, VulkanFrame *frame,
 				 color_layout, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
 				 VK_ACCESS_NONE, VK_PIPELINE_STAGE_NONE,
 				 VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
-		
+
 		color_infos[icolor] = (VkRenderingAttachmentInfoKHR){
 			.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
 			.imageView = rt->image_view,
@@ -1229,13 +1239,13 @@ static void begin_render_pass_internal(VulkanDevice *device, VulkanFrame *frame,
 		};
 	}
 	pass->color_rts_length = pass_info.color_rts_length;
-	
+
 	bool has_depth = pass_info.depth_rt < ARRAY_LENGTH(device->rts) && device->rts[pass_info.depth_rt].image_view != VK_NULL_HANDLE;
 	has_depth = has_depth && device->rts[pass_info.depth_rt].format == (VkFormat)PG_FORMAT_D32_SFLOAT;
 	if (has_depth) {
 		VulkanRenderTarget *rt = device->rts + pass_info.depth_rt;
 		pass->depth_rt = rt;
-		
+
 		if (rt->width < render_width) {
 			render_width = rt->width;
 		}
@@ -1257,7 +1267,7 @@ static void begin_render_pass_internal(VulkanDevice *device, VulkanFrame *frame,
 			.clearValue = {0},
 		};
 	}
-	
+
 	VkRenderingInfoKHR render_info  = {.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR};
 	render_info.renderArea.extent.width = render_width;
 	render_info.renderArea.extent.height = render_height;
@@ -1292,7 +1302,7 @@ void begin_render_pass_discard(VulkanDevice *device, VulkanFrame *frame, VulkanR
 void end_render_pass(VulkanDevice *device, VulkanRenderPass *pass)
 {
 	VulkanFrame *frame = pass->frame;
-	
+
 	vkCmdEndRendering(frame->cmd);
 	for (uint32_t icolor = 0; icolor < pass->color_rts_length; ++icolor) {
 		set_image_layout(frame->cmd, pass->color_rts[icolor]->image,
@@ -1317,7 +1327,7 @@ void vulkan_clear(VulkanDevice *device, VulkanRenderPass *pass, union VulkanClea
 
 	VkClearAttachment attachments[9] = {0};
 	VkClearRect rects[9] = {0};
-	
+
 	uint32_t iattachment = 0;
 	for (; iattachment < colors_length; ++iattachment) {
 		assert(iattachment < ARRAY_LENGTH(attachments));
@@ -1340,7 +1350,7 @@ void vulkan_clear(VulkanDevice *device, VulkanRenderPass *pass, union VulkanClea
 		rects[iattachment].layerCount = 1;
 		iattachment += 1;
 	}
-	
+
 	vkCmdClearAttachments(frame->cmd,
 			      iattachment,
 			      attachments,
@@ -1360,9 +1370,8 @@ void vulkan_set_scissor(VulkanDevice *device, VulkanRenderPass *pass, struct Vul
 
 }
 
-void vulkan_push_constants(VulkanDevice *device, VulkanRenderPass *pass, void *data, uint32_t size)
+void vulkan_push_constants(VulkanDevice *device, VulkanFrame *frame, void *data, uint32_t size)
 {
-	VulkanFrame *frame = pass->frame;
 	vkCmdPushConstants(frame->cmd,
 			   device->pipeline_layout,
 			   VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT,
@@ -1409,10 +1418,8 @@ void vulkan_draw_not_indexed(VulkanDevice *device, VulkanRenderPass *pass, uint3
 }
 
 
-void vulkan_insert_debug_label(VulkanDevice *device, VulkanRenderPass *pass, const char *label)
+void vulkan_insert_debug_label(VulkanDevice *device, VulkanFrame *frame, const char *label)
 {
-	VulkanFrame *frame = pass->frame;
-
 #if defined(ENABLE_VALIDATION)
 	if (device->my_vkCmdInsertDebugUtilsLabelEXT) {
 		VkDebugUtilsLabelEXT label_info = {.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT};
@@ -1423,13 +1430,25 @@ void vulkan_insert_debug_label(VulkanDevice *device, VulkanRenderPass *pass, con
 }
 
 
+void vulkan_bind_compute_pso(VulkanDevice *device, VulkanFrame *frame, uint32_t pso)
+{
+	assert(pso < ARRAY_LENGTH(device->compute_psos));
+	assert(device->compute_psos[pso].pipeline != VK_NULL_HANDLE);
+	vkCmdBindPipeline(frame->cmd, VK_PIPELINE_BIND_POINT_COMPUTE, device->compute_psos[pso].pipeline);
+}
+
+void vulkan_dispatch(VulkanDevice *device, VulkanFrame *frame, uint32_t x, uint32_t y, uint32_t z)
+{
+	vkCmdDispatch(frame->cmd, x, y, z);
+}
+
 void vulkan_bind_texture(VulkanDevice *device, VulkanFrame *frame, uint32_t texture_handle, uint32_t slot)
 {
 	VkDescriptorImageInfo image_info = {0};
 	image_info.sampler = device->default_sampler;
 	image_info.imageView = device->textures[texture_handle].image_view;
 	image_info.imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
-	
+
 	VkWriteDescriptorSet write = {.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
 	write.dstArrayElement = slot;
 	write.descriptorCount = 1;
@@ -1450,7 +1469,7 @@ void vulkan_bind_rt_as_texture(VulkanDevice *device, VulkanFrame *frame, uint32_
 	image_info.sampler = device->default_sampler;
 	image_info.imageView = device->rts[rt_handle].image_view;
 	image_info.imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
-	
+
 	VkWriteDescriptorSet write = {.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
 	write.dstArrayElement = slot;
 	write.descriptorCount = 1;

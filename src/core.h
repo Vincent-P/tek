@@ -39,3 +39,5 @@ void *arena_alloc(Arena *a, ptrdiff_t size, ptrdiff_t align, ptrdiff_t count)
     a->beg += padding + count*size;
     return memset(p, 0, count*size);
 }
+
+#define ARRAY_LENGTH(x) (sizeof(x)/sizeof(*x))

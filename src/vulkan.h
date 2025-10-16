@@ -144,12 +144,15 @@ void end_render_pass(VulkanDevice *device, VulkanRenderPass *pass);
 
 void vulkan_clear(VulkanDevice *device, VulkanRenderPass *pass, union VulkanClearColor const* colors, uint32_t colors_length, float depth);
 void vulkan_set_scissor(VulkanDevice *device, VulkanRenderPass *pass, struct VulkanScissor scissor);
-void vulkan_push_constants(VulkanDevice *Device, VulkanRenderPass *pass, void *data, uint32_t size);
+void vulkan_push_constants(VulkanDevice *Device, VulkanFrame *frame, void *data, uint32_t size);
 void vulkan_bind_graphics_pso(VulkanDevice *device, VulkanRenderPass *pass, uint32_t pso);
 void vulkan_bind_index_buffer(VulkanDevice *device, VulkanRenderPass *pass, uint32_t index_buffer);
 void vulkan_draw(VulkanDevice *device, VulkanRenderPass *pass, struct VulkanDraw draw);
 void vulkan_draw_not_indexed(VulkanDevice *device, VulkanRenderPass *pass, uint32_t vertex_count);
-void vulkan_insert_debug_label(VulkanDevice *device, VulkanRenderPass *pass, const char *label);
+void vulkan_insert_debug_label(VulkanDevice *device, VulkanFrame *frame, const char *label);
+
+void vulkan_bind_compute_pso(VulkanDevice *device, VulkanFrame *frame, uint32_t pso);
+void vulkan_dispatch(VulkanDevice *device, VulkanFrame *frame, uint32_t x, uint32_t y, uint32_t z);
 
 // temp
 void vulkan_bind_texture(VulkanDevice *device, VulkanFrame *frame, uint32_t texture, uint32_t slot);

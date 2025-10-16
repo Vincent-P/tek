@@ -1,21 +1,29 @@
 #version 450
+#extension GL_EXT_buffer_reference : require
 #extension GL_EXT_scalar_block_layout : enable
 
 #include "hash.h"
 #include "pbr.h"
+#include "sh.h"
+
+layout(scalar, buffer_reference, buffer_reference_align=8) buffer IBLData
+{
+	SH_L2_RGB irradiance;
+};
 
 layout(location = 0) out vec4 outColor;
 
 layout(location = 0) in struct {
-    vec3 normal;
-    vec3 worldpos;
+	vec3 normal;
+	vec3 worldpos;
 } g_in;
 
 layout(scalar, push_constant) uniform uPushConstant {
-    mat4 proj;
-    mat4x3 view;
-    mat4x3 invview;
-    mat4x3 transform;
+	mat4 proj;
+	mat4x3 view;
+	mat4x3 invview;
+	mat4x3 transform;
+	IBLData ibl_buffer;
 } c_;
 
 void main()
@@ -36,18 +44,18 @@ void main()
 	vec3 shading = vec3(0.0);
 #if 0
 	#define SAMPLES 8
-	for (int i = 0; i < SAMPLES; ++i)
-	{
+	for (int i = 0; i < SAMPLES; ++i) {
 		uvec3 rng = pcg3d(uvec3(uvec2(gl_FragCoord), i));
 		vec3 random_dir = hash_to_float3(rng);
 		vec3 cosine_weighted_dir = normalize(normal + random_dir);
-		
-		shading += skyTex(cosine_weighted_dir) * BRDF(normal, view, cosine_weighted_dir, params);
+		shading += skyTex(cosine_weighted_dir) * (params.BaseColor / M_PI);
 	}
 	shading = shading / float(SAMPLES);
 #else
-	shading += skyTex(normal) * BRDF(normal, view, normal, params);
-	shading += skyTex(r) * BRDF_Diffuse(normal, view, r, params);
+
+	SH_L2_RGB radiance_sh = c_.ibl_buffer.irradiance;
+	shading += SH_CalculateIrradiance(radiance_sh, normal) * (params.BaseColor / M_PI);
+
 #endif
 
 	outColor = vec4(shading, 1.0);

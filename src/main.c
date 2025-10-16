@@ -9,8 +9,6 @@
 #include <tracy/tracy/TracyC.h>
 #include <clay.h>
 
-#define ARRAY_LENGTH(x) (sizeof(x)/sizeof(*x))
-
 #include "core.h"
 #include "asset.h"
 #include "vulkan.h"
@@ -45,7 +43,7 @@ struct Application
 static void load_assets_materials(struct AssetLibrary *assets, struct Renderer *renderer)
 {
 	Serializer s = {0};
-	
+
 	const char* materials[] = {
 		"cooking/3661877039",
 		"cooking/3200094153",
@@ -60,6 +58,17 @@ static void load_assets_materials(struct AssetLibrary *assets, struct Renderer *
 		Serialize_MaterialAsset(&s, &material);
 		serialize_end_read_file(&s);
 		asset_library_add_material(assets, material);
+	}
+
+	const char* programs[] = {
+		"cooking/3356797155",
+	};
+	for (uint32_t i = 0; i < ARRAY_LENGTH(programs); ++i) {
+		struct ComputeProgramAsset program = {0};
+		s = serialize_begin_read_file(programs[i]);
+		Serialize_ComputeProgramAsset(&s, &program);
+		serialize_end_read_file(&s);
+		asset_library_add_compute_program(assets, program);
 	}
 }
 
@@ -107,7 +116,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 	application->window = SDL_CreateWindow("tek", 1920, 1080, SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
 
 	load_assets(&application->assets, application->renderer);
-	
+
 	ImGui_CreateContext(NULL);
 	ImGuiPlatformIO* platform_io = ImGui_GetPlatformIO();
 	platform_io->Renderer_RenderState = application;
@@ -120,7 +129,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 
 	application->renderer = calloc(1, renderer_get_size());
 	renderer_init(application->renderer, &application->assets, application->window);
-	
+
 	application->drawer = calloc(1, sizeof(struct Drawer2D));
 	drawer2d_init(application->drawer, application->renderer);
 
@@ -136,7 +145,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 	game_init(&application->game);
 
 	watcher_init("cooking");
-	
+
 	return SDL_APP_CONTINUE;
 }
 
@@ -311,7 +320,7 @@ static void ImGui_ImplSDL3_PlatformSetImeData(ImGuiContext* ctx, ImGuiViewport* 
 	ImGuiIO* io = ImGui_GetIO();
 	SDL_WindowID window_id = (SDL_WindowID)(intptr_t)viewport->PlatformHandle;
 	SDL_Window* window = SDL_GetWindowFromID(window_id);
-	
+
 	if (!(data->WantVisible || io->WantTextInput)) {
 		SDL_StopTextInput(window);
 	}
@@ -364,7 +373,7 @@ bool imgui_process_event(struct Application *application, SDL_Event* event)
 			ImGuiIO_AddMouseButtonEvent(io, mouse_button, (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN));
 			return true;
 		}
-		
+
         case SDL_EVENT_KEY_DOWN:
         case SDL_EVENT_KEY_UP:
 		{
@@ -388,7 +397,7 @@ bool imgui_process_event(struct Application *application, SDL_Event* event)
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 {
 	TracyCZoneN(f, "AppEvent", true);
-	
+
 	struct Application *application = appstate;
 	if (event->type == SDL_EVENT_QUIT) {
 		return SDL_APP_SUCCESS;
@@ -397,15 +406,15 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 	imgui_process_event(application, event);
 	inputs_process_event(event, &application->inputs);
 	clay_integration_process_event(application, event);
-	
-	TracyCZoneEnd(f);	
+
+	TracyCZoneEnd(f);
 	return SDL_APP_CONTINUE;
 }
 
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
 	TracyCZoneN(appiterate, "MainLoop", true);
-	
+
 	struct Application *application = appstate;
 
 	// hot-reload materials
@@ -435,7 +444,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
 	drawer2d_reset_frame(application->drawer);
 	ui_new_frame();
-	
+
 	// Setup clay size
         // Optional: Update internal layout dimensions to support resizing
         Clay_SetLayoutDimensions((Clay_Dimensions) { display_w, display_h });
@@ -445,7 +454,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 	uint64_t new_time = SDL_GetTicks();
 	uint64_t previous_frame_time = new_time - application->current_time;
 	application->current_time = new_time;
-	
+
 	// inputs_imgui(&application->inputs);
 
 	struct GameUpdateContext update_ctx = {};
@@ -454,22 +463,22 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 	update_ctx.previous_frame_time = previous_frame_time;
 	update_ctx.f = application->f;
 	game_update(&application->game, &update_ctx);
-	
+
 	game_render(&application->game);
-	
+
         Clay_RenderCommandArray clay_render_commands = Clay_EndLayout();
 	clay_integration_render(application->drawer, &clay_render_commands);
 	application->drawer->viewport_width = display_w;
 	application->drawer->viewport_height = display_h;
 	renderer_set_drawer2d(application->renderer, application->drawer);
-	
+
 	renderer_set_time(application->renderer, ((float)application->current_time) / 1000.0f);
-	
+
 	renderer_render(application->renderer);
-	
+
 	application->f += 1;
 	TracyCZoneEnd(appiterate);
-	TracyCFrameMark;	
+	TracyCFrameMark;
 	return SDL_APP_CONTINUE;
 }
 
