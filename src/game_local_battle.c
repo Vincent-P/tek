@@ -246,38 +246,39 @@ struct GameUpdateResult local_battle_update(void** data_data, struct GameUpdateC
 			}
 			ImGui_SameLine();
 
+			const float button_width = 100.0f;
 			int advance = 0;
-			if (ImGui_Button("<<<")) {
+			if (ImGui_ButtonEx("<<<", (ImVec2){button_width, 0})) {
 				advance = -4;
 			}
 			ImGui_SameLine();
-			if (ImGui_Button("<<")) {
+			if (ImGui_ButtonEx("<<", (ImVec2){button_width, 0})) {
 				advance = -2;
 			}
 			ImGui_SameLine();
-			if (ImGui_Button("<")) {
+			if (ImGui_ButtonEx("<", (ImVec2){button_width, 0})) {
 				advance = -1;
 			}
 			ImGui_SameLine();
 			if (data->replay_watcher_state == REPLAY_WATCHER_STATE_PLAYING) {
-				if (ImGui_Button("pause")) {
+				if (ImGui_ButtonEx("pause", (ImVec2){button_width, 0})) {
 					data->replay_watcher_state = REPLAY_WATCHER_STATE_PAUSED;
 				}
 			} else if (data->replay_watcher_state == REPLAY_WATCHER_STATE_PAUSED) {
-				if (ImGui_Button("play")) {
+				if (ImGui_ButtonEx("play", (ImVec2){button_width, 0})) {
 					data->replay_watcher_state = REPLAY_WATCHER_STATE_START_PLAY;
 				}
 			}
 			ImGui_SameLine();
-			if (ImGui_Button(">")) {
+			if (ImGui_ButtonEx(">", (ImVec2){button_width, 0})) {
 				advance = 1;
 			}
 			ImGui_SameLine();
-			if (ImGui_Button(">>")) {
+			if (ImGui_ButtonEx(">>", (ImVec2){button_width, 0})) {
 				advance = 2;
 			}
 			ImGui_SameLine();
-			if (ImGui_Button(">>>")) {
+			if (ImGui_ButtonEx(">>>", (ImVec2){button_width, 0})) {
 				advance = 4;
 			}
 
