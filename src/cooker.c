@@ -183,6 +183,7 @@ int cook_material()
 
 	shaderc_compiler_t shader_compiler = shaderc_compiler_initialize();
 	shaderc_compile_options_t options = shaderc_compile_options_initialize();
+	shaderc_compile_options_set_optimization_level(options, shaderc_optimization_level_performance);
 	shaderc_compile_options_set_generate_debug_info(options);
 	shaderc_compile_options_set_include_callbacks(options, resolve_include, free_include, NULL);
 
@@ -254,6 +255,7 @@ int cook_compute_program()
 
 	shaderc_compiler_t shader_compiler = shaderc_compiler_initialize();
 	shaderc_compile_options_t options = shaderc_compile_options_initialize();
+	shaderc_compile_options_set_optimization_level(options, shaderc_optimization_level_performance);
 	shaderc_compile_options_set_generate_debug_info(options);
 	shaderc_compile_options_set_include_callbacks(options, resolve_include, free_include, NULL);
 	shaderc_compilation_result_t shader_result = shaderc_compile_into_spv(shader_compiler,

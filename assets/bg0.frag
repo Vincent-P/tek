@@ -56,12 +56,55 @@ vec3 opRepetition( in vec3 p, in vec3 s )
     return p - s*round(p/s);
 }
 
+float sdWall(vec3 p)
+{
+	p = p - vec3(0, 0, 0.66);
+	float d = sdRoundBox(p, vec3(0.5, 0.5, 0.5), 0.066);
+
+	p = p - vec3(0.37, -1.39, 0.16);
+	d = min(d, sdRoundBox(p, vec3(0.66, 0.66, 0.66), 0.033));
+
+	return d;
+}
+
+float sdWalls(vec3 p)
+{
+    // domain repetition
+    const int   n = 48;
+    const float r = 24.0;
+
+    const float b = 6.283185/float(n);
+    float a = atan(p.y,p.x);
+    float i = floor(a/b);
+
+    float c1 = b*(i+0.0); vec2 _p1 = mat2(cos(c1),-sin(c1),sin(c1), cos(c1))*p.xy;
+    float c2 = b*(i+1.0); vec2 _p2 = mat2(cos(c2),-sin(c2),sin(c2), cos(c2))*p.xy;
+
+    vec3 p1 = vec3(_p1.x - r, _p1.y, p.z);
+    vec3 p2 = vec3(_p2.x - r, _p2.y, p.z);
+
+    // evaluate two SDF instances
+#define sdf(_p,_id) sdWall(_p)
+    return min(sdf(p1,id+0), sdf(p2,id+1));
+#undef sdf
+}
+
 float sdScene(vec3 p)
 {
-	vec3 rep_p = opRepetition(p, vec3(0.5, 0.5, 0));
+	p = p - vec3(0,0,-0.04);
 
-	float d = 0.0;
-	d = sdRoundBox(rep_p, vec3(0.24, 0.24, 0.01), 0.02);
+	// repeated floor tiles
+	vec3 step = vec3(0.5, 0.5, 0.0);
+
+	vec3 id = round(p/step);
+	vec3 rep_p = p - step*id;
+	vec3 mir_p = vec3(((int(id.x)&1)==0) ? rep_p.x : -rep_p.x,
+	((int(id.y)&1)==0) ? rep_p.y : -rep_p.y,
+	((int(id.z)&1)==0) ? rep_p.z : -rep_p.z);
+	float d = sdRoundBox(mir_p, vec3(0.24, 0.24, 0.01), 0.01);
+
+	d = min(d, sdWalls(p));
+
 	return d;
 }
 
@@ -104,10 +147,10 @@ vec4 ray_march(uvec3 seed, vec2 clip_space, out float depth, out vec3 worldpos)
 
 	// shading
 	brdf_params_t params;
-	params.BaseColor = vec3(0.33);
-	params.Metallic = 0.5;
-	params.Roughness = 0.3;
-	params.Reflectance = 0.5;
+	params.BaseColor = vec3(0.93);
+	params.Metallic = 0.0;
+	params.Roughness = 0.2;
+	params.Reflectance = 1.0;
 	params.Emissive = vec3(0.0);
 	params.AmbientOcclusion = 1.0;
 	vec3 f0 = vec3(0.16 * params.Reflectance * params.Reflectance) * (1.0 - params.Metallic) + params.BaseColor *	params.Metallic;
