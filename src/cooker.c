@@ -40,7 +40,7 @@ uint32_t ufbx_string_to_id(ufbx_string s)
 {
 	return string_to_id(s.data, s.length);
 }
-	
+
 // An includer callback type for mapping an #include request to an include
 // result. The user_data parameter specifies the client context.  The
 // requested_source parameter specifies the name of the source being requested.
@@ -51,11 +51,11 @@ uint32_t ufbx_string_to_id(ufbx_string s)
 // object.
 shaderc_include_result* resolve_include(void* user_data, const char* requested_source, int type, const char* requesting_source, size_t include_depth)
 {
-		
+
 	char *include_path = calloc(1, 512);
 	int include_path_length = snprintf(include_path, 128, "%sshaders\\%s", source_dir, requested_source);
 	struct Blob file = file_read_entire_file(include_path);
-	
+
 	printf("Including %s\n", include_path);
 	shader_includes_str[shader_includes_length] = include_path;
 	shader_includes_str_length[shader_includes_length] = include_path_length;
@@ -87,7 +87,7 @@ struct MaterialJson
 struct MaterialJson parse_material_json(const char* source_path)
 {
 	struct MaterialJson material = {0};
-	
+
 	struct Blob material_json_file = file_read_entire_file(source_path);
 	struct json_value_s* root = json_parse_ex(material_json_file.data, material_json_file.size, COOKER_JSON_PARSE_FLAGS , NULL, NULL, NULL);
 	assert(root->type == json_type_object);
@@ -134,7 +134,7 @@ struct SkeletalMeshJson
 struct SkeletalMeshJson parse_skeletal_mesh_json(const char* source_path)
 {
 	struct SkeletalMeshJson skeletal_mesh = {0};
-	
+
 	struct Blob skeletal_mesh_json_file = file_read_entire_file(source_path);
 	struct json_value_s* root = json_parse_ex(skeletal_mesh_json_file.data, skeletal_mesh_json_file.size, COOKER_JSON_PARSE_FLAGS , NULL, NULL, NULL);
 	assert(root->type == json_type_object);
@@ -169,7 +169,7 @@ int cook_material()
 	char dep_path[512];
 	snprintf(source_path, sizeof(source_path), "%s%s", source_dir, relative_path);
 	snprintf(dep_path, sizeof(dep_path), "%s%s.dep", cooking_dir, relative_path);
-	
+
 	// Parse JSON
 	char vertex_shader_path[512] = {0};
 	char pixel_shader_path[512] = {0};
@@ -180,7 +180,7 @@ int cook_material()
 	// Compile shaders
 	struct Blob vshader_file = file_read_entire_file(vertex_shader_path);
 	struct Blob pshader_file = file_read_entire_file(pixel_shader_path);
-	
+
 	shaderc_compiler_t shader_compiler = shaderc_compiler_initialize();
 	shaderc_compile_options_t options = shaderc_compile_options_initialize();
 	shaderc_compile_options_set_generate_debug_info(options);
@@ -231,11 +231,11 @@ int cook_material()
 	for (uint32_t iinclude = 0; iinclude < shader_includes_length; ++iinclude) {
 		dep_cursor += snprintf(dep_content + dep_cursor, (512 - dep_cursor), "INPUT: %s\n", shader_includes_str[iinclude]);
 	}
-	
+
 	dep_cursor += snprintf(dep_content + dep_cursor, (512 - dep_cursor), "INPUT: %s\n", vertex_shader_path);
 	dep_cursor += snprintf(dep_content + dep_cursor, (512 - dep_cursor), "INPUT: %s\n", pixel_shader_path);
 
-	
+
 	dep_cursor += snprintf(dep_content + dep_cursor, (512 - dep_cursor), "OUTPUT: %s\n", dest_path);
 	file_write_entire_file(dep_path, (struct Blob){dep_content, dep_cursor});
 
@@ -248,10 +248,10 @@ int cook_compute_program()
 	char dep_path[512];
 	snprintf(source_path, sizeof(source_path), "%s%s", source_dir, relative_path);
 	snprintf(dep_path, sizeof(dep_path), "%s%s.dep", cooking_dir, relative_path);
-	
+
 	// Compile shaders
 	struct Blob shader_file = file_read_entire_file(source_path);
-	
+
 	shaderc_compiler_t shader_compiler = shaderc_compiler_initialize();
 	shaderc_compile_options_t options = shaderc_compile_options_initialize();
 	shaderc_compile_options_set_generate_debug_info(options);
@@ -283,6 +283,9 @@ int cook_compute_program()
 	// Save dep file to disk
 	char dep_content[512] = {0};
 	int32_t dep_cursor = 0;
+	for (uint32_t iinclude = 0; iinclude < shader_includes_length; ++iinclude) {
+		dep_cursor += snprintf(dep_content + dep_cursor, (512 - dep_cursor), "INPUT: %s\n", shader_includes_str[iinclude]);
+	}
 	dep_cursor += snprintf(dep_content + dep_cursor, (512 - dep_cursor), "INPUT: %s\n", source_path);
 	dep_cursor += snprintf(dep_content + dep_cursor, (512 - dep_cursor), "OUTPUT: %s\n", dest_path);
 	file_write_entire_file(dep_path, (struct Blob){dep_content, dep_cursor});
@@ -318,7 +321,7 @@ int cook_fbx()
 	// Import skeleton from the nodes hierarchy
 	ufbx_node *anim_skeleton_node = NULL;
 	ufbx_node *mesh_node = NULL;
-	
+
 	for (size_t i = 0; i < scene->nodes.count; i++) {
 		ufbx_string name = scene->nodes.data[i]->name;
 		if (name.length == json.anim_skeleton_length && strncmp(name.data, json.anim_skeleton, name.length) == 0) {
@@ -358,7 +361,7 @@ int cook_fbx()
 		if (node->node_depth <= root_bone->node_depth) {
 			break;
 		}
-		
+
 		if (node->bone) {
 			assert(bones_length < MAX_BONES_PER_MESH);
 			bones[bones_length++] = node;
@@ -435,7 +438,7 @@ int cook_fbx()
 					out_regular_track->scales.data[iscale] = 1.0f;
 				}
 			}
-			
+
 			out_track->translations.length = baked_node->translation_keys.count;
 			out_track->translations.data = calloc(baked_node->translation_keys.count, sizeof(Float3));
 			struct Float3List translations = out_track->translations;
@@ -468,7 +471,7 @@ int cook_fbx()
 					fprintf(stderr, "non uniform scale found in anim %s bone %s\n", stack->name.data, node->name.data);
 					assert(!"non uniform scale!");
 				}
-						 
+
 				scales.data[iscale] = average;
 			}
 		}
@@ -546,7 +549,7 @@ int cook_fbx()
 			// be dropping some, so we must renormalize them.
 			for (size_t i = 0; i < skin_vertex.num_weights; i++) {
 				float w  = vertex_bones_weight[i] / total_weight;
-				
+
 				vertex_bones_normalized_weight[i] = (uint32_t)(w* 255.0f);
 			}
 			vertices_bone_indices[ivertex] = (vertex_bones_index[0] & 0xff)
@@ -602,7 +605,7 @@ int cook_fbx()
 	for (uint32_t icluster = 0; icluster < clusters_length; ++icluster) {
 		skeletal_mesh_with_animations.skeletal_mesh.bones_identifier[icluster] = clusters_bone_identifier[icluster];
 	}
-	
+
 	uint32_t serializer_capacity = (16 << 20);
 	Serializer serializer = serialize_begin_write_file(serializer_capacity);
 	Serialize_SkeletalMeshWithAnimationsAsset(&serializer, &skeletal_mesh_with_animations);
@@ -616,7 +619,7 @@ int cook_fbx()
 	dep_cursor += snprintf(dep_content + dep_cursor, (512 - dep_cursor), "INPUT: %s\n", source_path);
 	dep_cursor += snprintf(dep_content + dep_cursor, (512 - dep_cursor), "OUTPUT: %s\n", dest_path);
 	file_write_entire_file(dep_path, (struct Blob){dep_content, dep_cursor});
-	
+
 	return 0;
 }
 
@@ -631,7 +634,7 @@ int main(int argc, char *argv[])
 	relative_path = argv[2];
 	source_dir = argv[3];
 	cooking_dir = argv[4];
-	
+
 	fprintf(stderr, "asset_type: %s\n", asset_type);
 	fprintf(stderr, "relative_path: %s\n", relative_path);
 	fprintf(stderr, "source_dir: %s\n", source_dir);
@@ -644,7 +647,7 @@ int main(int argc, char *argv[])
 	} else if (strcmp(asset_type, "skeletalmesh") == 0) {
 		return cook_fbx();
 	}
-	
+
 	return 1;
 }
 

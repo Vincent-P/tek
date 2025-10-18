@@ -36,27 +36,17 @@ void main()
 	brdf_params_t params;
 	params.BaseColor = vec3(0.93);
 	params.Metallic = 0.0;
-	params.Roughness = 0.9;
+	params.Roughness = 0.5;
 	params.Reflectance = 0.5;
 	params.Emissive = vec3(0.0);
 	params.AmbientOcclusion = 1.0;
+	vec3 f0 = vec3(0.16 * params.Reflectance * params.Reflectance) * (1.0 - params.Metallic) + params.BaseColor *	params.Metallic;
 
 	vec3 shading = vec3(0.0);
-#if 0
-	#define SAMPLES 8
-	for (int i = 0; i < SAMPLES; ++i) {
-		uvec3 rng = pcg3d(uvec3(uvec2(gl_FragCoord), i));
-		vec3 random_dir = hash_to_float3(rng);
-		vec3 cosine_weighted_dir = normalize(normal + random_dir);
-		shading += skyTex(cosine_weighted_dir) * (params.BaseColor / M_PI);
-	}
-	shading = shading / float(SAMPLES);
-#else
-
-	SH_L2_RGB radiance_sh = c_.ibl_buffer.irradiance;
-	shading += SH_CalculateIrradiance(radiance_sh, normal) * (params.BaseColor / M_PI);
-
-#endif
-
+	// specular part
+	vec3 AmbientLD = skyTex(r);
+	shading += AmbientLD * DFG_Approximation(f0, params.Roughness, dot(normal, view));
+	// diffuse part
+	shading += GetSkyIrradiance(normal, c_.ibl_buffer.irradiance) * (params.BaseColor / M_PI);
 	outColor = vec4(shading, 1.0);
 }

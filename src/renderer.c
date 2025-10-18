@@ -651,6 +651,7 @@ void renderer_render(Renderer *renderer)
 			Float3x4 invview;
 			Float3 resolution;
 			float time;
+			uint64_t ibl_buffer;
 		} constants;
 		constants.proj = renderer->proj;
 		constants.invproj = renderer->invproj;
@@ -658,6 +659,7 @@ void renderer_render(Renderer *renderer)
 		constants.invview = renderer->invview;
 		constants.resolution = (Float3){swapchain_width, swapchain_height, 1};
 		constants.time = renderer->time;
+		constants.ibl_buffer = buffer_get_gpu_address(renderer->device, renderer->diffuse_ibl_buffer);
 
 		vulkan_insert_debug_label(renderer->device, pass.frame, "background");
 		vulkan_bind_graphics_pso(renderer->device, &pass, renderer->bg0_pso);

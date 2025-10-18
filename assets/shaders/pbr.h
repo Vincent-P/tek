@@ -1,4 +1,7 @@
+#include "sh.h"
+
 #define PI 3.14
+float saturate(float x) { return clamp(x, 0.0, 1.0); }
 
 // Specular BRDF
 // Cook-Torrance specular microfacet model, with a GGX normal distribution function, a Smith-GGX height-correlated visibility function, and a Schlick Fresnel function
@@ -12,7 +15,7 @@ float D_GGX(float NoH, float roughness)
 }
 
 // Geometric shadowing (specular G)
-// Heitz formulation replace G with V 
+// Heitz formulation replace G with V
 float V_SmithGGXCorrelated(float NoV, float NoL, float roughness)
 {
     float a2 = roughness * roughness;
@@ -33,6 +36,36 @@ vec3 F_Schlick(float u, vec3 f0, float f90)
 float Fd_Lambert()
 {
     return 1.0 / PI;
+}
+
+// https://knarkowicz.wordpress.com/2014/12/27/analytical-dfg-term-for-ibl/
+// GGX distribution, Smith geometry and Schlick’s Fresnel approximation
+vec3 DFG_Approximation(vec3 specularColor, float roughness, float NoV)
+{
+	// gloss = (1 - roughness)^4
+	float x = pow((1 - roughness), 4);
+	float y = NoV;
+
+	float b1 = -0.1688;
+	float b2 = 1.895;
+	float b3 = 0.9903;
+	float b4 = -4.853;
+	float b5 = 8.404;
+	float b6 = -5.069;
+	float bias = saturate( min( b1 * x + b2 * x * x, b3 + b4 * y + b5 * y * y + b6 * y * y * y ) );
+
+	float d0 = 0.6045;
+	float d1 = 1.699;
+	float d2 = -0.5228;
+	float d3 = -3.603;
+	float d4 = 1.404;
+	float d5 = 0.1939;
+	float d6 = 2.661;
+	float delta = saturate( d0 + d1 * x + d2 * y + d3 * x * x + d4 * x * y + d5 * y * y + d6 * x * x * x );
+	float scale = delta - bias;
+
+	bias *= saturate( 50.0 * specularColor.y );
+	return specularColor * scale + bias;
 }
 
 // Final BRDF
@@ -127,7 +160,7 @@ vec3 BRDF(vec3 n, vec3 v, vec3 l, brdf_params_t params)
     vec3 result = Fr + Fd;
 
     // result = Fd;
-    
+
     return result;
 }
 
@@ -154,14 +187,29 @@ float PreExposeLight(highp float intensity)
     return intensity * exposure;
 }
 
-
-
 vec3 skyTex(vec3 ray)
 {
 	vec3 top    = PreExposeLight(120000.0) * vec3(0.20, 0.27, 0.91);
 	vec3 mid    = PreExposeLight( 20000.0) * vec3(0.20, 0.30, 0.70);
-	vec3 bottom = PreExposeLight( 10000.0) * vec3(0.33, 0.33, 0.93);
+	vec3 bottom = PreExposeLight( 20000.0) * vec3(0.33, 0.33, 0.93);
+
 	vec3 target = (ray.z < 0.0) ? bottom : top;
 	return mix(mid, target, abs(ray.z));
 }
 
+vec3 GetSkyIrradiance(vec3 normal, SH_L2_RGB AmbientIrradianceSH)
+{
+#if 0
+	const int SAMPLES = 128;
+	vec3 irradiance = vec3(0.0);
+	for (int i = 0; i < SAMPLES; ++i) {
+		uvec3 rng = pcg3d(uvec3(i, SAMPLES, 0));
+		vec3 random_dir = hash_to_float3(rng);
+		vec3 cosine_weighted_dir = normalize(normal + random_dir);
+		irradiance += skyTex(cosine_weighted_dir);
+	}
+	return irradiance / float(SAMPLES);
+#else
+	return SH_CalculateIrradiance(AmbientIrradianceSH, normal);
+#endif
+}

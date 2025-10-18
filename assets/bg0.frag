@@ -1,14 +1,21 @@
 #version 450
+#extension GL_EXT_buffer_reference : require
 #extension GL_EXT_scalar_block_layout : enable
 
 #include "hash.h"
 #include "pbr.h"
+#include "sh.h"
 
 layout(location = 0) out vec4 outColor;
 
 layout(location = 0) in struct {
     vec2 uv;
 } g_in;
+
+layout(scalar, buffer_reference, buffer_reference_align=8) buffer IBLData
+{
+	SH_L2_RGB irradiance;
+};
 
 layout(scalar, push_constant) uniform uPushConstant {
     mat4 proj;
@@ -17,6 +24,7 @@ layout(scalar, push_constant) uniform uPushConstant {
     mat4x3 invview;
     vec3 iResolution;
     float iTime;
+    IBLData ibl_buffer;
 } c_;
 
 struct Ray
@@ -25,23 +33,35 @@ struct Ray
 	vec3 dir;
 };
 
-float sdSphere( vec3 p, float s )
-{
-	return length(p)-s;
-}
-
 float sdBox( vec3 p, vec3 b )
 {
 	vec3 q = abs(p) - b;
 	return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
 }
 
+
+float sdRoundBox( vec3 p, vec3 b, float r )
+{
+  vec3 q = abs(p) - b + r;
+  return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0) - r;
+}
+
+float opOnion( in float sdf, in float thickness )
+{
+    return abs(sdf)-thickness;
+}
+
+vec3 opRepetition( in vec3 p, in vec3 s )
+{
+    return p - s*round(p/s);
+}
+
 float sdScene(vec3 p)
 {
+	vec3 rep_p = opRepetition(p, vec3(0.5, 0.5, 0));
+
 	float d = 0.0;
-	// d = sdSphere(p, 1.0);
-	// infinite plane (100x100)
-	d = sdBox(p, vec3(50.0, 10.0, 0.01));
+	d = sdRoundBox(rep_p, vec3(0.24, 0.24, 0.01), 0.02);
 	return d;
 }
 
@@ -56,9 +76,9 @@ vec3 calcNormal( in vec3 p) // for function f(p)
 {
     const float h = 0.0001; // replace by an appropriate value
     const vec2 k = vec2(1,-1);
-    return normalize( k.xyy*sdScene( p + k.xyy*h ) + 
-                      k.yyx*sdScene( p + k.yyx*h ) + 
-                      k.yxy*sdScene( p + k.yxy*h ) + 
+    return normalize( k.xyy*sdScene( p + k.xyy*h ) +
+                      k.yyx*sdScene( p + k.yyx*h ) +
+                      k.yxy*sdScene( p + k.yxy*h ) +
                       k.xxx*sdScene( p + k.xxx*h ) );
 }
 
@@ -79,35 +99,30 @@ vec4 ray_march(uvec3 seed, vec2 clip_space, out float depth, out vec3 worldpos)
 	}
 
 	depth = t;
-	
-	vec4 background = vec4(skyTex(normalize(ray.dir)), 1.0);
+
+	vec4 background = vec4(skyTex(normalize(ray.dir)) / M_PI, 1.0);
 
 	// shading
-	vec3 p = ray.pos+ray.dir*t;
-	vec3 normal = calcNormal(p);
-	vec3 shading = vec3(0.0);
-	vec3 view = normalize(-ray.dir);
-
 	brdf_params_t params;
 	params.BaseColor = vec3(0.33);
 	params.Metallic = 0.5;
-	params.Roughness = 0.99;
+	params.Roughness = 0.3;
 	params.Reflectance = 0.5;
 	params.Emissive = vec3(0.0);
 	params.AmbientOcclusion = 1.0;
+	vec3 f0 = vec3(0.16 * params.Reflectance * params.Reflectance) * (1.0 - params.Metallic) + params.BaseColor *	params.Metallic;
 
+	vec3 p = ray.pos+ray.dir*t;
+	vec3 normal = calcNormal(p);
+	vec3 view = normalize(-ray.dir);
 	vec3 r = reflect(-view, normal);
 
-	#define SAMPLES 8
-	for (int i = 0; i < SAMPLES; ++i)
-	{
-		uvec3 rng = pcg3d(uvec3(seed.xy, i));
-		vec3 random_dir = hash_to_float3(rng);
-		vec3 cosine_weighted_dir = normalize(normal + random_dir);
-		shading += skyTex(cosine_weighted_dir) * BRDF(normal, view, cosine_weighted_dir, params);
-	}
-	shading = shading / float(SAMPLES);
-	shading += skyTex(r) * BRDF(normal, view, r, params);
+	vec3 shading = vec3(0.0);
+	// specular part
+	vec3 AmbientLD = skyTex(r);
+	shading += AmbientLD * DFG_Approximation(f0, params.Roughness, dot(normal, view));
+	// diffuse part
+	shading += GetSkyIrradiance(normal, c_.ibl_buffer.irradiance) * (params.BaseColor / M_PI);
 
 	worldpos = p;
 	return (h < 0.01) ? vec4(shading, 1) : background;
