@@ -114,11 +114,6 @@
 		    "motion_input": 2, // b
 		    "type": "loop",
 		},
-		// backward dash
-		{
-		    "to": "standing backward dash",
-		    "motion_input": 13, // b _ b
-		},
 		// custom cancel to idle, cancel anytime if we release f
 		{
 		    "to": "standing idle",
@@ -143,7 +138,7 @@
 	    "cancels": [
 		{
 		    "type": "list",
-		    "to": "standing moves",
+		    "to": "standing recovery moves",
 		},
 		// custom cancel to walk forward if we press f
 		{
@@ -370,10 +365,14 @@
 		    "action_input": 7, // LP(4) RP(5) LK(6) RK(7)
 		    "input_window_end": 999,
 		},
+		// backward dash
+		{
+		    "to": "standing backward dash",
+		    "motion_input": 13, // b _ b
+		},
 		{
 		    "to": "standing idle",
 		    "condition": "eoa",
-		    // for now, no input == anim end
 		},
 	    ]
 	},

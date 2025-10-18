@@ -6,6 +6,7 @@
 
 struct CancelContext
 {
+	uint32_t current_frame;
 	uint32_t animation_frame; // current frame of the animation
 	uint32_t animation_length; // number of frames in the animation
 };
@@ -268,46 +269,44 @@ static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel can
 	bool match_dir = true;
 	bool match_action = true;
 	if (cancel.motion_input != 0 || cancel.action_input != 0) {
-		uint32_t input_index = (player.current_input_index + (INPUT_BUFFER_SIZE - 0)) % INPUT_BUFFER_SIZE;
-		enum BattleInputBits frame_input = player.input_buffer[input_index];
+		// current frame input
+		uint32_t current_start_frame = player.input_buffer_frame_start[player.current_input_index % INPUT_BUFFER_SIZE];
+		uint32_t current_input_index = (player.current_input_index + (INPUT_BUFFER_SIZE - 0)) % INPUT_BUFFER_SIZE;
+		enum BattleInputBits current_input = player.input_buffer[current_input_index];
+		// previous input (not last frame!)
+		uint32_t previous_input_index = (player.current_input_index + INPUT_BUFFER_SIZE - 1) % INPUT_BUFFER_SIZE;
+		enum BattleInputBits previous_input = player.input_buffer[previous_input_index];
+		// previous previous input (not frame n-2!)
+		uint32_t previous_previous_input_index = (player.current_input_index + INPUT_BUFFER_SIZE - 2) % INPUT_BUFFER_SIZE;
+		enum BattleInputBits previous_previous_input = player.input_buffer[previous_previous_input_index];
+		uint32_t previous_previous_start_frame = player.input_buffer_frame_start[previous_previous_input_index];
+
 		BattleInput ACTION_MASK = (BATTLE_INPUT_LPUNCH | BATTLE_INPUT_RPUNCH | BATTLE_INPUT_LKICK | BATTLE_INPUT_RKICK);
-		BattleInput action_input = frame_input & ACTION_MASK;
+		BattleInput action_input = current_input & ACTION_MASK;
 		tek_MotionInput current_motion = 0;
-		if ((frame_input & BATTLE_INPUT_BACK) != 0) {
+		if ((current_input & BATTLE_INPUT_BACK) != 0) {
 			current_motion = TEK_MOTION_INPUT_B;
-			// look for another B to detect double tap back
-			uint32_t previous_input_index = (player.current_input_index + INPUT_BUFFER_SIZE - 1) % INPUT_BUFFER_SIZE;
-			uint32_t previous_previous_input_index = (player.current_input_index + INPUT_BUFFER_SIZE - 2) % INPUT_BUFFER_SIZE;
-			enum BattleInputBits previous_input = player.input_buffer[previous_input_index];
-			enum BattleInputBits previous_previous_input = player.input_buffer[previous_previous_input_index];
-			uint32_t current_start_frame = player.input_buffer_frame_start[player.current_input_index % INPUT_BUFFER_SIZE];
-			uint32_t previous_previous_start_frame = player.input_buffer_frame_start[previous_previous_input_index];
-			uint32_t delta_frame = current_start_frame - (previous_previous_start_frame + 1); // take only the last frame of the previous previous input as starting point.
-			if (previous_input == 0 && previous_previous_input == BATTLE_INPUT_BACK && delta_frame <= 10) {
+
+			uint32_t frame_window = ctx.current_frame -  (previous_previous_start_frame + 1);
+			if (previous_input == 0 && previous_previous_input == BATTLE_INPUT_BACK && frame_window <= 15) {
 				current_motion = TEK_MOTION_INPUT_BB;
 			}
-		} else if ((frame_input & BATTLE_INPUT_UP) != 0) {
+		} else if ((current_input & BATTLE_INPUT_UP) != 0) {
 			current_motion = TEK_MOTION_INPUT_U;
-		} else if ((frame_input & BATTLE_INPUT_FORWARD) != 0) {
+		} else if ((current_input & BATTLE_INPUT_FORWARD) != 0) {
 			current_motion = TEK_MOTION_INPUT_F;
-			// look for another F to detect double tap back
-			uint32_t previous_input_index = (player.current_input_index + INPUT_BUFFER_SIZE - 1) % INPUT_BUFFER_SIZE;
-			uint32_t previous_previous_input_index = (player.current_input_index + INPUT_BUFFER_SIZE - 2) % INPUT_BUFFER_SIZE;
-			enum BattleInputBits previous_input = player.input_buffer[previous_input_index];
-			enum BattleInputBits previous_previous_input = player.input_buffer[previous_previous_input_index];
-			uint32_t current_start_frame = player.input_buffer_frame_start[player.current_input_index % INPUT_BUFFER_SIZE];
-			uint32_t previous_start_frame = player.input_buffer_frame_start[previous_input_index];
-			uint32_t delta_frame = current_start_frame - (previous_start_frame + 1); // take only the last frame of the previous previous input as starting point.
+
+			uint32_t frame_window = ctx.current_frame -  (previous_previous_start_frame + 1);
 			tek_MotionInput possible_motion = current_motion;
-			if (previous_input == 0 && previous_previous_input == BATTLE_INPUT_FORWARD && delta_frame <= 10) {
+			if (previous_input == 0 && previous_previous_input == BATTLE_INPUT_FORWARD && frame_window <= 10) {
 				possible_motion = TEK_MOTION_INPUT_FF;
-			} else if ((frame_input & BATTLE_INPUT_DOWN) != 0) {
+			} else if ((current_input & BATTLE_INPUT_DOWN) != 0) {
 				possible_motion = TEK_MOTION_INPUT_DF;
 			}
 			if (cancel.motion_input == possible_motion) {
 				current_motion = possible_motion;
 			}
-		} else if ((frame_input & BATTLE_INPUT_DOWN) != 0) {
+		} else if ((current_input & BATTLE_INPUT_DOWN) != 0) {
 			current_motion = TEK_MOTION_INPUT_D;
 		}
 
@@ -474,6 +473,7 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 		// find valid cancel
 		struct Animation const *animation = asset_library_get_animation(ctx->assets, current_move->animation_id);
 		struct CancelContext cancel_ctx = {0};
+		cancel_ctx.current_frame = state->frame_number;
 		cancel_ctx.animation_frame = players[iplayer]->animation.frame;
 		cancel_ctx.animation_length = animation->root_motion_track.translations.length;
 		uint32_t request_move_id = 0;
