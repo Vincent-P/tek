@@ -76,8 +76,9 @@ struct tek_Cancel
 	uint8_t action_input;
 	tek_CancelType type;
 	tek_CancelCondition condition;
-	uint8_t starting_frame; // at which frame of the current move the cancel should be applied
-	// input window
+	uint8_t input_window_start; // relative to the current move
+	uint8_t input_window_end; //
+	uint8_t starting_frame; // at which frame of the current move the cancel should be applied (does not read input?)
 };
 
 struct tek_CancelGroup
@@ -177,4 +178,3 @@ void tek_read_character_json();
 struct tek_Move *tek_character_find_move(struct tek_Character *character, uint32_t id);
 struct tek_CancelGroup *tek_character_find_cancel_group(struct tek_Character *character, uint32_t id);
 struct tek_HitReactions *tek_character_find_hit_reaction(struct tek_Character *character, uint32_t id);
-

@@ -9,15 +9,6 @@
 	    "name": "standing idle",
 	    "animation": "P2M_Regular_Rig|idle",
 	    "cancels": [
-		// special cancel to loop idle anim with iself, bypassing cancel to idle from standing moves
-		{
-		    "to": "standing idle",
-		    "type": "loop",
-		},
-		{
-		    "type": "list",
-		    "to": "standing moves",
-		},
 		{
 		    "to": "standing walk forward start",
 		    "motion_input": 6, // f
@@ -27,8 +18,8 @@
 		    "motion_input": 2, // b
 		},
 		{
-		    "to": "standing backward dash",
-		    "motion_input": 13, // b _ b
+		    "type": "list",
+		    "to": "standing moves",
 		},
 	    ],
 	},
@@ -42,11 +33,14 @@
 		    "to": "standing forward dash",
 		    "motion_input": 12, // f _ f
     		    "type": "continue", // keep the animation frame from the previous move
+		    "input_window_start": 0,
+		    "input_window_end": 10,
 		},
 		{
 		    "to": "standing walk forward loop",
 		    "motion_input": 6, // f
-		    "frame": 10,
+		    "input_window_start": 10,
+		    "input_window_end": 999,
 		},
 		{
 		    "type": "list",
@@ -120,6 +114,11 @@
 		    "motion_input": 2, // b
 		    "type": "loop",
 		},
+		// backward dash
+		{
+		    "to": "standing backward dash",
+		    "motion_input": 13, // b _ b
+		},
 		// custom cancel to idle, cancel anytime if we release f
 		{
 		    "to": "standing idle",
@@ -174,7 +173,7 @@
 	    "cancels": [
 		{
 		    "type": "list",
-		    "to": "standing moves",
+		    "to": "standing recovery moves",
 		},
 	    ],
 	},
@@ -199,7 +198,7 @@
 	    "cancels": [
 		{
 		    "type": "list",
-		    "to": "standing moves",
+		    "to": "standing recovery moves",
 		},
 	    ],
 	},
@@ -224,7 +223,7 @@
 	    "cancels": [
 		{
 		    "type": "list",
-		    "to": "standing moves",
+		    "to": "standing recovery moves",
 		},
 	    ],
 	},
@@ -249,7 +248,7 @@
 	    "cancels": [
 		{
 		    "type": "list",
-		    "to": "standing moves",
+		    "to": "standing recovery moves",
 		},
 	    ],
 	},
@@ -274,7 +273,7 @@
 	    "cancels": [
 		{
 		    "type": "list",
-		    "to": "standing moves",
+		    "to": "standing recovery moves",
 		},
 	    ],
 	},
@@ -283,9 +282,9 @@
 	    "name": "standing hit",
 	    "animation": "P2M_Regular_Rig|hit_reaction_standing_high",
 	    "cancels": [
-	    	{
-		    "to": "standing idle",
-		    "condition": "eoa",
+		{
+		    "type": "list",
+		    "to": "standing recovery moves",
 		},
 	    ],
 	},
@@ -293,9 +292,9 @@
 	    "name": "low hit",
 	    "animation": "P2M_Regular_Rig|hit_reaction_standing_low",
 	    "cancels": [
-	    	{
-		    "to": "standing idle",
-		    "condition": "eoa",
+		{
+		    "type": "list",
+		    "to": "standing recovery moves",
 		},
 	    ],
 	},
@@ -303,9 +302,9 @@
 	    "name": "standing block",
 	    "animation": "P2M_Regular_Rig|hit_reaction_standing_block_mid",
 	    "cancels": [
-	    	{
+		{
 		    "to": "standing idle",
-		    "frame": 30,
+		    "starting_frame": 30,
 		},
 	    ],
 	},
@@ -315,7 +314,7 @@
 	    "cancels": [
 	    	{
 		    "to": "while standing",
-		    "frame": 30,
+		    "starting_frame": 30,
 		},
 	    ],
 	},
@@ -323,44 +322,58 @@
 	    "name": "while standing",
 	    "animation": "P2M_Regular_Rig|while_standing",
 	    "cancels": [
-	    	{
-		    "to": "standing idle",
-		    "condition": "eoa",
+		{
+		    "type": "list",
+		    "to": "standing recovery moves",
 		},
 	    ],
 	},
     ],
     "group_cancels": [
 	{
+	    "name": "standing recovery moves",
+	    "cancels": [
+	    	{
+		    "to": "standing idle",
+		    "condition": "eoa",
+		},
+	    ]
+	},
+	{
 	    "name": "standing moves",
 	    "cancels": [
 		{
-		    "to": "standing idle",
-		    "condition": "eoa",
-		    // for now, no input == anim end
-		},
-		{
 		    "to": "jab",
 		    "action_input": 4, // LP(4) RP(5) LK(6) RK(7)
+		    "input_window_end": 999,
 		},
 		{
 		    "to": "midpunch",
 		    "motion_input": 7, // df(7)
 		    "action_input": 4, // LP(4) RP(5) LK(6) RK(7)
+		    "input_window_end": 999,
 		},
 		{
 		    "to": "highkick",
 		    "action_input": 7, // LP(4) RP(5) LK(6) RK(7)
+		    "input_window_end": 999,
 		},
 		{
 		    "to": "steelpedal",
 		    "motion_input": 2, // b(2)
 		    "action_input": 7, // LP(4) RP(5) LK(6) RK(7)
+		    "input_window_end": 999,
 		},
 		{
 		    "to": "lowkick",
 		    "motion_input": 8, // d(8)
 		    "action_input": 7, // LP(4) RP(5) LK(6) RK(7)
+		    "input_window_end": 999,
+		},
+		{
+		    "to": "standing idle",
+		    "condition": "eoa",
+		    // for now, no input == anim end
 		},
 	    ]
 	},

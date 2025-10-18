@@ -243,73 +243,79 @@ static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel can
 		return false;
 	}
 
-	bool current_animation_end = ctx.animation_frame >= ctx.animation_length; // true at end only
-	bool is_after_starting_frame = ctx.animation_frame >= cancel.starting_frame;  // true
-
-	uint32_t input_index = (player.current_input_index + (INPUT_BUFFER_SIZE - 0)) % INPUT_BUFFER_SIZE;
-	enum BattleInputBits frame_input = player.input_buffer[input_index];
-
-	BattleInput ACTION_MASK = (BATTLE_INPUT_LPUNCH | BATTLE_INPUT_RPUNCH | BATTLE_INPUT_LKICK | BATTLE_INPUT_RKICK);
-	BattleInput action_input = frame_input & ACTION_MASK;
-
-	tek_MotionInput current_motion = 0;
-	if ((frame_input & BATTLE_INPUT_BACK) != 0) {
-		current_motion = TEK_MOTION_INPUT_B;
-
-		// look for another B to detect double tap back
-		uint32_t previous_input_index = (player.current_input_index + INPUT_BUFFER_SIZE - 1) % INPUT_BUFFER_SIZE;
-		uint32_t previous_previous_input_index = (player.current_input_index + INPUT_BUFFER_SIZE - 2) % INPUT_BUFFER_SIZE;
-		enum BattleInputBits previous_input = player.input_buffer[previous_input_index];
-		enum BattleInputBits previous_previous_input = player.input_buffer[previous_previous_input_index];
-		uint32_t current_start_frame = player.input_buffer_frame_start[player.current_input_index % INPUT_BUFFER_SIZE];
-		uint32_t previous_start_frame = player.input_buffer_frame_start[previous_input_index];
-		uint32_t delta_frame = current_start_frame - (previous_start_frame + 1); // take only the last frame of the previous previous input as starting point.
-
-		if (previous_input == 0 && previous_previous_input == BATTLE_INPUT_BACK && delta_frame <= 10) {
-			current_motion = TEK_MOTION_INPUT_BB;
-		}
-
-	} else if ((frame_input & BATTLE_INPUT_UP) != 0) {
-		current_motion = TEK_MOTION_INPUT_U;
-	} else if ((frame_input & BATTLE_INPUT_FORWARD) != 0) {
-
-		current_motion = TEK_MOTION_INPUT_F;
-
-		// look for another F to detect double tap back
-		uint32_t previous_input_index = (player.current_input_index + INPUT_BUFFER_SIZE - 1) % INPUT_BUFFER_SIZE;
-		uint32_t previous_previous_input_index = (player.current_input_index + INPUT_BUFFER_SIZE - 2) % INPUT_BUFFER_SIZE;
-		enum BattleInputBits previous_input = player.input_buffer[previous_input_index];
-		enum BattleInputBits previous_previous_input = player.input_buffer[previous_previous_input_index];
-		uint32_t current_start_frame = player.input_buffer_frame_start[player.current_input_index % INPUT_BUFFER_SIZE];
-		uint32_t previous_start_frame = player.input_buffer_frame_start[previous_input_index];
-		uint32_t delta_frame = current_start_frame - (previous_start_frame + 1); // take only the last frame of the previous previous input as starting point.
-
-		tek_MotionInput possible_motion = current_motion;
-		if (previous_input == 0 && previous_previous_input == BATTLE_INPUT_FORWARD && delta_frame <= 10) {
-			possible_motion = TEK_MOTION_INPUT_FF;
-		} else if ((frame_input & BATTLE_INPUT_DOWN) != 0) {
-			possible_motion = TEK_MOTION_INPUT_DF;
-		}
-
-		if (cancel.motion_input == possible_motion) {
-			current_motion = possible_motion;
-		}
-
-	} else if ((frame_input & BATTLE_INPUT_DOWN) != 0) {
-		current_motion = TEK_MOTION_INPUT_D;
-	}
-	// TODO: match action even if dir don't match (jab while walking)
-
-	bool match_dir = current_motion  == cancel.motion_input;
-	bool match_action = action_input == cancel.action_input;
-	bool end_of_animation = true;
+	/** Frame window checks:
+	    - if the cancel does not specify inputs:
+		- if cancel is EOA -> set starting frame to end
+	        - cancel if animation_frame > starting_frame
+	    - if the cancel specify inputs:
+	        - animation frame has to be in input window range
+		- no window -> input window range is [0, animation_length]
+	**/
+	uint32_t starting_frame = cancel.starting_frame;
 	if (cancel.condition == TEK_CANCEL_CONDITION_END_OF_ANIMATION) {
-		match_dir = true;
-		match_action = true;
-		end_of_animation = current_animation_end;
+		starting_frame = ctx.animation_length;
+	}
+	bool is_in_frame = ctx.animation_frame >= starting_frame;
+
+	uint32_t input_window_start = cancel.input_window_start;
+	uint32_t input_window_end = cancel.input_window_end;
+	bool is_in_input_window = input_window_start <= ctx.animation_frame && ctx.animation_frame <= input_window_end;
+	if (cancel.input_window_start == 0 && cancel.input_window_end == 0) {
+		is_in_input_window = true;
 	}
 
-	return match_dir & match_action & end_of_animation & is_after_starting_frame;
+	/** Input checks: **/
+	bool match_dir = true;
+	bool match_action = true;
+	if (cancel.motion_input != 0 || cancel.action_input != 0) {
+		uint32_t input_index = (player.current_input_index + (INPUT_BUFFER_SIZE - 0)) % INPUT_BUFFER_SIZE;
+		enum BattleInputBits frame_input = player.input_buffer[input_index];
+		BattleInput ACTION_MASK = (BATTLE_INPUT_LPUNCH | BATTLE_INPUT_RPUNCH | BATTLE_INPUT_LKICK | BATTLE_INPUT_RKICK);
+		BattleInput action_input = frame_input & ACTION_MASK;
+		tek_MotionInput current_motion = 0;
+		if ((frame_input & BATTLE_INPUT_BACK) != 0) {
+			current_motion = TEK_MOTION_INPUT_B;
+			// look for another B to detect double tap back
+			uint32_t previous_input_index = (player.current_input_index + INPUT_BUFFER_SIZE - 1) % INPUT_BUFFER_SIZE;
+			uint32_t previous_previous_input_index = (player.current_input_index + INPUT_BUFFER_SIZE - 2) % INPUT_BUFFER_SIZE;
+			enum BattleInputBits previous_input = player.input_buffer[previous_input_index];
+			enum BattleInputBits previous_previous_input = player.input_buffer[previous_previous_input_index];
+			uint32_t current_start_frame = player.input_buffer_frame_start[player.current_input_index % INPUT_BUFFER_SIZE];
+			uint32_t previous_previous_start_frame = player.input_buffer_frame_start[previous_previous_input_index];
+			uint32_t delta_frame = current_start_frame - (previous_previous_start_frame + 1); // take only the last frame of the previous previous input as starting point.
+			if (previous_input == 0 && previous_previous_input == BATTLE_INPUT_BACK && delta_frame <= 10) {
+				current_motion = TEK_MOTION_INPUT_BB;
+			}
+		} else if ((frame_input & BATTLE_INPUT_UP) != 0) {
+			current_motion = TEK_MOTION_INPUT_U;
+		} else if ((frame_input & BATTLE_INPUT_FORWARD) != 0) {
+			current_motion = TEK_MOTION_INPUT_F;
+			// look for another F to detect double tap back
+			uint32_t previous_input_index = (player.current_input_index + INPUT_BUFFER_SIZE - 1) % INPUT_BUFFER_SIZE;
+			uint32_t previous_previous_input_index = (player.current_input_index + INPUT_BUFFER_SIZE - 2) % INPUT_BUFFER_SIZE;
+			enum BattleInputBits previous_input = player.input_buffer[previous_input_index];
+			enum BattleInputBits previous_previous_input = player.input_buffer[previous_previous_input_index];
+			uint32_t current_start_frame = player.input_buffer_frame_start[player.current_input_index % INPUT_BUFFER_SIZE];
+			uint32_t previous_start_frame = player.input_buffer_frame_start[previous_input_index];
+			uint32_t delta_frame = current_start_frame - (previous_start_frame + 1); // take only the last frame of the previous previous input as starting point.
+			tek_MotionInput possible_motion = current_motion;
+			if (previous_input == 0 && previous_previous_input == BATTLE_INPUT_FORWARD && delta_frame <= 10) {
+				possible_motion = TEK_MOTION_INPUT_FF;
+			} else if ((frame_input & BATTLE_INPUT_DOWN) != 0) {
+				possible_motion = TEK_MOTION_INPUT_DF;
+			}
+			if (cancel.motion_input == possible_motion) {
+				current_motion = possible_motion;
+			}
+		} else if ((frame_input & BATTLE_INPUT_DOWN) != 0) {
+			current_motion = TEK_MOTION_INPUT_D;
+		}
+
+		match_dir = current_motion  == cancel.motion_input;
+		match_action = action_input == cancel.action_input;
+	}
+
+	return match_dir & match_action & is_in_frame & is_in_input_window;
 }
 
 static void player_translate_world(uint32_t iplayer, struct PlayerEntity **players, struct tek_Character **characters, uint32_t players_length, Float3 world_translate)
@@ -383,7 +389,7 @@ static void _evaluate_hit_conditions(struct PlayerEntity *p1, struct PlayerEntit
 						struct tek_HitReactions *hit_reaction = tek_character_find_hit_reaction(c1, hit_condition.reactions_id);
 
 
-						bool is_blocking = false;
+						bool is_blocking = true;
 						if (is_blocking) {
 							p2->tek.requested_move_id = hit_reaction->standing_block_move;
 
@@ -483,12 +489,14 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 			} else {
 
 				struct tek_CancelGroup *group = NULL;
+				// find group
 				for (uint32_t imovecancelgroup = 0; imovecancelgroup < characters[iplayer]->cancel_groups_length; ++imovecancelgroup) {
 					if (characters[iplayer]->cancel_groups[imovecancelgroup].id == current_cancels[imovecancel].to_move_id) {
 						group = &characters[iplayer]->cancel_groups[imovecancelgroup];
 						break;
 					}
 				}
+				// if found, match list
 				if (group) {
 					for (uint32_t igroupcancel = 0; igroupcancel < MAX_CANCELS_PER_GROUP; ++igroupcancel) {
 						struct tek_Cancel *groupcancel = &group->cancels[igroupcancel];
@@ -520,21 +528,16 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 		if (request_move_id != 0) {
 			// find request move
 			struct tek_Move *request_move = tek_character_find_move(characters[iplayer], request_move_id);
-			// check if request move can be made
-			if (current_move != NULL && request_move != NULL) {
-				bool is_done = players[iplayer]->animation.frame > (current_move->startup + current_move->active + current_move->recovery);
-				bool can_cancel = is_done;
-				if (can_cancel) {
-					// perform the cancel
-					struct Animation const *animation = asset_library_get_animation(ctx->assets, request_move->animation_id);
-					players[iplayer]->animation.animation_id = request_move->animation_id;
-					if (cancel->type == TEK_CANCEL_TYPE_SINGLE_LOOP || cancel->type == TEK_CANCEL_TYPE_SINGLE_CONTINUE) {
-						players[iplayer]->animation.frame = players[iplayer]->animation.frame % cancel_ctx.animation_length;
-					} else {
-						players[iplayer]->animation.frame = 0;
-					}
-					players[iplayer]->tek.current_move_id = request_move->id;
+			// if found, perform the cancel
+			if (request_move != NULL) {
+				struct Animation const *animation = asset_library_get_animation(ctx->assets, request_move->animation_id);
+				players[iplayer]->animation.animation_id = request_move->animation_id;
+				if (cancel->type == TEK_CANCEL_TYPE_SINGLE_LOOP || cancel->type == TEK_CANCEL_TYPE_SINGLE_CONTINUE) {
+					players[iplayer]->animation.frame = players[iplayer]->animation.frame % cancel_ctx.animation_length;
+				} else {
+					players[iplayer]->animation.frame = 0;
 				}
+				players[iplayer]->tek.current_move_id = request_move->id;
 			}
 		}
 	}
