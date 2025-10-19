@@ -189,7 +189,7 @@ float PreExposeLight(highp float intensity)
 
 vec3 skyTex(vec3 ray)
 {
-	vec3 top    = PreExposeLight(120000.0) * vec3(0.20, 0.27, 0.91);
+	vec3 top    = PreExposeLight(100000.0) * vec3(0.70, 0.77, 0.91);
 	vec3 mid    = PreExposeLight( 60000.0) * vec3(0.20, 0.30, 0.70);
 	vec3 bottom = PreExposeLight( 20000.0) * vec3(0.33, 0.33, 0.93);
 

@@ -147,10 +147,10 @@ vec4 ray_march(uvec3 seed, vec2 clip_space, out float depth, out vec3 worldpos)
 
 	// shading
 	brdf_params_t params;
-	params.BaseColor = vec3(0.93);
+	params.BaseColor = vec3(0.5);
 	params.Metallic = 0.0;
-	params.Roughness = 0.2;
-	params.Reflectance = 1.0;
+	params.Roughness = 0.5;
+	params.Reflectance = 0.5;
 	params.Emissive = vec3(0.0);
 	params.AmbientOcclusion = 1.0;
 	vec3 f0 = vec3(0.16 * params.Reflectance * params.Reflectance) * (1.0 - params.Metallic) + params.BaseColor *	params.Metallic;

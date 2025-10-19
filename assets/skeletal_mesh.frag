@@ -36,7 +36,7 @@ void main()
 	brdf_params_t params;
 	params.BaseColor = vec3(0.93);
 	params.Metallic = 0.0;
-	params.Roughness = 0.5;
+	params.Roughness = 0.2;
 	params.Reflectance = 0.5;
 	params.Emissive = vec3(0.0);
 	params.AmbientOcclusion = 1.0;
