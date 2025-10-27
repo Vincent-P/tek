@@ -91,19 +91,24 @@ bool anim_evaluate_animation(struct AnimSkeleton const *skeleton, Animation cons
 		Float3 translation = anim->tracks[ibone].translations.data[frame];
 		Quat rotation = anim->tracks[ibone].rotations.data[frame];
 		float scale = anim->tracks[ibone].scales.data[frame];
-		
+
 		out_pose->local_transforms[ibone] = float3x4_from_transform(translation, rotation, float3_from_float(scale));
 	}
 
 	if (frame > 0) {
+		// apply the translation from previous frame to this frame
 		assert(anim->root_motion_track.translations.length == count);
 		Float3 prev_local_translation = anim->root_motion_track.translations.data[frame-1];
 		Float3 current_local_translation = anim->root_motion_track.translations.data[frame];
 		Float3 prev_global_translation = float3x4_transform_point(skeleton->bones_global_transforms[0], prev_local_translation);
 		Float3 current_global_translation = float3x4_transform_point(skeleton->bones_global_transforms[0], current_local_translation);
 		out_pose->root_motion_delta_translation = float3_sub(current_global_translation, prev_global_translation);
-	} else { 
-		out_pose->root_motion_delta_translation = (Float3){0};
+	} else {
+		// apply the first root motion translation key
+		assert(anim->root_motion_track.translations.length == count);
+		Float3 current_local_translation = anim->root_motion_track.translations.data[frame];
+		Float3 current_global_translation = float3x4_transform_point(skeleton->bones_global_transforms[0], current_local_translation);
+		out_pose->root_motion_delta_translation = current_global_translation;
         }
 
 	return has_ended;
@@ -124,7 +129,7 @@ void skeletal_mesh_create_instance(struct SkeletalMeshAsset const *asset, struct
 	instance->asset = asset;
 	// create mapping from anim bone to render bone
 	for (uint32_t ianimbone = 0; ianimbone < skeleton->bones_length; ++ianimbone) {
-		instance->render_bone_from_anim_bone[ianimbone] = MAX_BONES_PER_MESH;		
+		instance->render_bone_from_anim_bone[ianimbone] = MAX_BONES_PER_MESH;
 		for (uint32_t irenderbone = 0; irenderbone < asset->bones_length; ++irenderbone) {
 			if (asset->bones_identifier[irenderbone] == skeleton->bones_identifier[ianimbone]) {
 				instance->render_bone_from_anim_bone[ianimbone] = irenderbone;

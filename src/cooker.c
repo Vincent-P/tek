@@ -476,6 +476,13 @@ int cook_fbx()
 
 				scales.data[iscale] = average;
 			}
+
+			if (node == root_bone) {
+				Float3 origin_translation = translations.data[0];
+				for (uint32_t itrans = 0; itrans < baked_node->translation_keys.count; ++itrans) {
+					translations.data[itrans] = float3_sub(translations.data[itrans], origin_translation);
+				}
+			}
 		}
 	}
 

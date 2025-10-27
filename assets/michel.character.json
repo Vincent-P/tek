@@ -27,12 +27,12 @@
 	// f -> start walk, neutral, f -> dash
 	{
 	    "name": "standing walk forward start",
-	    "animation": "P2M_Regular_Rig|walk_forward_start",
+	    "animation": "P2M_Regular_Rig|walk_forward_start.001",
 	    "cancels": [
 		{
 		    "to": "standing forward dash",
 		    "motion_input": 12, // f _ f
-    		    "type": "continue", // keep the animation frame from the previous move
+    		    // "type": "continue", // keep the animation frame from the previous move
 		    "input_window_start": 0,
 		    "input_window_end": 10,
 		},
@@ -58,7 +58,7 @@
 	},
 	{
 	    "name": "standing walk forward loop",
-	    "animation": "P2M_Regular_Rig|walk_forward_loop",
+	    "animation": "P2M_Regular_Rig|walk_forward_loop.001",
 	    "cancels": [
 		// loop (should be last?)
 		{
@@ -106,7 +106,8 @@
 	// walk backward
 	{
 	    "name": "standing walk backward",
-	    "animation": "P2M_Regular_Rig|walk_backward_loop",
+	    "animation": "P2M_Regular_Rig|walk_backward_loop.001",
+	    // "animation": "P2M_Regular_Rig|walk_backward_loop",
 	    "cancels": [
 		// loop
 		{
@@ -134,7 +135,7 @@
 	// backward dash
 	{
 	    "name": "standing backward dash",
-	    "animation": "P2M_Regular_Rig|dash_backward",
+	    "animation": "P2M_Regular_Rig|dash_backward.001",
 	    "cancels": [
 		{
 		    "type": "list",
