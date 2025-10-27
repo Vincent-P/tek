@@ -91,6 +91,15 @@
 	    "name": "standing forward dash",
 	    "animation": "P2M_Regular_Rig|dash_forward",
 	    "cancels": [
+		// ff moves
+		{
+		    "to": "demonpaw",
+    		    "type": "continue", // keep the animation frame from the previous move
+		    "motion_input": 6, // f
+		    "action_input": 5,  // LP(4) RP(5) LK(6) RK(7)
+		    "input_window_start": 0,
+		    "input_window_end": 12,
+		},
 		// custom cancel to walk backward if we press b, TODO: blending over 5-10 frames
 		{
 		    "to": "standing walk backward",
@@ -236,6 +245,31 @@
 	    "hit_conditions": [
 		{
 		    "damage": 10,
+		    "reactions": "standing hit",
+		    "requirements": "none",
+		},
+	    ],
+	    // cancels
+	    "cancels": [
+		{
+		    "type": "list",
+		    "to": "standing recovery moves",
+		},
+	    ],
+	},
+	{
+	    "name": "demonpaw",
+	    "animation": "P2M_Regular_Rig|demonpaw",
+	    // hit
+	    "hit_level": "mid",
+	    "hitbox": 0, // index in list
+	    // frame data
+	    "startup": 15,
+	    "active": 2,
+	    "recovery": 14,
+	    "hit_conditions": [
+		{
+		    "damage": 20,
 		    "reactions": "standing hit",
 		    "requirements": "none",
 		},
