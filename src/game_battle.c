@@ -488,6 +488,19 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 				}
 			} else {
 
+				uint32_t starting_frame = current_cancels[imovecancel].starting_frame;
+				if (current_cancels[imovecancel].condition == TEK_CANCEL_CONDITION_END_OF_ANIMATION) {
+					starting_frame = cancel_ctx.animation_length;
+				}
+				bool is_in_frame = cancel_ctx.animation_frame >= starting_frame;
+
+				uint32_t input_window_start = current_cancels[imovecancel].input_window_start;
+				uint32_t input_window_end = current_cancels[imovecancel].input_window_end;
+				bool is_in_input_window = input_window_start <= cancel_ctx.animation_frame && cancel_ctx.animation_frame <= input_window_end;
+				if (current_cancels[imovecancel].input_window_start == 0 && current_cancels[imovecancel].input_window_end == 0) {
+					is_in_input_window = true;
+				}
+
 				struct tek_CancelGroup *group = NULL;
 				// find group
 				for (uint32_t imovecancelgroup = 0; imovecancelgroup < characters[iplayer]->cancel_groups_length; ++imovecancelgroup) {
@@ -497,7 +510,7 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 					}
 				}
 				// if found, match list
-				if (group) {
+				if (group && is_in_frame) {
 					for (uint32_t igroupcancel = 0; igroupcancel < MAX_CANCELS_PER_GROUP; ++igroupcancel) {
 						struct tek_Cancel *groupcancel = &group->cancels[igroupcancel];
 						if (match_cancel(players[iplayer]->tek, *groupcancel, cancel_ctx)) {

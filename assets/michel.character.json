@@ -170,7 +170,7 @@
 	    "hit_conditions": [
 		{
 		    "damage": 10,
-		    "reactions": "standing hit",
+		    "reactions": "jab reaction",
 		    "requirements": "none",
 		},
 	    ],
@@ -179,6 +179,29 @@
 		{
 		    "type": "list",
 		    "to": "standing recovery moves",
+		    "starting_frame": 20, // 20 frames of recovery
+		},
+	    ],
+	},
+	{
+	    "name": "jab_blockstun",
+	    "animation": "P2M_Regular_Rig|hit_reaction_standing_block_mid",
+	    "cancels": [
+		{
+		    "type": "list",
+		    "to": "standing recovery moves",
+		    "starting_frame": 21, // 20 frames of recovery (+1 on block)
+		},
+	    ],
+	},
+	{
+	    "name": "jab_hitstun",
+	    "animation": "P2M_Regular_Rig|hit_reaction_standing_high",
+	    "cancels": [
+		{
+		    "type": "list",
+		    "to": "standing recovery moves",
+		    "starting_frame": 28, // 20 frames of recovery (+8 on block)
 		},
 	    ],
 	},
@@ -434,6 +457,12 @@
 	    "standing_move": "low hit",
 	    "standing_counter_hit_move": "low hit",
 	    "standing_block_move": "crouch block",
+	},
+	{
+	    "name": "jab reaction",
+	    "standing_move": "jab_hitstun",
+	    "standing_counter_hit_move": "jab_hitstun",
+	    "standing_block_move": "jab_blockstun",
 	},
     ],
     "hurtboxes": [
