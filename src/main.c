@@ -108,12 +108,18 @@ static void postload_assets(struct AssetLibrary *assets, struct Renderer *render
 static void ImGui_ImplSDL3_PlatformSetImeData(ImGuiContext*, ImGuiViewport* viewport, ImGuiPlatformImeData* data);
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
+	TracyCZoneN(f, "AppInit", true);
+
 	struct Application *application = calloc(1, sizeof(struct Application));
 	*appstate = application;
 
 	inputs_init(&application->inputs);
-	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD);
+	TracyCZoneN(sdli, "SDL_Init", true);
+	SDL_Init(0);
+	TracyCZoneEnd(sdli);
+	TracyCZoneN(sdlcw, "SDL_CreateWindow", true);
 	application->window = SDL_CreateWindow("tek", 1920, 1080, SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
+	TracyCZoneEnd(sdlcw);
 
 	load_assets(&application->assets, application->renderer);
 
@@ -145,6 +151,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 	game_init(&application->game);
 
 	watcher_init("cooking");
+
+	TracyCZoneEnd(f);
 
 	return SDL_APP_CONTINUE;
 }
