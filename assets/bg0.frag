@@ -91,6 +91,8 @@ float sdWalls(vec3 p)
 
 float sdScene(vec3 p)
 {
+	return sdBox(p, vec3(100.0,100.0,0.01));
+
 	p = p - vec3(0,0,-0.04);
 
 	// repeated floor tiles
