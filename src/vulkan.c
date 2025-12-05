@@ -217,6 +217,7 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	uint32_t physical_devices_count = 16;
 	vkEnumeratePhysicalDevices(device->instance, &physical_devices_count, physical_devices);
 	device->physical_device = physical_devices[0];
+
 	VkPhysicalDeviceVulkan14Features vulkan14_features = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_4_FEATURES};
 	vulkan14_features.maintenance5 = 1;
 	VkPhysicalDeviceVulkan13Features vulkan13_features = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES};
@@ -227,6 +228,10 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	vulkan12_features.pNext = &vulkan13_features;
 	physical_device_features.pNext = &vulkan12_features;
 	vkGetPhysicalDeviceFeatures2(device->physical_device, &physical_device_features);
+
+	VkPhysicalDeviceProperties2 device_properties = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+	vkGetPhysicalDeviceProperties2(device->physical_device, &device_properties);
+	fprintf(stderr, "[vulkan] device: %s\n", device_properties.properties.deviceName);
 
 	VkQueueFamilyProperties queue_families[16];
 	uint32_t queue_families_count = 0;

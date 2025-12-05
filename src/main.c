@@ -115,7 +115,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 
 	inputs_init(&application->inputs);
 	TracyCZoneN(sdli, "SDL_Init", true);
-	SDL_Init(0);
+	SDL_InitSubSystem(SDL_INIT_GAMEPAD);
 	TracyCZoneEnd(sdli);
 	TracyCZoneN(sdlcw, "SDL_CreateWindow", true);
 	application->window = SDL_CreateWindow("tek", 1920, 1080, SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);

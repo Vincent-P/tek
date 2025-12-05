@@ -388,7 +388,7 @@ static void _evaluate_hit_conditions(struct PlayerEntity *p1, struct PlayerEntit
 						struct tek_HitReactions *hit_reaction = tek_character_find_hit_reaction(c1, hit_condition.reactions_id);
 
 
-						bool is_blocking = true;
+						bool is_blocking = p2->tek.current_move_id == TEK_MOVE_BACKWARD_LOOP_ID;
 						if (is_blocking) {
 							p2->tek.requested_move_id = hit_reaction->standing_block_move;
 
@@ -397,6 +397,10 @@ static void _evaluate_hit_conditions(struct PlayerEntity *p1, struct PlayerEntit
 						} else {
 							p2->tek.hp -= hit_condition.damage;
 							p2->tek.requested_move_id = hit_reaction->standing_move;
+						}
+
+						if (p2->tek.hp <= 0) {
+							p2->tek.requested_move_id = TEK_MOVE_DEATH_ID;
 						}
 					}
 				}
@@ -650,10 +654,23 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 	enum BattleFrameResult frame_result = BATTLE_FRAME_RESULT_CONTINUE;
 
 	// someone won a round?
+	if (players[0]->tek.hp <= 0) {
+		// TODO: outro, now we wait 60 frames to finish
+		if (players[0]->animation.frame > 60) {
+			nonstate->rounds_p2_won += 1;
+			battle_state_new_round(ctx);
+		}
+	}
+	// someone won the match?
+	if (nonstate->rounds_p2_won >= nonstate->rounds_first_to) {
+		frame_result = BATTLE_FRAME_RESULT_END;
+	}
 	if (players[1]->tek.hp <= 0) {
-		// TODO: outro
-		nonstate->rounds_p1_won += 1;
-		battle_state_new_round(ctx);
+		// TODO: outro, now we wait 60 frames to finish
+		if (players[1]->animation.frame > 60) {
+			nonstate->rounds_p1_won += 1;
+			battle_state_new_round(ctx);
+		}
 	}
 	// someone won the match?
 	if (nonstate->rounds_p1_won >= nonstate->rounds_first_to) {

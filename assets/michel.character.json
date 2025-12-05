@@ -206,6 +206,10 @@
 	    ],
 	},
 	{
+	    "name": "death",
+	    "animation": "P2M_Regular_Rig|hit_reaction_standing_death",
+	},
+	{
 	    "name": "midpunch",
 	    "animation": "P2M_Regular_Rig|midpunch",
 	    // hit
