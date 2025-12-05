@@ -2,7 +2,7 @@
     "name": "michel",
     "skeletal_mesh": "P2M_Regular",
     "anim_skeleton": "P2M_Regular_Rig",
-    "radius": 0.4,
+    "radius": 0.5,
     "moves": [
 	// generic moves
 	{
