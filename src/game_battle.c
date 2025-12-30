@@ -215,12 +215,13 @@ void battle_state_new_round(struct BattleContext *ctx)
 	state->p2_entity.tek.current_move_id = c2->moves[0].id;
 
 	// Reset animation
+	int const idle_anim_id = 1775356884;
 	state->p1_entity.anim_skeleton.anim_skeleton_id = c1->anim_skeleton_id;
-	state->p1_entity.animation.animation_id = 491475036; // idle
+	state->p1_entity.animation.animation_id = idle_anim_id; // idle
 	state->p1_entity.animation.frame = 0;
 
 	state->p2_entity.anim_skeleton.anim_skeleton_id = c2->anim_skeleton_id;
-	state->p2_entity.animation.animation_id = 491475036; // idle
+	state->p2_entity.animation.animation_id = idle_anim_id; // idle
 	state->p2_entity.animation.frame = 0;
 
 	// Reset camera

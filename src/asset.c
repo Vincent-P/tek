@@ -89,7 +89,7 @@ AssetId asset_library_add_material(struct AssetLibrary *assets, struct MaterialA
 			return material.id;
 		}
 	}
-	
+
 	uint32_t i = assets->material_generation++;
 	assert(i < ASSET_MATERIAL_CAPACITY);
 	assets->materials[i] = material;
@@ -106,7 +106,7 @@ AssetId asset_library_add_compute_program(struct AssetLibrary *assets, struct Co
 			return program.id;
 		}
 	}
-	
+
 	uint32_t i = assets->compute_program_generation++;
 	assert(i < ASSET_COMPUTE_PROGRAM_CAPACITY);
 	assets->compute_programs[i] = program;

@@ -470,8 +470,15 @@ int cook_fbx()
 				float sum = baked_scales.data[iscale].value.x + baked_scales.data[iscale].value.y + baked_scales.data[iscale].value.z;
 				float average = sum / 3.0f;
 				if (!is_uniform) {
-					fprintf(stderr, "non uniform scale found in anim %s bone %s\n", stack->name.data, node->name.data);
-					assert(!"non uniform scale!");
+					fprintf(stderr, "non uniform scale (%f, %f, %f) found in anim %s bone %s at frame %u\n",
+						baked_scales.data[iscale].value.x,
+						baked_scales.data[iscale].value.y,
+						baked_scales.data[iscale].value.z,
+						stack->name.data,
+						node->name.data,
+						iscale);
+					// assert(!"non uniform scale!");
+					fprintf(stderr, "Using the average (%f) as uniform scalar value\n", average);
 				}
 
 				scales.data[iscale] = average;
