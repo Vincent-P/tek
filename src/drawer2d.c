@@ -26,7 +26,7 @@ struct RasterizedGlyph
 struct GlyphCache
 {
 	unsigned char ttf_buffer[1 << 20];
-	
+
 	struct Atlas2D *atlas;
 	uint32_t atlas_texture;
 	struct Renderer *renderer; // for texture upload
@@ -39,7 +39,7 @@ void drawer2d_init(struct Drawer2D *drawer, struct Renderer *renderer)
 {
 	drawer->glyph_cache = (struct GlyphCache*)calloc(1, sizeof(struct GlyphCache));
 	drawer->glyph_cache->renderer = renderer;
-	
+
 	uint32_t atlas_min_size = 32;
 	uint32_t atlas_size = atlas2d_get_size(GLYPH_CACHE_ATLAS_SIZE, atlas_min_size);
 	drawer->glyph_cache->atlas = (struct Atlas2D*)calloc(1, atlas_size);
@@ -65,6 +65,8 @@ void drawer2d_reset_frame(struct Drawer2D *drawer)
 {
 	drawer->current_vertices_length = 0;
 	drawer->current_indices_length = 0;
+
+	drawer2d_set_clip_rect(drawer, 0.0f, 0.0f, drawer->viewport_width, drawer->viewport_height);
 }
 
 void drawer2d_set_clip_rect(struct Drawer2D *drawer, float x, float y, float w, float h)
@@ -113,7 +115,7 @@ bool glyph_cache_get_rasterized_glyph(struct GlyphCache *glyph_cache, int32_t co
 {
 	struct Renderer *renderer = glyph_cache->renderer;
 	stbtt_fontinfo *font = &glyph_cache->main_font;
-	
+
 	// 1. Find already rasterized glyph for codepoint C and size S.
 	for (uint32_t iglyph = 0; iglyph < glyph_cache->rasterized_glyphs_length; ++iglyph) {
 		struct RasterizedGlyph glyph = glyph_cache->rasterized_glyphs[iglyph];
@@ -126,7 +128,7 @@ bool glyph_cache_get_rasterized_glyph(struct GlyphCache *glyph_cache, int32_t co
 	// 2. Rasterize glyph into CPU bitmap
 	float height_px = size_px;
 	float scale = stbtt_ScaleForPixelHeight(font, height_px);
-	
+
 	int bitmap_width = 0;
 	int bitmap_height = 0;
 	int bitmap_left = 0;
@@ -193,7 +195,7 @@ bool glyph_cache_get_rasterized_glyph(struct GlyphCache *glyph_cache, int32_t co
 	glyph_cache->rasterized_glyphs[glyph_cache->rasterized_glyphs_length] = glyph;
 	glyph_cache->rasterized_glyphs_length += 1;
 	*out_glyph = glyph;
-	
+
 	return true;
 }
 
@@ -201,7 +203,7 @@ bool glyph_cache_get_rasterized_glyph(struct GlyphCache *glyph_cache, int32_t co
 void drawer2d_text_bounds(struct Drawer2D *drawer, const char* text, uint32_t text_length, struct DrawerTextInfo options, float *out_bounds_x, float *out_bounds_y)
 {
 	struct GlyphCache *glyph_cache = drawer->glyph_cache;
-		
+
 	int32_t codepoint = 0;
 	uint32_t codepoint_length  = utf8nlen(text, text_length);
 	void *text_codepoint_it = utf8codepoint(text, &codepoint);
@@ -217,7 +219,7 @@ void drawer2d_text_bounds(struct Drawer2D *drawer, const char* text, uint32_t te
 		} else {
 			bounds_x += options.size_px;
 		}
-		
+
 		text_codepoint_it = utf8codepoint(text_codepoint_it, &codepoint);
 	}
 
@@ -228,7 +230,7 @@ void drawer2d_text_bounds(struct Drawer2D *drawer, const char* text, uint32_t te
 void drawer2d_draw_text(struct Drawer2D *drawer, const char* text, uint32_t text_length, float top, float left, float width, float height, struct DrawerTextInfo options)
 {
 	struct GlyphCache *glyph_cache = drawer->glyph_cache;
-		
+
 	int32_t codepoint = 0;
 	uint32_t codepoint_length  = utf8nlen(text, text_length);
 	void *text_codepoint_it = utf8codepoint(text, &codepoint);
@@ -237,7 +239,7 @@ void drawer2d_draw_text(struct Drawer2D *drawer, const char* text, uint32_t text
 	struct RasterizedGlyph glyph = {0};
 
 	top += options.size_px;
-	
+
 	for (uint32_t icodepoint = 0; icodepoint < codepoint_length; ++icodepoint) {
 		bool success = glyph_cache_get_rasterized_glyph(glyph_cache, codepoint, options.size_px, &glyph);
 
@@ -251,7 +253,7 @@ void drawer2d_draw_text(struct Drawer2D *drawer, const char* text, uint32_t text
 		if (cursor > width) {
 			break;
 		}
-		
+
 		text_codepoint_it = utf8codepoint(text_codepoint_it, &codepoint);
 	}
 }

@@ -6,13 +6,13 @@
 
 Clay_Dimensions clay_integration_measure_text(Clay_StringSlice text, Clay_TextElementConfig *config, void *user_data) {
 	struct Drawer2D *drawer = user_data;
-	
+
 	// Clay_TextElementConfig contains members such as fontId, fontSize, letterSpacing etc
 	// Note: Clay_String->chars is not guaranteed to be null terminated
 
 	struct DrawerTextInfo text_options = {0};
 	text_options.size_px = config->fontSize;
-		
+
 	float bounds_x = 0.0f;
 	float bounds_y = 0.0f;
 	drawer2d_text_bounds(drawer, text.chars, text.length, text_options, &bounds_x, &bounds_y);
@@ -43,7 +43,7 @@ void clay_integration_init(struct Drawer2D *drawer, int display_width, int displ
 	Clay_Initialize(arena, (Clay_Dimensions) { display_width, display_height }, (Clay_ErrorHandler) { clay_integration_error_callback });
 	Clay_SetMeasureTextFunction(clay_integration_measure_text, drawer);
 
-	Clay_SetDebugModeEnabled(true);
+	Clay_SetDebugModeEnabled(false);
 }
 
 bool clay_integration_process_event(struct Application *application, SDL_Event* event)
@@ -83,7 +83,7 @@ void clay_integration_render(struct Drawer2D *drawer, Clay_RenderCommandArray *c
 		switch (rcmd->commandType) {
 		case CLAY_RENDER_COMMAND_TYPE_RECTANGLE: {
 			Clay_RectangleRenderData *config = &rcmd->renderData.rectangle;
-			
+
 			uint32_t color = clay_color_to_u32(config->backgroundColor);
 			drawer2d_draw_rect(drawer, bounding_box.y, bounding_box.x, bounding_box.width, bounding_box.height, color);
 			// SDL_SetRenderDrawBlendMode(data->renderer, SDL_BLENDMODE_BLEND);
@@ -133,7 +133,7 @@ void clay_integration_render(struct Drawer2D *drawer, Clay_RenderCommandArray *c
 				.bottomRight = SDL_min(config->cornerRadius.bottomRight, min_radius)
 			};
 			uint32_t color = clay_color_to_u32(config->color);
-			
+
 			//edges
 			if (config->width.left > 0) {
 				float left = bounding_box.x - 1.0f;
@@ -164,10 +164,10 @@ void clay_integration_render(struct Drawer2D *drawer, Clay_RenderCommandArray *c
 		}
 		case CLAY_RENDER_COMMAND_TYPE_IMAGE: {
 			Clay_RectangleRenderData *config = &rcmd->renderData.rectangle;
-			
+
 			uint32_t color = 0xFF0000FF;
 			drawer2d_draw_rect(drawer, bounding_box.y, bounding_box.x, bounding_box.width, bounding_box.height, color);
-			
+
 			// SDL_Texture *texture = (SDL_Texture *)rcmd->renderData.image.imageData;
 			// const SDL_FRect dest = { rect.x, rect.y, rect.w, rect.h };
 			// SDL_RenderTexture(data->renderer, texture, NULL, &dest);
