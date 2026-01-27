@@ -705,18 +705,7 @@ void battle_render(struct BattleContext *ctx)
 
 	ed_display_player_entity("Player 1", &state->p1_entity);
 	ed_display_player_entity("Player 2", &state->p2_entity);
-
-	if (ImGui_Begin("Debug", NULL, 0)) {
-		ImGui_DragFloat3Ex("camera position", &nonstate->camera.position.x, 0.1f, 0.0f, 0.0f, "%.3f", 0);
-		ImGui_DragFloat3Ex("camera lookat", &nonstate->camera.lookat.x, 0.1f, 0.0f, 0.0f, "%.3f", 0);
-		ImGui_DragFloat("camera fov", &nonstate->camera.vertical_fov);
-		ImGui_DragInt("camera focus", &nonstate->camera_focus);
-		ImGui_Checkbox("draw grid", &nonstate->draw_grid);
-		ImGui_Checkbox("draw hurtboxes", &nonstate->draw_hurtboxes);
-		ImGui_Checkbox("draw hitboxes", &nonstate->draw_hitboxes);
-		ImGui_Checkbox("draw colisions", &nonstate->draw_colisions);
-	}
-	ImGui_End();
+	ed_display_debug_menu(nonstate);
 
 	// -- debug draw
 	debug_draw_reset();
