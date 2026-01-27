@@ -97,7 +97,7 @@ bool tek_log_game_state(char *filename, unsigned char *buffer, int len)
 {
 	int length = sizeof(struct BattleState);
 	if (len == length) {
-		struct BattleState *gs = buffer;
+		struct BattleState *gs = (struct BattleState *)buffer;
 		ggpo_log(ggpo_tek_global_state->ggpo_session, "tek frame: %u", gs->frame_number);
 		return true;
 	}
