@@ -4,6 +4,7 @@
     "anim_skeleton": "P2M_Regular_Rig",
     "radius": 0.5,
     "moves": [
+
 	// generic moves
 	{
 	    "name": "standing idle",
@@ -23,11 +24,13 @@
 		},
 	    ],
 	},
-	// f -> start walk, f -> walk loop
-	// f -> start walk, neutral, f -> dash
+	{
+	    "name": "death",
+	    "animation": "P2M_Regular_Rig|hr_standing_death",
+	},
 	{
 	    "name": "standing walk forward start",
-	    "animation": "P2M_Regular_Rig|m_walk_forward_start",
+	    "animation": "P2M_Regular_Rig|m_walk_forward_start.001",
 	    "cancels": [
 		{
 		    "to": "standing forward dash",
@@ -54,11 +57,16 @@
 		    "to": "standing walk backward",
 		    "motion_input": 2, // b
 		},
+		// can cancel to crouch
+		{
+		    "type": "list",
+		    "to": "movement recovery moves",
+		},
 	    ],
 	},
 	{
 	    "name": "standing walk forward loop",
-	    "animation": "P2M_Regular_Rig|m_walk_forward_loop",
+	    "animation": "P2M_Regular_Rig|m_walk_forward_loop.002",
 	    "cancels": [
 		// loop (should be last?)
 		{
@@ -105,17 +113,15 @@
 		    "to": "standing walk backward",
 		    "motion_input": 2, // b
 		},
-		// go back to idle after end of anim
 		{
-		    "to": "standing idle",
-		    "condition": "eoa",
+		    "to": "movement recovery moves",
+		    "type": "list",
 		},
 	    ],
 	},
-	// walk backward
 	{
 	    "name": "standing walk backward",
-	    "animation": "P2M_Regular_Rig|m_walk_backward_loop",
+	    "animation": "P2M_Regular_Rig|m_walk_backward_loop.003",
 	    // "animation": "P2M_Regular_Rig|walk_backward_loop",
 	    "cancels": [
 		// loop
@@ -134,29 +140,35 @@
 		    "to": "standing walk forward loop",
 		    "motion_input": 6, // f
 		},
-		// lastly stadning moves
+		// lastly standing moves
 		{
 		    "type": "list",
 		    "to": "standing moves",
 		},
+		// can cancel to crouch
+		{
+		    "type": "list",
+		    "to": "movement recovery moves",
+		},
 	    ],
 	},
-	// backward dash
 	{
 	    "name": "standing backward dash",
 	    "animation": "P2M_Regular_Rig|m_dash_backward",
 	    "cancels": [
-		{
-		    "type": "list",
-		    "to": "standing recovery moves",
-		},
 		// custom cancel to walk forward if we press f
 		{
 		    "to": "standing walk forward loop",
 		    "motion_input": 6, // f
 		},
+		{
+		    "type": "list",
+		    "to": "movement recovery moves",
+		},
 	    ],
 	},
+
+	// Attacks
 	{
 	    "name": "jab",
 	    "animation": "P2M_Regular_Rig|a_flashpunch1",
@@ -164,9 +176,69 @@
 	    "hit_level": "high",
 	    "hitbox": 1, // index in list
 	    // frame data
-	    "startup": 10,
-	    "active": 1,
-	    "recovery": 20,
+	    "first_active": 10,
+	    "hit_conditions": [
+		{
+		    "damage": 10,
+		    "reactions": "jab reaction",
+		    "requirements": "none",
+		},
+	    ],
+	    // cancels
+	    "cancels": [
+		{
+		    "to": "jabjab",
+		    "action_input": 4, // LP(4) RP(5) LK(6) RK(7)
+    		    "type": "continue", // keep the animation frame from the previous move
+		    "input_window_start": 10,
+		    "input_window_end": 15,
+		},
+		{
+		    "type": "list",
+		    "to": "standing recovery moves",
+		    "starting_frame": 20, // 20 frames of recovery
+		},
+	    ],
+	},
+	{
+	    "name": "jabjab",
+	    "animation": "P2M_Regular_Rig|a_flashpunch11",
+	    // hit
+	    "hit_level": "high",
+	    "hitbox": 1, // index in list
+	    // frame data
+	    "first_active": 25,
+	    "hit_conditions": [
+		{
+		    "damage": 10,
+		    "reactions": "jab reaction",
+		    "requirements": "none",
+		},
+	    ],
+	    // cancels
+	    "cancels": [
+		{
+		    "to": "jabjabjab",
+		    "action_input": 5, // LP(4) RP(5) LK(6) RK(7)
+    		    "type": "continue", // keep the animation frame from the previous move
+		    "input_window_start": 20,
+		    "input_window_end": 35,
+		},
+		{
+		    "type": "list",
+		    "to": "standing recovery moves",
+		    "starting_frame": 20, // 20 frames of recovery
+		},
+	    ],
+	},
+	{
+	    "name": "jabjabjab",
+	    "animation": "P2M_Regular_Rig|a_flashpunch112",
+	    // hit
+	    "hit_level": "mid",
+	    "hitbox": 0, // index in list
+	    // frame data
+	    "first_active": 49,
 	    "hit_conditions": [
 		{
 		    "damage": 10,
@@ -184,41 +256,68 @@
 	    ],
 	},
 	{
-	    "name": "jab_blockstun",
-	    "animation": "P2M_Regular_Rig|hr_standing_block_mid",
+	    "name": "two",
+	    "animation": "P2M_Regular_Rig|a_2",
+	    // hit
+	    "hit_level": "high",
+	    "hitbox": 0, // index in list
+	    // frame data
+	    "first_active": 10,
+	    "hit_conditions": [
+		{
+		    "damage": 10,
+		    "reactions": "jab reaction",
+		    "requirements": "none",
+		},
+	    ],
+	    // cancels
 	    "cancels": [
+		{
+		    "to": "twoone",
+		    "action_input": 4, // LP(4) RP(5) LK(6) RK(7)
+    		    "type": "continue", // keep the animation frame from the previous move
+		    "input_window_start": 10,
+		    "input_window_end": 15,
+		},
 		{
 		    "type": "list",
 		    "to": "standing recovery moves",
-		    "starting_frame": 21, // 20 frames of recovery (+1 on block)
+		    "starting_frame": 20, // 20 frames of recovery
 		},
 	    ],
 	},
 	{
-	    "name": "jab_hitstun",
-	    "animation": "P2M_Regular_Rig|hr_standing_high",
-	    "cancels": [
-		{
-		    "type": "list",
-		    "to": "standing recovery moves",
-		    "starting_frame": 28, // 20 frames of recovery (+8 on block)
-		},
-	    ],
-	},
-	{
-	    "name": "death",
-	    "animation": "P2M_Regular_Rig|hr_standing_death",
-	},
-	{
-	    "name": "midpunch",
-	    "animation": "P2M_Regular_Rig|a_midpunch",
+	    "name": "twoone",
+	    "animation": "P2M_Regular_Rig|a_21",
 	    // hit
 	    "hit_level": "mid",
 	    "hitbox": 1, // index in list
 	    // frame data
-	    "startup": 13,
-	    "active": 1,
-	    "recovery": 20,
+	    "first_active": 27,
+	    "hit_conditions": [
+		{
+		    "damage": 10,
+		    "reactions": "jab reaction",
+		    "requirements": "none",
+		},
+	    ],
+	    // cancels
+	    "cancels": [
+		{
+		    "type": "list",
+		    "to": "standing recovery moves",
+		    "starting_frame": 20, // 20 frames of recovery
+		},
+	    ],
+	},
+	{
+	    "name": "midpunch",
+	    "animation": "P2M_Regular_Rig|a_midpunch.001",
+	    // hit
+	    "hit_level": "mid",
+	    "hitbox": 1, // index in list
+	    // frame data
+	    "first_active": 13,
 	    "hit_conditions": [
 		{
 		    "damage": 10,
@@ -241,9 +340,7 @@
 	    "hit_level": "high",
 	    "hitbox": 2, // index in list
 	    // frame data
-	    "startup": 13,
-	    "active": 1,
-	    "recovery": 10,
+	    "first_active": 12,
 	    "hit_conditions": [
 		{
 		    "damage": 10,
@@ -261,14 +358,13 @@
 	},
 	{
 	    "name": "steelpedal",
-	    "animation": "P2M_Regular_Rig|a_steel_pedal",
+	    "animation": "P2M_Regular_Rig|a_steel_pedal.001",
 	    // hit
 	    "hit_level": "mid",
 	    "hitbox": 2, // index in list
 	    // frame data
-	    "startup": 20,
-	    "active": 1,
-	    "recovery": 10,
+	    "first_active": 17,
+	    "last_active": 19,
 	    "hit_conditions": [
 		{
 		    "damage": 10,
@@ -291,9 +387,8 @@
 	    "hit_level": "mid",
 	    "hitbox": 0, // index in list
 	    // frame data
-	    "startup": 15,
-	    "active": 2,
-	    "recovery": 14,
+	    "first_active": 15,
+	    "last_active": 17,
 	    "hit_conditions": [
 		{
 		    "damage": 20,
@@ -316,9 +411,7 @@
 	    "hit_level": "low",
 	    "hitbox": 2, // index in list
 	    // frame data
-	    "startup": 20,
-	    "active": 1,
-	    "recovery": 10,
+	    "first_active": 20,
 	    "hit_conditions": [
 		{
 		    "damage": 10,
@@ -334,6 +427,99 @@
 		},
 	    ],
 	},
+	{
+	    "name": "while standing left kick",
+	    "animation": "P2M_Regular_Rig|a_standing_left_kick",
+	    // hit
+	    "hit_level": "mid",
+	    "hitbox": 2, // index in list
+	    // frame data
+	    "first_active": 14,
+	    "hit_conditions": [
+		{
+		    "damage": 10,
+		    "reactions": "standing hit",
+		    "requirements": "none",
+		},
+	    ],
+	    // cancels
+	    "cancels": [
+		{
+		    "type": "list",
+		    "to": "standing recovery moves",
+		},
+	    ],
+	},
+	{
+	    "name": "while standing right kick",
+	    "animation": "P2M_Regular_Rig|a_standing_right_kick",
+	    // hit
+	    "hit_level": "mid",
+	    "hitbox": 2, // index in list
+	    // frame data
+	    "first_active": 11,
+	    "hit_conditions": [
+		{
+		    "damage": 10,
+		    "reactions": "standing hit",
+		    "requirements": "none",
+		},
+	    ],
+	    // cancels
+	    "cancels": [
+		{
+		    "type": "list",
+		    "to": "standing recovery moves",
+		},
+	    ],
+	},
+		{
+	    "name": "while standing left punch",
+	    "animation": "P2M_Regular_Rig|a_standing_left_punch",
+	    // hit
+	    "hit_level": "mid",
+	    "hitbox": 2, // index in list
+	    // frame data
+	    "first_active": 14,
+	    "hit_conditions": [
+		{
+		    "damage": 10,
+		    "reactions": "standing hit",
+		    "requirements": "none",
+		},
+	    ],
+	    // cancels
+	    "cancels": [
+		{
+		    "type": "list",
+		    "to": "standing recovery moves",
+		},
+	    ],
+	},
+	{
+	    "name": "while standing right punch",
+	    "animation": "P2M_Regular_Rig|a_standing_right_punch",
+	    // hit
+	    "hit_level": "mid",
+	    "hitbox": 2, // index in list
+	    // frame data
+	    "first_active": 11,
+	    "hit_conditions": [
+		{
+		    "damage": 10,
+		    "reactions": "standing hit",
+		    "requirements": "none",
+		},
+	    ],
+	    // cancels
+	    "cancels": [
+		{
+		    "type": "list",
+		    "to": "standing recovery moves",
+		},
+	    ],
+	},
+
 	// -- reactions
 	{
 	    "name": "standing hit",
@@ -362,11 +548,35 @@
 		{
 		    "to": "standing idle",
 		    "starting_frame": 30,
+		    "motion_input": 255, // ANY
+		    "action_input": 255, // ANY
 		},
 	    ],
 	},
 	{
-	    "name": "crouch block",
+	    "name": "jab_blockstun",
+	    "animation": "P2M_Regular_Rig|hr_standing_block_mid",
+	    "cancels": [
+		{
+		    "type": "list",
+		    "to": "standing recovery moves",
+		    "starting_frame": 21, // 20 frames of recovery (+1 on block)
+		},
+	    ],
+	},
+	{
+	    "name": "jab_hitstun",
+	    "animation": "P2M_Regular_Rig|hr_standing_high",
+	    "cancels": [
+		{
+		    "type": "list",
+		    "to": "standing recovery moves",
+		    "starting_frame": 28, // 20 frames of recovery (+8 on block)
+		},
+	    ],
+	},
+	{
+	    "name": "crouch blockstun",
 	    "animation": "P2M_Regular_Rig|hr_crouch_block",
 	    "cancels": [
 	    	{
@@ -375,13 +585,62 @@
 		},
 	    ],
 	},
+
+	// Crouch stance
+	{
+	    "name": "crouch block",
+	    "animation": "P2M_Regular_Rig|hr_crouch_block",
+	    "cancels": [
+		{
+		    "to": "crouch block",
+		    "motion_input": 8, // d(8)
+		    "action_input": 255, // ANY
+		    "input_window_end": 999,
+		},
+		{
+		    "to": "crouch block",
+		    "motion_input": 1, // db(1)
+		    "action_input": 255, // ANY
+		    "input_window_end": 999,
+		},
+		// If nothing matched, stand
+	    	{
+		    "to": "while standing",
+		    "starting_frame": 0,
+		    "motion_input": 255,
+		    "action_input": 255,
+		},
+	    ],
+	},
 	{
 	    "name": "while standing",
 	    "animation": "P2M_Regular_Rig|m_while_standing",
 	    "cancels": [
+    		{
+		    "to": "while standing left kick",
+		    "action_input": 6, // LP(4) RP(5) LK(6) RK(7)
+		    "input_window_end": 999,
+		},
+    		{
+		    "to": "while standing right kick",
+		    "action_input": 7, // LP(4) RP(5) LK(6) RK(7)
+		    "input_window_end": 999,
+		},
+    		{
+		    "to": "while standing left punch",
+		    "action_input": 4, // LP(4) RP(5) LK(6) RK(7)
+		    "input_window_end": 999,
+		},
+    		{
+		    "to": "while standing right punch",
+		    "action_input": 5, // LP(4) RP(5) LK(6) RK(7)
+		    "input_window_end": 999,
+		},
+
 		{
 		    "type": "list",
 		    "to": "standing recovery moves",
+		    "starting_frame": 11,
 		},
 	    ],
 	},
@@ -393,6 +652,28 @@
 	    	{
 		    "to": "standing idle",
 		    "condition": "eoa",
+		    "motion_input": 255, // ANY
+		},
+	    ]
+	},
+	{
+	    "name": "movement recovery moves",
+	    "cancels": [
+		{
+		    "to": "crouch block",
+		    "motion_input": 8, // d(8)
+		    "input_window_end": 999,
+		},
+		{
+		    "to": "crouch block",
+		    "motion_input": 1, // db(1)
+		    "input_window_end": 999,
+		},
+	    	{
+		    "to": "standing idle",
+		    "motion_input": 255,
+		    "action_input": 255,
+		    "condition": "eoa",
 		},
 	    ]
 	},
@@ -402,6 +683,11 @@
 		{
 		    "to": "jab",
 		    "action_input": 4, // LP(4) RP(5) LK(6) RK(7)
+		    "input_window_end": 999,
+		},
+		{
+		    "to": "two",
+		    "action_input": 5, // LP(4) RP(5) LK(6) RK(7)
 		    "input_window_end": 999,
 		},
 		{
@@ -427,10 +713,19 @@
 		    "action_input": 7, // LP(4) RP(5) LK(6) RK(7)
 		    "input_window_end": 999,
 		},
-		// backward dash
 		{
 		    "to": "standing backward dash",
 		    "motion_input": 13, // b _ b
+		},
+		{
+		    "to": "crouch block",
+		    "motion_input": 8, // d(8)
+		    "input_window_end": 999,
+		},
+		{
+		    "to": "crouch block",
+		    "motion_input": 1, // db(1)
+		    "input_window_end": 999,
 		},
 		{
 		    "to": "standing idle",
@@ -460,7 +755,7 @@
 	    "name": "low hit",
 	    "standing_move": "low hit",
 	    "standing_counter_hit_move": "low hit",
-	    "standing_block_move": "crouch block",
+	    "standing_block_move": "crouch blockstun",
 	},
 	{
 	    "name": "jab reaction",
@@ -472,30 +767,30 @@
     "hurtboxes": [
 	{
 	    "radius": 0.4,
-	    "height": 2,
-	    "bone": "DEF-spine",
+	    "height": 4,
+	    "bone": "GEO-RootMotion",
 	},
     ],
     "hitboxes": [
 	{
 	    "radius": 0.2,
 	    "height": 0.2,
-	    "bone": "DEF-hand.R",
+	    "bone": "GEO-hand.R",
 	},
 	{
 	    "radius": 0.2,
 	    "height": 0.2,
-	    "bone": "DEF-hand.L",
+	    "bone": "GEO-hand.L",
 	},
 	{
 	    "radius": 0.2,
 	    "height": 0.2,
-	    "bone": "DEF-toe.R",
+	    "bone": "GEO-toe.R",
 	},
 	{
 	    "radius": 0.2,
 	    "height": 0.2,
-	    "bone": "DEF-toe.L",
+	    "bone": "GEO-toe.L",
 	},
     ],
 }
