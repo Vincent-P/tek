@@ -43,6 +43,11 @@ enum tek_MotionInputBits
 };
 typedef uint8_t tek_MotionInput;
 
+enum tek_Input
+{
+	TEK_INPUT_ANY = 0xFF,
+};
+
 enum tek_AttackType
 {
 	TEK_ATTACK_TYPE_HIGH = 0,
@@ -129,9 +134,8 @@ struct tek_Move
 	enum tek_HitLevel hit_level;
 	uint8_t hitbox; // index in hitbox list
 	// frame data
-	uint8_t startup; // how long is the startup of the animation
-	uint8_t active; // how long is the move active
-	uint8_t recovery; // how long is the recovery
+	uint8_t first_active;
+	uint8_t last_active;
 	// cancels
 	struct tek_Cancel cancels[MAX_CANCELS_PER_MOVE];
 	uint32_t cancels_length;

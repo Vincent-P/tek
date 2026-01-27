@@ -143,7 +143,9 @@ static struct tek_Cancel tek_read_cancel(struct json_object_s *cancel_obj)
 		json_object_get_string_id(it, "to", &cancel.to_move_id);
 		json_object_get_u8(it, "motion_input", &cancel.motion_input);
 		if (json_object_get_u8(it, "action_input", &cancel.action_input)) {
-			cancel.action_input = (1 << cancel.action_input);
+			if (cancel.action_input != TEK_INPUT_ANY) {
+				cancel.action_input = (1 << cancel.action_input);
+			}
 		}
 		json_object_get_u8(it, "input_window_start", &cancel.input_window_start);
 		json_object_get_u8(it, "input_window_end", &cancel.input_window_end);
@@ -204,9 +206,11 @@ static void tek_read_json_move(struct tek_Character *character, struct json_obje
 		json_object_get_u8(it, "hitbox", &move.hitbox);
 
 		// frame data
-		json_object_get_u8(it, "startup", &move.startup);
-		json_object_get_u8(it, "active", &move.active);
-		json_object_get_u8(it, "recovery", &move.recovery);
+		json_object_get_u8(it, "first_active", &move.first_active);
+		if (!json_object_get_u8(it, "last_active", &move.last_active)) {
+			// If we don't have a "last_active" field, assume the move is active for 1 frame.
+			move.last_active = move.first_active;
+		}
 
 		if (strcmp(it->name->string, "hit_conditions") == 0) {
 			hit_conditions = json_value_as_array(it->value);

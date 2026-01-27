@@ -269,7 +269,7 @@ static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel can
 	/** Input checks: **/
 	bool match_dir = true;
 	bool match_action = true;
-	if (cancel.motion_input != 0 || cancel.action_input != 0) {
+	{
 		// current frame input
 		uint32_t current_start_frame = player.input_buffer_frame_start[player.current_input_index % INPUT_BUFFER_SIZE];
 		uint32_t current_input_index = (player.current_input_index + (INPUT_BUFFER_SIZE - 0)) % INPUT_BUFFER_SIZE;
@@ -287,6 +287,10 @@ static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel can
 		tek_MotionInput current_motion = 0;
 		if ((current_input & BATTLE_INPUT_BACK) != 0) {
 			current_motion = TEK_MOTION_INPUT_B;
+
+			if ((current_input & BATTLE_INPUT_DOWN) != 0) {
+				current_motion = TEK_MOTION_INPUT_DB;
+			}
 
 			uint32_t frame_window = ctx.current_frame -  (previous_previous_start_frame + 1);
 			if (previous_input == 0 && previous_previous_input == BATTLE_INPUT_BACK && frame_window <= 15) {
@@ -309,10 +313,16 @@ static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel can
 			}
 		} else if ((current_input & BATTLE_INPUT_DOWN) != 0) {
 			current_motion = TEK_MOTION_INPUT_D;
+
+			if ((current_input & BATTLE_INPUT_BACK) != 0) {
+				current_motion =  TEK_MOTION_INPUT_DB;
+			}
+
+
 		}
 
-		match_dir = current_motion  == cancel.motion_input;
-		match_action = action_input == cancel.action_input;
+		match_dir = cancel.motion_input == TEK_INPUT_ANY || current_motion  == cancel.motion_input;
+		match_action = cancel.action_input == TEK_INPUT_ANY || action_input == cancel.action_input;
 	}
 
 	return match_dir & match_action & is_in_frame & is_in_input_window;
@@ -357,9 +367,9 @@ static void _evaluate_hit_conditions(struct PlayerEntity *p1, struct PlayerEntit
 
 	if (current_move && current_move->hit_conditions_length > 0) {
 		uint32_t current = p1->animation.frame;
-		uint32_t first_active = current_move->startup;
-		uint32_t last_active = current_move->startup + current_move->active;
-		bool is_active = first_active <= current && current < last_active;
+		uint32_t first_active = current_move->first_active;
+		uint32_t last_active = current_move->last_active;
+		bool is_active = first_active <= current && current <= last_active;
 		if (is_active) {
 			assert(current_move->hitbox < c1->hitboxes_length);
 			uint32_t ihitbox = current_move->hitbox;
@@ -745,9 +755,9 @@ void battle_render(struct BattleContext *ctx)
 			struct tek_Move *current_move = tek_character_find_move(characters[iplayer], players[iplayer]->tek.current_move_id);
 
 			uint32_t current = players[iplayer]->animation.frame;
-			uint32_t first_active = current_move->startup;
-			uint32_t last_active = current_move->startup + current_move->active;
-			bool is_active = first_active <= current && current < last_active;
+			uint32_t first_active = current_move->first_active;
+			uint32_t last_active = current_move->last_active;
+			bool is_active = first_active <= current && current <= last_active;
 			if (is_active) {
 				assert(current_move->hitbox < characters[iplayer]->hitboxes_length);
 				uint32_t ihitbox = current_move->hitbox;
