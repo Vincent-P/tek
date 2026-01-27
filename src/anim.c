@@ -98,17 +98,14 @@ bool anim_evaluate_animation(struct AnimSkeleton const *skeleton, Animation cons
 	if (frame > 0) {
 		// apply the translation from previous frame to this frame
 		assert(anim->root_motion_track.translations.length == count);
-		Float3 prev_local_translation = anim->root_motion_track.translations.data[frame-1];
-		Float3 current_local_translation = anim->root_motion_track.translations.data[frame];
-		Float3 prev_global_translation = float3x4_transform_point(skeleton->bones_global_transforms[0], prev_local_translation);
-		Float3 current_global_translation = float3x4_transform_point(skeleton->bones_global_transforms[0], current_local_translation);
-		out_pose->root_motion_delta_translation = float3_sub(current_global_translation, prev_global_translation);
+		Float3 prev_translation = anim->root_motion_track.translations.data[frame-1];
+		Float3 current_translation = anim->root_motion_track.translations.data[frame];
+		out_pose->root_motion_delta_translation = float3_sub(current_translation, prev_translation);
 	} else {
 		// apply the first root motion translation key
 		assert(anim->root_motion_track.translations.length == count);
-		Float3 current_local_translation = anim->root_motion_track.translations.data[frame];
-		Float3 current_global_translation = float3x4_transform_point(skeleton->bones_global_transforms[0], current_local_translation);
-		out_pose->root_motion_delta_translation = current_global_translation;
+		Float3 current_translation = anim->root_motion_track.translations.data[frame];
+		out_pose->root_motion_delta_translation = current_translation;
         }
 
 	return has_ended;
