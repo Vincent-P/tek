@@ -91,7 +91,8 @@ float sdWalls(vec3 p)
 
 float sdScene(vec3 p)
 {
-	return sdBox(p, vec3(100.0,100.0,0.01));
+	p.z += 0.02;
+	return sdBox(p, vec3(100.0,100.0,0.001));
 
 	p = p - vec3(0,0,-0.04);
 
