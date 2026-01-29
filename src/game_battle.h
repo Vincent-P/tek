@@ -2,7 +2,7 @@
 #include "tek.h"
 #include "game_components.h"
 
-#define INPUT_BUFFER_SIZE 20 // Number of different inputs in the in buffer
+#define INPUT_BUFFER_SIZE 128 // Number of different inputs in the in buffer
 
 struct Inputs;
 typedef struct Renderer Renderer;
@@ -14,17 +14,21 @@ enum BattleInputBits
 	BATTLE_INPUT_UP        = (1 << 1),
 	BATTLE_INPUT_FORWARD   = (1 << 2),
 	BATTLE_INPUT_DOWN      = (1 << 3),
-
 	BATTLE_INPUT_LPUNCH    = (1 << 4),
 	BATTLE_INPUT_RPUNCH    = (1 << 5),
 	BATTLE_INPUT_LKICK     = (1 << 6),
 	BATTLE_INPUT_RKICK     = (1 << 7),
 };
-typedef uint8_t BattleInput;
+struct BattleInput
+{
+	tek_MotionInput motion;
+	tek_ActionInputSet actions;
+};
+
 struct BattleInputs
 {
-	BattleInput player1;
-	BattleInput player2;
+	struct BattleInput player1;
+	struct BattleInput player2;
 };
 
 // Component for the battle system
@@ -40,9 +44,8 @@ struct TekPlayerComponent
 	int pushback_remaining_frames;
 	float pushback_strength;
 	// input buffer
-	BattleInput input_buffer[INPUT_BUFFER_SIZE];
-	uint32_t input_buffer_frame_start[INPUT_BUFFER_SIZE];
-	uint32_t current_input_index;
+	struct BattleInput input_buffer[INPUT_BUFFER_SIZE];
+	uint64_t input_buffer_head;
 };
 
 // Replicated player state

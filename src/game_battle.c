@@ -13,35 +13,27 @@ struct CancelContext
 
 
 // -- Battle Inputs
-static const char* _get_motion_label(enum BattleInputBits bits)
+static const char* _get_motion_label(struct BattleInput input)
 {
 	uint8_t MOTION_MASK = 0x0f;
 	const char *MOTIONS_LABELS[] = {
 		" ",
-		"b",
-		"u",
-		"bu",
-		"f",
-		"bf",
-		"uf",
-		"buf",
-		"d",
 		"db",
-		"du",
-		"dbu",
+		"d",
 		"df",
-		"dbf",
-		"duf",
-		"dbuf",
+		"b",
+		"n",
+		"f",
+		"ub",
+		"u",
+		"uf",
 	};
-	uint8_t dirs = bits & MOTION_MASK;
-	assert(dirs < ARRAY_LENGTH(MOTIONS_LABELS));
-	return MOTIONS_LABELS[dirs];
+	assert(input.motion < ARRAY_LENGTH(MOTIONS_LABELS));
+	return MOTIONS_LABELS[input.motion];
 }
 
-static const char* _get_action_label(enum BattleInputBits bits)
+static const char* _get_action_label(struct BattleInput input)
 {
-	uint8_t ACTION_MASK = 0xf0;
 	const char *ACTIONS_LABELS[] = {
 		" ",
 		"LP",
@@ -60,85 +52,112 @@ static const char* _get_action_label(enum BattleInputBits bits)
 		"RP+LK+RK",
 		"LP+RP+LK+RK",
 	};
-	uint8_t actions = (bits & ACTION_MASK) >> 4;
-	assert(actions < ARRAY_LENGTH(ACTIONS_LABELS));
-	return ACTIONS_LABELS[actions];
+	assert(input.actions <= ARRAY_LENGTH(ACTIONS_LABELS));
+	return ACTIONS_LABELS[input.actions];
 }
 
-BattleInput battle_clean_socd_input(BattleInput input)
+static struct BattleInput _battle_input_from_raw(uint8_t raw_input)
 {
-	bool socd_bf = ((input & BATTLE_INPUT_FORWARD) != 0) &&  ((input & BATTLE_INPUT_BACK) != 0);
-	if (socd_bf) {
-		// clean bits
-		input ^= BATTLE_INPUT_FORWARD;
-		input ^= BATTLE_INPUT_BACK;
+	struct BattleInput result = {0};
+	// Motion
+	if ((raw_input & BATTLE_INPUT_DOWN) != 0) {
+		if ((raw_input & BATTLE_INPUT_BACK) != 0) {
+			result.motion = TEK_MOTION_INPUT_DB;
+		} else if ((raw_input & BATTLE_INPUT_FORWARD) != 0) {
+			result.motion = TEK_MOTION_INPUT_DF;
+		} else {
+			result.motion = TEK_MOTION_INPUT_D;
+		}
+	} else if ((raw_input & BATTLE_INPUT_UP) != 0) {
+		if ((raw_input & BATTLE_INPUT_BACK) != 0) {
+			result.motion = TEK_MOTION_INPUT_UB;
+		} else if ((raw_input & BATTLE_INPUT_FORWARD) != 0) {
+			result.motion = TEK_MOTION_INPUT_UF;
+		} else {
+			result.motion = TEK_MOTION_INPUT_U;
+		}
+	} else {
+		if ((raw_input & BATTLE_INPUT_BACK) != 0) {
+			result.motion = TEK_MOTION_INPUT_B;
+		} else if ((raw_input & BATTLE_INPUT_FORWARD) != 0) {
+			result.motion = TEK_MOTION_INPUT_F;
+		} else {
+			result.motion = TEK_MOTION_INPUT_N;
+		}
 	}
-	bool socd_ud = ((input & BATTLE_INPUT_UP) != 0) &&  ((input & BATTLE_INPUT_DOWN) != 0);
-	if (socd_ud) {
-		// clean bits
-		input ^= BATTLE_INPUT_UP;
-		input ^= BATTLE_INPUT_DOWN;
+	// Action
+	if ((raw_input & BATTLE_INPUT_LPUNCH) != 0) {
+		result.actions |= (1 << TEK_ACTION_INPUT_LP);
 	}
-	return input;
+	if ((raw_input & BATTLE_INPUT_RPUNCH) != 0) {
+		result.actions |= (1 << TEK_ACTION_INPUT_RP);
+	}
+	if ((raw_input & BATTLE_INPUT_LKICK) != 0) {
+		result.actions |= (1 << TEK_ACTION_INPUT_LK);
+	}
+	if ((raw_input & BATTLE_INPUT_RKICK) != 0) {
+		result.actions |= (1 << TEK_ACTION_INPUT_RK);
+	}
+	return result;
 }
 
 struct BattleInputs battle_read_input(struct Inputs const *inputs)
 {
-	struct BattleInputs input = {0};
-
+	uint8_t p1_raw = 0;
 	if (inputs->buttons_is_down[InputButtons_W]) {
-		input.player1 |= BATTLE_INPUT_UP;
+		p1_raw |= BATTLE_INPUT_UP;
 	}
 	if (inputs->buttons_is_down[InputButtons_A]) {
-		input.player1 |= BATTLE_INPUT_BACK;
+		p1_raw |= BATTLE_INPUT_BACK;
 	}
 	if (inputs->buttons_is_down[InputButtons_S]) {
-		input.player1 |= BATTLE_INPUT_DOWN;
+		p1_raw |= BATTLE_INPUT_DOWN;
 	}
 	if (inputs->buttons_is_down[InputButtons_D]) {
-		input.player1 |= BATTLE_INPUT_FORWARD;
+		p1_raw |= BATTLE_INPUT_FORWARD;
 	}
 	if (inputs->buttons_is_down[InputButtons_U]) {
-		input.player1 |= BATTLE_INPUT_LPUNCH;
+		p1_raw |= BATTLE_INPUT_LPUNCH;
 	}
 	if (inputs->buttons_is_down[InputButtons_I]) {
-		input.player1 |= BATTLE_INPUT_RPUNCH;
+		p1_raw |= BATTLE_INPUT_RPUNCH;
 	}
 	if (inputs->buttons_is_down[InputButtons_J]) {
-		input.player1 |= BATTLE_INPUT_LKICK;
+		p1_raw |= BATTLE_INPUT_LKICK;
 	}
 	if (inputs->buttons_is_down[InputButtons_K]) {
-		input.player1 |= BATTLE_INPUT_RKICK;
+		p1_raw |= BATTLE_INPUT_RKICK;
 	}
 
+	uint8_t p2_raw = 0;
 	if (inputs->gamepad_buttons_is_down[InputGamepadButtons_DPAD_UP]) {
-		input.player2 |= BATTLE_INPUT_UP;
+		p2_raw |= BATTLE_INPUT_UP;
 	}
 	if (inputs->gamepad_buttons_is_down[InputGamepadButtons_DPAD_RIGHT]) {
-		input.player2 |= BATTLE_INPUT_BACK;
+		p2_raw |= BATTLE_INPUT_BACK;
 	}
 	if (inputs->gamepad_buttons_is_down[InputGamepadButtons_DPAD_DOWN]) {
-		input.player2 |= BATTLE_INPUT_DOWN;
+		p2_raw |= BATTLE_INPUT_DOWN;
 	}
 	if (inputs->gamepad_buttons_is_down[InputGamepadButtons_DPAD_LEFT]) {
-		input.player2 |= BATTLE_INPUT_FORWARD;
+		p2_raw |= BATTLE_INPUT_FORWARD;
 	}
 	if (inputs->gamepad_buttons_is_down[InputGamepadButtons_WEST]) {
-		input.player2 |= BATTLE_INPUT_LPUNCH;
+		p2_raw |= BATTLE_INPUT_LPUNCH;
 	}
 	if (inputs->gamepad_buttons_is_down[InputGamepadButtons_NORTH]) {
-		input.player2 |= BATTLE_INPUT_RPUNCH;
+		p2_raw |= BATTLE_INPUT_RPUNCH;
 	}
 	if (inputs->gamepad_buttons_is_down[InputGamepadButtons_SOUTH]) {
-		input.player2 |= BATTLE_INPUT_LKICK;
+		p2_raw |= BATTLE_INPUT_LKICK;
 	}
 	if (inputs->gamepad_buttons_is_down[InputGamepadButtons_EAST]) {
-		input.player2 |= BATTLE_INPUT_RKICK;
+		p2_raw |= BATTLE_INPUT_RKICK;
 	}
 
-	input.player1 = battle_clean_socd_input(input.player1);
-	input.player2 = battle_clean_socd_input(input.player2);
-
+	struct BattleInputs input = {0};
+	input.player1 = _battle_input_from_raw(p1_raw);
+	input.player2 = _battle_input_from_raw(p2_raw);
 	return input;
 }
 
@@ -270,59 +289,14 @@ static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel can
 	bool match_dir = true;
 	bool match_action = true;
 	{
-		// current frame input
-		uint32_t current_start_frame = player.input_buffer_frame_start[player.current_input_index % INPUT_BUFFER_SIZE];
-		uint32_t current_input_index = (player.current_input_index + (INPUT_BUFFER_SIZE - 0)) % INPUT_BUFFER_SIZE;
-		enum BattleInputBits current_input = player.input_buffer[current_input_index];
-		// previous input (not last frame!)
-		uint32_t previous_input_index = (player.current_input_index + INPUT_BUFFER_SIZE - 1) % INPUT_BUFFER_SIZE;
-		enum BattleInputBits previous_input = player.input_buffer[previous_input_index];
-		// previous previous input (not frame n-2!)
-		uint32_t previous_previous_input_index = (player.current_input_index + INPUT_BUFFER_SIZE - 2) % INPUT_BUFFER_SIZE;
-		enum BattleInputBits previous_previous_input = player.input_buffer[previous_previous_input_index];
-		uint32_t previous_previous_start_frame = player.input_buffer_frame_start[previous_previous_input_index];
+		uint32_t input_index = (player.input_buffer_head-1) % INPUT_BUFFER_SIZE;
+		struct BattleInput current_input = player.input_buffer[input_index];
 
-		BattleInput ACTION_MASK = (BATTLE_INPUT_LPUNCH | BATTLE_INPUT_RPUNCH | BATTLE_INPUT_LKICK | BATTLE_INPUT_RKICK);
-		BattleInput action_input = current_input & ACTION_MASK;
-		tek_MotionInput current_motion = 0;
-		if ((current_input & BATTLE_INPUT_BACK) != 0) {
-			current_motion = TEK_MOTION_INPUT_B;
+		uint32_t needle = (1u << current_input.motion);
+		match_dir = (cancel.command.fields.motion == TEK_MOTION_INPUT_ANY) || ((needle & cancel.command.fields.motion) != 0);
 
-			if ((current_input & BATTLE_INPUT_DOWN) != 0) {
-				current_motion = TEK_MOTION_INPUT_DB;
-			}
-
-			uint32_t frame_window = ctx.current_frame -  (previous_previous_start_frame + 1);
-			if (previous_input == 0 && previous_previous_input == BATTLE_INPUT_BACK && frame_window <= 15) {
-				current_motion = TEK_MOTION_INPUT_BB;
-			}
-		} else if ((current_input & BATTLE_INPUT_UP) != 0) {
-			current_motion = TEK_MOTION_INPUT_U;
-		} else if ((current_input & BATTLE_INPUT_FORWARD) != 0) {
-			current_motion = TEK_MOTION_INPUT_F;
-
-			uint32_t frame_window = ctx.current_frame -  (previous_previous_start_frame + 1);
-			tek_MotionInput possible_motion = current_motion;
-			if (previous_input == 0 && previous_previous_input == BATTLE_INPUT_FORWARD && frame_window <= 10) {
-				possible_motion = TEK_MOTION_INPUT_FF;
-			} else if ((current_input & BATTLE_INPUT_DOWN) != 0) {
-				possible_motion = TEK_MOTION_INPUT_DF;
-			}
-			if (cancel.motion_input == possible_motion) {
-				current_motion = possible_motion;
-			}
-		} else if ((current_input & BATTLE_INPUT_DOWN) != 0) {
-			current_motion = TEK_MOTION_INPUT_D;
-
-			if ((current_input & BATTLE_INPUT_BACK) != 0) {
-				current_motion =  TEK_MOTION_INPUT_DB;
-			}
-
-
-		}
-
-		match_dir = cancel.motion_input == TEK_INPUT_ANY || current_motion  == cancel.motion_input;
-		match_action = cancel.action_input == TEK_INPUT_ANY || action_input == cancel.action_input;
+		match_action = (current_input.actions & cancel.command.fields.action.not_held) == 0;
+		match_action = match_action && (current_input.actions & cancel.command.fields.action.pressed) == cancel.command.fields.action.pressed;
 	}
 
 	return match_dir & match_action & is_in_frame & is_in_input_window;
@@ -436,17 +410,14 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 		tek_characters + players[0]->tek.character_id,
 		tek_characters + players[1]->tek.character_id,
 	};
-	BattleInput pinputs[] = {inputs.player1, inputs.player2};
+	struct BattleInput pinputs[] = {inputs.player1, inputs.player2};
 
 	// register input in the input buffer
 	for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
 		struct PlayerEntity *p = players[iplayer];
-		if (pinputs[iplayer] != p->tek.input_buffer[p->tek.current_input_index % INPUT_BUFFER_SIZE]) {
-			p->tek.current_input_index += 1;
-			uint32_t input_index = p->tek.current_input_index % INPUT_BUFFER_SIZE;
-			p->tek.input_buffer[input_index] = pinputs[iplayer];
-			p->tek.input_buffer_frame_start[input_index] = state->frame_number;
-		}
+		uint32_t input_index = p->tek.input_buffer_head % INPUT_BUFFER_SIZE;
+		p->tek.input_buffer_head += 1;
+		p->tek.input_buffer[input_index] = pinputs[iplayer];
 	}
 
 	// -- gameplay update

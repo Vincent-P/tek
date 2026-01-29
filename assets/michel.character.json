@@ -12,11 +12,11 @@
 	    "cancels": [
 		{
 		    "to": "standing walk forward start",
-		    "motion_input": 6, // f
+		    "motion_input": 64, // f
 		},
 		{
 		    "to": "standing walk backward",
-		    "motion_input": 2, // b
+		    "motion_input": 16, // b
 		},
 		{
 		    "type": "list",
@@ -41,13 +41,13 @@
 		},
 		{
 		    "to": "standing walk forward loop",
-		    "motion_input": 6, // f
+		    "motion_input": 64, // f
 		    "input_window_start": 10,
 		    "input_window_end": 999,
 		},
 		{
 		    "type": "list",
-		    "to": "df moves",
+		    "to": "standing moves",
 		},
 		{
 		    "to": "standing idle",
@@ -55,7 +55,7 @@
 		},
 		{
 		    "to": "standing walk backward",
-		    "motion_input": 2, // b
+		    "motion_input": 16, // b
 		},
 		// can cancel to crouch
 		{
@@ -71,7 +71,7 @@
 		// loop (should be last?)
 		{
 		    "to": "standing walk forward loop",
-		    "motion_input": 6, // f
+		    "motion_input": 64, // f
 		    "type": "loop",
 		},
 		// custom cancel to idle, cancel anytime if we release f
@@ -82,7 +82,7 @@
 		// custom cancel to walk backward if we press b
 		{
 		    "to": "standing walk backward",
-		    "motion_input": 2, // b
+		    "motion_input": 16, // b
 		},
 		// lastly match moves
 		{
@@ -103,15 +103,15 @@
 		{
 		    "to": "demonpaw",
     		    "type": "continue", // keep the animation frame from the previous move
-		    "motion_input": 6, // f
-		    "action_input": 5,  // LP(4) RP(5) LK(6) RK(7)
+		    "motion_input": 64, // f
+		    "action_input": 2,  // Sum of: LP(1) RP(2) LK(4) RK(8)
 		    "input_window_start": 0,
 		    "input_window_end": 12,
 		},
 		// custom cancel to walk backward if we press b, TODO: blending over 5-10 frames
 		{
 		    "to": "standing walk backward",
-		    "motion_input": 2, // b
+		    "motion_input": 16, // b
 		},
 		{
 		    "to": "movement recovery moves",
@@ -124,10 +124,15 @@
 	    "animation": "P2M_Regular_Rig|m_walk_backward_loop.003",
 	    // "animation": "P2M_Regular_Rig|walk_backward_loop",
 	    "cancels": [
+		// can cancel to crouch
+		{
+		    "type": "list",
+		    "to": "standing moves",
+		},
 		// loop
 		{
 		    "to": "standing walk backward",
-		    "motion_input": 2, // b
+		    "motion_input": 16, // b
 		    "type": "loop",
 		},
 		// custom cancel to idle, cancel anytime if we release f
@@ -138,17 +143,7 @@
 		// custom cancel to walk forward if we press f
 		{
 		    "to": "standing walk forward loop",
-		    "motion_input": 6, // f
-		},
-		// lastly standing moves
-		{
-		    "type": "list",
-		    "to": "standing moves",
-		},
-		// can cancel to crouch
-		{
-		    "type": "list",
-		    "to": "movement recovery moves",
+		    "motion_input": 64, // f
 		},
 	    ],
 	},
@@ -159,7 +154,7 @@
 		// custom cancel to walk forward if we press f
 		{
 		    "to": "standing walk forward loop",
-		    "motion_input": 6, // f
+		    "motion_input": 64, // f
 		},
 		{
 		    "type": "list",
@@ -188,7 +183,7 @@
 	    "cancels": [
 		{
 		    "to": "jabjab",
-		    "action_input": 4, // LP(4) RP(5) LK(6) RK(7)
+		    "action_input": 1,  // Sum of: LP(1) RP(2) LK(4) RK(8)
     		    "type": "continue", // keep the animation frame from the previous move
 		    "input_window_start": 10,
 		    "input_window_end": 15,
@@ -219,7 +214,7 @@
 	    "cancels": [
 		{
 		    "to": "jabjabjab",
-		    "action_input": 5, // LP(4) RP(5) LK(6) RK(7)
+		    "action_input": 2,  // Sum of: LP(1) RP(2) LK(4) RK(8)
     		    "type": "continue", // keep the animation frame from the previous move
 		    "input_window_start": 20,
 		    "input_window_end": 35,
@@ -274,7 +269,7 @@
 	    "cancels": [
 		{
 		    "to": "twoone",
-		    "action_input": 4, // LP(4) RP(5) LK(6) RK(7)
+		    "action_input": 1,  // Sum of: LP(1) RP(2) LK(4) RK(8)
     		    "type": "continue", // keep the animation frame from the previous move
 		    "input_window_start": 10,
 		    "input_window_end": 15,
@@ -548,8 +543,6 @@
 		{
 		    "to": "standing idle",
 		    "starting_frame": 30,
-		    "motion_input": 255, // ANY
-		    "action_input": 255, // ANY
 		},
 	    ],
 	},
@@ -593,22 +586,13 @@
 	    "cancels": [
 		{
 		    "to": "crouch block",
-		    "motion_input": 8, // d(8)
-		    "action_input": 255, // ANY
-		    "input_window_end": 999,
-		},
-		{
-		    "to": "crouch block",
-		    "motion_input": 1, // db(1)
-		    "action_input": 255, // ANY
+		    "motion_input": 14, // db,d,df
 		    "input_window_end": 999,
 		},
 		// If nothing matched, stand
 	    	{
 		    "to": "while standing",
 		    "starting_frame": 0,
-		    "motion_input": 255,
-		    "action_input": 255,
 		},
 	    ],
 	},
@@ -618,22 +602,22 @@
 	    "cancels": [
     		{
 		    "to": "while standing left kick",
-		    "action_input": 6, // LP(4) RP(5) LK(6) RK(7)
+		    "action_input": 4,  // Sum of: LP(1) RP(2) LK(4) RK(8)
 		    "input_window_end": 999,
 		},
     		{
 		    "to": "while standing right kick",
-		    "action_input": 7, // LP(4) RP(5) LK(6) RK(7)
+		    "action_input": 8,  // Sum of: LP(1) RP(2) LK(4) RK(8)
 		    "input_window_end": 999,
 		},
     		{
 		    "to": "while standing left punch",
-		    "action_input": 4, // LP(4) RP(5) LK(6) RK(7)
+		    "action_input": 1,  // Sum of: LP(1) RP(2) LK(4) RK(8)
 		    "input_window_end": 999,
 		},
     		{
 		    "to": "while standing right punch",
-		    "action_input": 5, // LP(4) RP(5) LK(6) RK(7)
+		    "action_input": 2,  // Sum of: LP(1) RP(2) LK(4) RK(8)
 		    "input_window_end": 999,
 		},
 
@@ -652,7 +636,6 @@
 	    	{
 		    "to": "standing idle",
 		    "condition": "eoa",
-		    "motion_input": 255, // ANY
 		},
 	    ]
 	},
@@ -661,18 +644,11 @@
 	    "cancels": [
 		{
 		    "to": "crouch block",
-		    "motion_input": 8, // d(8)
-		    "input_window_end": 999,
-		},
-		{
-		    "to": "crouch block",
-		    "motion_input": 1, // db(1)
+		    "motion_input": 14, // d(8)
 		    "input_window_end": 999,
 		},
 	    	{
 		    "to": "standing idle",
-		    "motion_input": 255,
-		    "action_input": 255,
 		    "condition": "eoa",
 		},
 	    ]
@@ -682,49 +658,44 @@
 	    "cancels": [
 		{
 		    "to": "jab",
-		    "action_input": 4, // LP(4) RP(5) LK(6) RK(7)
+		    "action_input": 1,  // Sum of: LP(1) RP(2) LK(4) RK(8)
 		    "input_window_end": 999,
 		},
 		{
 		    "to": "two",
-		    "action_input": 5, // LP(4) RP(5) LK(6) RK(7)
+		    "action_input": 2,  // Sum of: LP(1) RP(2) LK(4) RK(8)
 		    "input_window_end": 999,
 		},
 		{
 		    "to": "midpunch",
-		    "motion_input": 7, // df(7)
-		    "action_input": 4, // LP(4) RP(5) LK(6) RK(7)
-		    "input_window_end": 999,
-		},
-		{
-		    "to": "highkick",
-		    "action_input": 7, // LP(4) RP(5) LK(6) RK(7)
+		    "motion_input": 8, // df
+		    "action_input": 1,  // Sum of: LP(1) RP(2) LK(4) RK(8)
 		    "input_window_end": 999,
 		},
 		{
 		    "to": "steelpedal",
-		    "motion_input": 2, // b(2)
-		    "action_input": 7, // LP(4) RP(5) LK(6) RK(7)
+		    "motion_input": 16, // b(2)
+		    "action_input": 8,  // Sum of: LP(1) RP(2) LK(4) RK(8)
+		    "input_window_end": 999,
+		},
+		{
+		    "to": "highkick",
+		    "action_input": 8,  // Sum of: LP(1) RP(2) LK(4) RK(8)
 		    "input_window_end": 999,
 		},
 		{
 		    "to": "lowkick",
-		    "motion_input": 8, // d(8)
-		    "action_input": 7, // LP(4) RP(5) LK(6) RK(7)
+		    "motion_input": 14, // d(8)
+		    "action_input": 8,  // Sum of: LP(1) RP(2) LK(4) RK(8)
 		    "input_window_end": 999,
 		},
 		{
 		    "to": "standing backward dash",
-		    "motion_input": 13, // b _ b
+		    "motion_input": 14, // b _ b
 		},
 		{
 		    "to": "crouch block",
-		    "motion_input": 8, // d(8)
-		    "input_window_end": 999,
-		},
-		{
-		    "to": "crouch block",
-		    "motion_input": 1, // db(1)
+		    "motion_input": 14, // db,d,df
 		    "input_window_end": 999,
 		},
 		{
@@ -738,8 +709,8 @@
 	    "cancels": [
 		{
 		    "to": "midpunch",
-		    "motion_input": 7, // df(7)
-		    "action_input": 4, // LP(4) RP(5) LK(6) RK(7)
+		    "motion_input": 8, // df
+		    "action_input": 1,  // Sum of: LP(1) RP(2) LK(4) RK(8)
 		},
 	    ]
 	}

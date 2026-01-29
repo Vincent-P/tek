@@ -23,29 +23,66 @@ struct tek_ActionState
 };
 
 // -- Static data
-
+/** Directional input, following numpad notation order. **/
 enum tek_MotionInputBits
 {
-	TEK_MOTION_INPUT_NONE  = 0,
-	TEK_MOTION_INPUT_DB    = 1,
-	TEK_MOTION_INPUT_B     = 2,
-	TEK_MOTION_INPUT_UB    = 3,
-	TEK_MOTION_INPUT_U     = 4,
-	TEK_MOTION_INPUT_UF    = 5,
-	TEK_MOTION_INPUT_F     = 6,
-	TEK_MOTION_INPUT_DF    = 7,
-	TEK_MOTION_INPUT_D     = 8,
-	TEK_MOTION_INPUT_F_QCF = 9,
-	TEK_MOTION_INPUT_QCF   = 10,
-	TEK_MOTION_INPUT_QCB   = 11,
-	TEK_MOTION_INPUT_FF    = 12,
-	TEK_MOTION_INPUT_BB    = 13,
+	TEK_MOTION_INPUT_ANY     = 0,
+	TEK_MOTION_INPUT_DB      = 1,
+	TEK_MOTION_INPUT_D       = 2,
+	TEK_MOTION_INPUT_DF      = 3,
+	TEK_MOTION_INPUT_B       = 4,
+	TEK_MOTION_INPUT_N       = 5,
+	TEK_MOTION_INPUT_F       = 6,
+	TEK_MOTION_INPUT_UB      = 7,
+	TEK_MOTION_INPUT_U       = 8,
+	TEK_MOTION_INPUT_UF      = 9,
 };
 typedef uint8_t tek_MotionInput;
+typedef uint16_t tek_MotionInputSet;
 
-enum tek_Input
+/** Action input, following numpad notation order. **/
+enum tek_ActionInputBits
 {
-	TEK_INPUT_ANY = 0xFF,
+	TEK_ACTION_INPUT_LP      = 0,
+	TEK_ACTION_INPUT_RP      = 1,
+	TEK_ACTION_INPUT_LK      = 2,
+	TEK_ACTION_INPUT_RK      = 3
+};
+typedef uint8_t tek_ActionInput;
+typedef uint8_t tek_ActionInputSet;
+
+enum tek_ButtonCommandType
+{
+	TEK_BUTTON_COMMAND_INVALID     = 0,
+	TEK_BUTTON_COMMAND_PARTIAL     = 1, // Accept any of the specified buttons
+	TEK_BUTTON_COMMAND_NORMAL      = 2, // Accept at least the specified buttons
+	TEK_BUTTON_COMMAND_DIRECTION   = 3, // Accept only a direction (no actions allowed)
+};
+typedef uint8_t tek_ButtonCommandType;
+
+enum tek_BuiltinCommands
+{
+	TEK_BUILTIN_COMMAND_FF,
+	TEK_BUILTIN_COMMAND_BB,
+	TEK_BUILTIN_COMMAND_QCF,
+	TEK_BUILTIN_COMMAND_QCB,
+};
+
+union tek_Command
+{
+	struct
+	{
+		tek_MotionInputSet motion;
+		uint16_t padding;
+		struct
+		{
+			tek_ButtonCommandType type;
+			tek_ActionInputSet not_held;
+			tek_ActionInputSet held;
+			tek_ActionInputSet pressed;
+		} action;
+	} fields;
+	uint64_t raw;
 };
 
 enum tek_AttackType
@@ -77,8 +114,7 @@ typedef uint8_t tek_CancelCondition;
 struct tek_Cancel
 {
 	uint32_t to_move_id; // cancel group index if type is list
-	tek_MotionInput motion_input;
-	uint8_t action_input;
+	union tek_Command command;
 	tek_CancelType type;
 	tek_CancelCondition condition;
 	uint8_t input_window_start; // relative to the current move

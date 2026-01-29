@@ -587,23 +587,53 @@ void local_battle_render(void **data_data)
 					struct BattleState* battle_state = &data->battle_context.battle_state;
 					struct TekPlayerComponent const *p1 = &battle_state->p1_entity.tek;
 
-					uint32_t input_last_frame = battle_state->frame_number;
-					for (uint32_t i = 0; i < INPUT_BUFFER_SIZE; i++) {
-						uint32_t input_index = (p1->current_input_index + (INPUT_BUFFER_SIZE - i)) % INPUT_BUFFER_SIZE;
-						enum BattleInputBits input = p1->input_buffer[input_index];
-						uint32_t input_duration = input_last_frame - p1->input_buffer_frame_start[input_index];
-						input_last_frame = p1->input_buffer_frame_start[input_index];
-
-						char label[64] = {0};
-						uint32_t label_length = sprintf(label, "%s %s - %u", _get_motion_label(input), _get_action_label(input), input_duration);
-
-						Clay_String label_string = (Clay_String){
-							.isStaticallyAllocated = false,
-							.length = label_length,
-							.chars = ui_string(label, label_length),
-						};
-						CLAY_TEXT(label_string, CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {0, 0, 0, 255}}));
+					uint32_t count = INPUT_BUFFER_SIZE;
+					if (p1->input_buffer_head < count) {
+						count = p1->input_buffer_head;
 					}
+
+					uint32_t it = p1->input_buffer_head-1;
+					uint32_t input_index = it % INPUT_BUFFER_SIZE;
+					struct BattleInput input = p1->input_buffer[input_index];
+					uint32_t frame = battle_state->frame_number;
+					for (uint32_t i = 0; i < count; i++, it--) {
+						uint32_t input_index = it % INPUT_BUFFER_SIZE;
+						if (p1->input_buffer[input_index].motion == input.motion
+						    && p1->input_buffer[input_index].actions == input.actions) {
+							// Input is the same from the previous one
+						} else {
+							// Input is different, display
+							struct BattleInput next_input = p1->input_buffer[input_index];
+							uint32_t next_frame = battle_state->frame_number - i;
+
+							uint32_t duration = frame - next_frame;
+							char label[64] = {0};
+							uint32_t label_length = sprintf(label, "%s %s - %u", _get_motion_label(input), _get_action_label(input), duration);
+
+							Clay_String label_string = (Clay_String){
+								.isStaticallyAllocated = false,
+								.length = label_length,
+								.chars = ui_string(label, label_length),
+							};
+							CLAY_TEXT(label_string, CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {0, 0, 0, 255}}));
+
+							input = next_input;
+							frame = next_frame;
+						}
+						if (it == 0) {
+							break;
+						}
+					}
+					// Last input
+					uint32_t duration = frame - (battle_state->frame_number - count);
+					char label[64] = {0};
+					uint32_t label_length = sprintf(label, "%s %s - %u", _get_motion_label(input), _get_action_label(input), duration);
+					Clay_String label_string = (Clay_String){
+						.isStaticallyAllocated = false,
+						.length = label_length,
+						.chars = ui_string(label, label_length),
+					};
+					CLAY_TEXT(label_string, CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {0, 0, 0, 255}}));
 				}
 
 				CLAY({.id = CLAY_ID("Empty"), .layout = { .sizing = {CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0)}}}) {}
@@ -614,24 +644,53 @@ void local_battle_render(void **data_data)
 					}) {
 					struct BattleState* battle_state = &data->battle_context.battle_state;
 					struct TekPlayerComponent const *p2 = &battle_state->p2_entity.tek;
-
-					uint32_t input_last_frame = battle_state->frame_number;
-					for (uint32_t i = 0; i < INPUT_BUFFER_SIZE; i++) {
-						uint32_t input_index = (p2->current_input_index + (INPUT_BUFFER_SIZE - i)) % INPUT_BUFFER_SIZE;
-						enum BattleInputBits input = p2->input_buffer[input_index];
-						uint32_t input_duration = input_last_frame - p2->input_buffer_frame_start[input_index];
-						input_last_frame = p2->input_buffer_frame_start[input_index];
-
-						char label[64] = {0};
-						uint32_t label_length = sprintf(label, "%s %s - %u", _get_motion_label(input), _get_action_label(input), input_duration);
-
-						Clay_String label_string = (Clay_String){
-							.isStaticallyAllocated = false,
-							.length = label_length,
-							.chars = ui_string(label, label_length),
-						};
-						CLAY_TEXT(label_string, CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {0, 0, 0, 255} }));
+					uint32_t count = INPUT_BUFFER_SIZE;
+					if (p2->input_buffer_head < count) {
+						count = p2->input_buffer_head;
 					}
+
+					uint32_t it = p2->input_buffer_head-1;
+					uint32_t input_index = it % INPUT_BUFFER_SIZE;
+					struct BattleInput input = p2->input_buffer[input_index];
+					uint32_t frame = battle_state->frame_number;
+					for (uint32_t i = 0; i < count; i++, it--) {
+						uint32_t input_index = it % INPUT_BUFFER_SIZE;
+						if (p2->input_buffer[input_index].motion == input.motion
+						    && p2->input_buffer[input_index].actions == input.actions) {
+							// Input is the same from the previous one
+						} else {
+							// Input is different, display
+							struct BattleInput next_input = p2->input_buffer[input_index];
+							uint32_t next_frame = battle_state->frame_number - i;
+
+							uint32_t duration = frame - next_frame;
+							char label[64] = {0};
+							uint32_t label_length = sprintf(label, "%s %s - %u", _get_motion_label(input), _get_action_label(input), duration);
+
+							Clay_String label_string = (Clay_String){
+								.isStaticallyAllocated = false,
+								.length = label_length,
+								.chars = ui_string(label, label_length),
+							};
+							CLAY_TEXT(label_string, CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {0, 0, 0, 255}}));
+
+							input = next_input;
+							frame = next_frame;
+						}
+						if (it == 0) {
+							break;
+						}
+					}
+					// Last input
+					uint32_t duration = frame - (battle_state->frame_number - count);
+					char label[64] = {0};
+					uint32_t label_length = sprintf(label, "%s %s - %u", _get_motion_label(input), _get_action_label(input), duration);
+					Clay_String label_string = (Clay_String){
+						.isStaticallyAllocated = false,
+						.length = label_length,
+						.chars = ui_string(label, label_length),
+					};
+					CLAY_TEXT(label_string, CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {0, 0, 0, 255}}));
 				}
 			}
 

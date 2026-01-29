@@ -65,6 +65,22 @@ bool json_object_get_u8(struct json_object_element_s *it, const char *field_name
 	return false;
 }
 
+bool json_object_get_u16(struct json_object_element_s *it, const char *field_name, uint16_t *u16)
+{
+	if (strcmp(it->name->string, field_name) == 0) {
+		struct json_number_s *n = json_value_as_number(it->value);
+		if (n != NULL) {
+			int value = atol(n->number);
+			*u16 = (uint16_t)value;
+#if defined(TEK_DEBUG_PRINT_JSON)
+			fprintf(stderr, "[json] read u16 %s = %u\n", field_name, (uint32_t)*u16);
+#endif
+			return true;
+		}
+	}
+	return false;
+}
+
 bool json_object_get_float(struct json_object_element_s *it, const char *field_name, float *f)
 {
 	if (strcmp(it->name->string, field_name) == 0) {
@@ -141,12 +157,8 @@ static struct tek_Cancel tek_read_cancel(struct json_object_s *cancel_obj)
 			}
 		}
 		json_object_get_string_id(it, "to", &cancel.to_move_id);
-		json_object_get_u8(it, "motion_input", &cancel.motion_input);
-		if (json_object_get_u8(it, "action_input", &cancel.action_input)) {
-			if (cancel.action_input != TEK_INPUT_ANY) {
-				cancel.action_input = (1 << cancel.action_input);
-			}
-		}
+		json_object_get_u16(it, "motion_input", &cancel.command.fields.motion);
+		json_object_get_u8(it, "action_input", &cancel.command.fields.action.pressed);
 		json_object_get_u8(it, "input_window_start", &cancel.input_window_start);
 		json_object_get_u8(it, "input_window_end", &cancel.input_window_end);
 		json_object_get_u8(it, "starting_frame", &cancel.starting_frame);

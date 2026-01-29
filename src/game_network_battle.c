@@ -192,7 +192,7 @@ void network_battle_state_host(struct NetworkBattleData *data)
 	session_callbacks.free_buffer = tek_free_buffer;
 	session_callbacks.advance_frame = tek_advance_frame;
 	session_callbacks.on_event = tek_on_event;
-	GGPOErrorCode err = ggpo_start_session(&data->ggpo_session, &session_callbacks, "tek", 2, sizeof(BattleInput), TEK_NETWORK_HOST_PORT);
+	GGPOErrorCode err = ggpo_start_session(&data->ggpo_session, &session_callbacks, "tek", 2, sizeof(struct BattleInput), TEK_NETWORK_HOST_PORT);
 	tek_check_error(err);
 	err = ggpo_add_player(data->ggpo_session, &data->ggpo_players[0], &data->ggpo_player_handles[0]);
 	tek_check_error(err);
@@ -239,7 +239,7 @@ void network_battle_state_join(struct NetworkBattleData *data)
 	session_callbacks.free_buffer = tek_free_buffer;
 	session_callbacks.advance_frame = tek_advance_frame;
 	session_callbacks.on_event = tek_on_event;
-	GGPOErrorCode err = ggpo_start_session(&data->ggpo_session, &session_callbacks, "tek", 2, sizeof(BattleInput), TEK_NETWORK_PEER_PORT);
+	GGPOErrorCode err = ggpo_start_session(&data->ggpo_session, &session_callbacks, "tek", 2, sizeof(struct BattleInput), TEK_NETWORK_PEER_PORT);
 	tek_check_error(err);
 	err = ggpo_add_player(data->ggpo_session, &data->ggpo_players[0], &data->ggpo_player_handles[0]);
 	tek_check_error(err);
@@ -361,10 +361,10 @@ struct GameUpdateResult network_battle_update(void **state_data, struct GameUpda
 			struct BattleInputs battle_inputs = battle_read_input(data->inputs);
 			if (data->state == NETWORK_BATTLE_STATE_HOSTING) {
 				// Send player1 inputs to network
-				err = ggpo_add_local_input(data->ggpo_session, data->ggpo_player_handles[0], &battle_inputs.player1, sizeof(BattleInput));
+				err = ggpo_add_local_input(data->ggpo_session, data->ggpo_player_handles[0], &battle_inputs.player1, sizeof(struct BattleInput));
 			} else {
 				// Send player2 inputs to network
-				err = ggpo_add_local_input(data->ggpo_session, data->ggpo_player_handles[1], &battle_inputs.player1, sizeof(BattleInput));
+				err = ggpo_add_local_input(data->ggpo_session, data->ggpo_player_handles[1], &battle_inputs.player1, sizeof(struct BattleInput));
 			}
 			if (GGPO_SUCCEEDED(err)) {
 				tek_check_error(err);
@@ -517,7 +517,7 @@ void network_battle_render(void **state_data)
 					}) {
 					struct BattleState* battle_state = &data->battle_context.battle_state;
 					struct TekPlayerComponent const *p1 = &battle_state->p1_entity.tek;
-
+					#if 0
 					uint32_t input_last_frame = battle_state->frame_number;
 					for (uint32_t i = 0; i < INPUT_BUFFER_SIZE; i++) {
 						uint32_t input_index = (p1->current_input_index + (INPUT_BUFFER_SIZE - i)) % INPUT_BUFFER_SIZE;
@@ -535,6 +535,7 @@ void network_battle_render(void **state_data)
 						};
 						CLAY_TEXT(label_string, CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {0, 0, 0, 255}}));
 					}
+					#endif
 				}
 
 				CLAY({.id = CLAY_ID("Empty"), .layout = { .sizing = {CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0)}}}) {}
@@ -546,6 +547,7 @@ void network_battle_render(void **state_data)
 					struct BattleState* battle_state = &data->battle_context.battle_state;
 					struct TekPlayerComponent const *p2 = &battle_state->p2_entity.tek;
 
+					#if 0
 					uint32_t input_last_frame = battle_state->frame_number;
 					for (uint32_t i = 0; i < INPUT_BUFFER_SIZE; i++) {
 						uint32_t input_index = (p2->current_input_index + (INPUT_BUFFER_SIZE - i)) % INPUT_BUFFER_SIZE;
@@ -563,6 +565,7 @@ void network_battle_render(void **state_data)
 						};
 						CLAY_TEXT(label_string, CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {0, 0, 0, 255} }));
 					}
+					#endif
 				}
 			}
 
