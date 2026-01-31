@@ -288,15 +288,20 @@ static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel can
 	/** Input checks: **/
 	bool match_dir = true;
 	bool match_action = true;
-	{
-		uint32_t input_index = (player.input_buffer_head-1) % INPUT_BUFFER_SIZE;
-		struct BattleInput current_input = player.input_buffer[input_index];
+	if (player.input_buffer_head < cancel.command.fields.hold_duration || cancel.command.fields.hold_duration > INPUT_BUFFER_SIZE) {
+		match_dir = false;
+		match_action = false;
+	} else {
+		for (uint32_t i = 0; i < cancel.command.fields.hold_duration; ++i) {
+			uint32_t input_index = (player.input_buffer_head-i-1) % INPUT_BUFFER_SIZE;
+			struct BattleInput current_input = player.input_buffer[input_index];
 
-		uint32_t needle = (1u << current_input.motion);
-		match_dir = (cancel.command.fields.motion == TEK_MOTION_INPUT_ANY) || ((needle & cancel.command.fields.motion) != 0);
+			uint32_t needle = (1u << current_input.motion);
+			match_dir = match_dir && ((cancel.command.fields.motion == TEK_MOTION_INPUT_ANY) || ((needle & cancel.command.fields.motion) != 0));
 
-		match_action = (current_input.actions & cancel.command.fields.action.not_held) == 0;
-		match_action = match_action && (current_input.actions & cancel.command.fields.action.pressed) == cancel.command.fields.action.pressed;
+			match_action = match_action && (current_input.actions & cancel.command.fields.action.not_held) == 0;
+			match_action = match_action && (current_input.actions & cancel.command.fields.action.pressed) == cancel.command.fields.action.pressed;
+		}
 	}
 
 	return match_dir & match_action & is_in_frame & is_in_input_window;

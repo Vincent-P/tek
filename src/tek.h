@@ -70,10 +70,10 @@ enum tek_BuiltinCommands
 
 union tek_Command
 {
-	struct
+	struct tek_CommandFields
 	{
 		tek_MotionInputSet motion;
-		uint16_t padding;
+		uint16_t hold_duration;
 		struct
 		{
 			tek_ButtonCommandType type;

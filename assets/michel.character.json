@@ -584,6 +584,7 @@
 	    "name": "crouch block",
 	    "animation": "P2M_Regular_Rig|hr_crouch_block",
 	    "cancels": [
+		// stay crouch while d is pressed
 		{
 		    "to": "crouch block",
 		    "motion_input": 14, // db,d,df
@@ -645,6 +646,7 @@
 		{
 		    "to": "crouch block",
 		    "motion_input": 14, // d(8)
+		    "hold_duration": 10,
 		    "input_window_end": 999,
 		},
 	    	{
@@ -679,23 +681,25 @@
 		    "input_window_end": 999,
 		},
 		{
-		    "to": "highkick",
-		    "action_input": 8,  // Sum of: LP(1) RP(2) LK(4) RK(8)
-		    "input_window_end": 999,
-		},
-		{
 		    "to": "lowkick",
 		    "motion_input": 14, // d(8)
 		    "action_input": 8,  // Sum of: LP(1) RP(2) LK(4) RK(8)
 		    "input_window_end": 999,
 		},
 		{
+		    "to": "highkick",
+		    "action_input": 8,  // Sum of: LP(1) RP(2) LK(4) RK(8)
+		    "input_window_end": 999,
+		},
+		{
 		    "to": "standing backward dash",
-		    "motion_input": 14, // b _ b
+		    "motion_input": 1, // b _ b
+		    "hold_duration": 64,
 		},
 		{
 		    "to": "crouch block",
 		    "motion_input": 14, // db,d,df
+		    "hold_duration": 10,
 		    "input_window_end": 999,
 		},
 		{

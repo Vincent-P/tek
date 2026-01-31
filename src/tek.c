@@ -134,6 +134,7 @@ static void tek_read_json_move_hit_conditions(struct tek_Move *move, struct json
 static struct tek_Cancel tek_read_cancel(struct json_object_s *cancel_obj)
 {
 	struct tek_Cancel cancel = {0};
+	cancel.command.fields.hold_duration = 1;
 
 	if (cancel_obj == NULL) {
 		return cancel;
@@ -158,6 +159,7 @@ static struct tek_Cancel tek_read_cancel(struct json_object_s *cancel_obj)
 		}
 		json_object_get_string_id(it, "to", &cancel.to_move_id);
 		json_object_get_u16(it, "motion_input", &cancel.command.fields.motion);
+		json_object_get_u16(it, "hold_duration", &cancel.command.fields.hold_duration);
 		json_object_get_u8(it, "action_input", &cancel.command.fields.action.pressed);
 		json_object_get_u8(it, "input_window_start", &cancel.input_window_start);
 		json_object_get_u8(it, "input_window_end", &cancel.input_window_end);
