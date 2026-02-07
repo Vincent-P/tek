@@ -160,6 +160,15 @@ enum tek_BuiltinMoves
 	TEK_MOVE_WHILE_STANDING_ID =  505395132,
 };
 
+union tek_MoveProperties
+{
+	struct {
+		uint32_t allow_blocking : 2;
+		uint32_t allow_crouching : 1;
+		uint32_t padding : 29;
+	} bits;
+	uint32_t raw;
+};
 
 struct tek_Move
 {
@@ -178,6 +187,7 @@ struct tek_Move
 	// hit conditions
 	struct tek_HitCondition hit_conditions[MAX_HIT_CONDITIONS_PER_MOVE];
 	uint32_t hit_conditions_length;
+	union tek_MoveProperties properties;
 };
 
 struct tek_HitReactions

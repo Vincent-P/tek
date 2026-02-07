@@ -23,6 +23,9 @@
 		    "to": "standing moves",
 		},
 	    ],
+	    "properties": {
+		"allow_crouching": 1, // pressing d crushes high
+	    },
 	},
 	{
 	    "name": "death",
@@ -148,6 +151,9 @@
 		    "motion_input": 64, // f
 		},
 	    ],
+	    "properties": {
+		"allow_blocking": 1, // 1 standing, 2 crouch, 3 both
+	    },
 	},
 	{
 	    "name": "standing backward dash",
@@ -477,12 +483,12 @@
 		    "requirements": "none",
 		    "damage": 10,
 		    "reaction": {
-			"standing_move": "standing hit",
-			"standing_stun": 29, // 30 frames of recovery (-1 on hit)
-			"standing_counter_hit_move": "standing hit",
-			"standing_counter_hit_stun": 29, // 30 frames of recovery (-1 on hit)
-			"standing_block_move": "standing block",
-			"standing_block_stun": 19, // 30 frames of recovery (-11 on block)
+			"crouch_move": "low hit",
+			"crouch_stun": 29, // 30 frames of recovery (-1 on hit)
+			"crouch_counter_hit_move": "low hit",
+			"crouch_counter_hit_stun": 29, // 30 frames of recovery (-1 on hit)
+			"crouch_block_move": "crouch blockstun",
+			"crouch_block_stun": 19, // 30 frames of recovery (-11 on block)
 		    },
 		},
 	    ],
@@ -645,6 +651,9 @@
 		    "starting_frame": 30,
 		},
 	    ],
+	    "properties": {
+		"allow_blocking": 3, // 1 standing, 2 crouch, 3 both
+	    },
 	},
 	{
 	    "name": "crouch blockstun",
@@ -655,6 +664,10 @@
 		    "starting_frame": 30,
 		},
 	    ],
+	    "properties": {
+		"allow_blocking": 3, // 1 standing, 2 crouch, 3 both
+		"allow_crouching": 1,
+	    },
 	},
 
 	// Crouch stance
@@ -674,6 +687,10 @@
 		    "starting_frame": 0,
 		},
 	    ],
+	    "properties": {
+		"allow_blocking": 2, // 1 standing, 2 crouch, 3 both
+		"allow_crouching": 1,
+	    },
 	},
 	{
 	    "name": "while standing",

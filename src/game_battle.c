@@ -377,16 +377,47 @@ static void _evaluate_hit_conditions(struct PlayerEntity *p1, struct PlayerEntit
 						struct tek_HitCondition hit_condition = current_move->hit_conditions[0];
 						struct tek_HitReactions *hit_reaction = c1->hit_reactions + hit_condition.ireactions;
 
+						struct tek_Move *p2_current_move = tek_character_find_move(c2, p2->tek.current_move_id);
+						assert(p2->tek.input_buffer_head > 0);
+						struct BattleInput p2_current_input = p2->tek.input_buffer[(p2->tek.input_buffer_head-1)%INPUT_BUFFER_SIZE];
 
-						bool is_blocking = p2->tek.current_move_id == TEK_MOVE_BACKWARD_LOOP_ID;
-						if (is_blocking) {
-							p2->tek.requested_move_id = hit_reaction->standing_block_move;
+						// The "crouching state" is only about high crush! not actual crouch move or animation
+						bool p2_can_crouch = (p2_current_move->properties.bits.allow_crouching & 1) != 0;
+						bool p2_is_crouching = p2_can_crouch && (p2_current_input.motion == TEK_MOTION_INPUT_D || p2_current_input.motion == TEK_MOTION_INPUT_DB);
+
+						bool is_crushing = p2_is_crouching && current_move->hit_level == TEK_HIT_LEVEL_HIGH;
+
+						bool p2_can_block_standing = (p2_current_move->properties.bits.allow_blocking & 1) != 0;
+						bool p2_input_block_standing = p2_current_input.motion == TEK_MOTION_INPUT_B;
+						bool p2_blocking_standing = p2_can_block_standing && p2_input_block_standing;
+
+						bool p2_can_block_crouching = (p2_current_move->properties.bits.allow_blocking & 2) != 0;
+						bool p2_input_block_crouching = p2_current_input.motion == TEK_MOTION_INPUT_D || p2_current_input.motion == TEK_MOTION_INPUT_DB;
+						bool p2_blocking_crouching = p2_can_block_crouching && p2_input_block_crouching;
+
+						bool is_blocking =
+							   (current_move->hit_level == TEK_HIT_LEVEL_LOW && p2_blocking_crouching)
+							|| (current_move->hit_level == TEK_HIT_LEVEL_MID && p2_blocking_standing)
+							|| (current_move->hit_level == TEK_HIT_LEVEL_HIGH && p2_blocking_standing);
+
+						if (is_crushing) {
+							// nothing happens.
+						} else if (is_blocking) {
+							if (current_move->hit_level == TEK_HIT_LEVEL_LOW) {
+								p2->tek.requested_move_id = hit_reaction->crouch_block_move;
+							} else {
+								p2->tek.requested_move_id = hit_reaction->standing_block_move;
+							}
 
 							p2->tek.pushback_remaining_frames = 3;
 							p2->tek.pushback_strength = 0.1f;
 						} else {
 							p2->tek.hp -= hit_condition.damage;
-							p2->tek.requested_move_id = hit_reaction->standing_move;
+							if (current_move->hit_level == TEK_HIT_LEVEL_LOW) {
+								p2->tek.requested_move_id = hit_reaction->crouch_move;
+							} else {
+								p2->tek.requested_move_id = hit_reaction->standing_move;
+							}
 						}
 
 						if (p2->tek.hp <= 0) {

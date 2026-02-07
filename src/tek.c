@@ -81,6 +81,22 @@ bool json_object_get_u16(struct json_object_element_s *it, const char *field_nam
 	return false;
 }
 
+bool json_object_get_u32(struct json_object_element_s *it, const char *field_name, uint32_t *u32)
+{
+	if (strcmp(it->name->string, field_name) == 0) {
+		struct json_number_s *n = json_value_as_number(it->value);
+		if (n != NULL) {
+			int value = atol(n->number);
+			*u32 = (uint32_t)value;
+#if defined(TEK_DEBUG_PRINT_JSON)
+			fprintf(stderr, "[json] read u32 %s = %u\n", field_name, *u32);
+#endif
+			return true;
+		}
+	}
+	return false;
+}
+
 bool json_object_get_float(struct json_object_element_s *it, const char *field_name, float *f)
 {
 	if (strcmp(it->name->string, field_name) == 0) {
@@ -224,6 +240,19 @@ static void tek_read_json_move_cancels(struct tek_Move *move, struct json_array_
 	assert(move->cancels_length <= ARRAY_LENGTH(move->cancels));
 }
 
+static void tek_read_json_move_properties(union tek_MoveProperties *props, struct json_object_s *obj)
+{
+	uint32_t allow_blocking = 0;
+	uint32_t allow_crouching = 0;
+	for (struct json_object_element_s* it = obj->start; it != NULL; it = it->next) {
+		json_object_get_u32(it, "allow_blocking", &allow_blocking);
+		json_object_get_u32(it, "allow_crouching", &allow_crouching);
+	}
+
+	props->bits.allow_blocking = allow_blocking & 0x3;
+	props->bits.allow_crouching = allow_crouching & 0x1;
+}
+
 static void tek_read_json_move(struct tek_Character *character, struct json_object_s *obj)
 {
 	if (obj == NULL) {
@@ -266,6 +295,11 @@ static void tek_read_json_move(struct tek_Character *character, struct json_obje
 
 		if (strcmp(it->name->string, "cancels") == 0) {
 			cancels = json_value_as_array(it->value);
+		}
+
+		if (strcmp(it->name->string, "properties") == 0) {
+			struct json_object_s *properties = json_value_as_object(it->value);
+			tek_read_json_move_properties(&move.properties, properties);
 		}
 	}
 
@@ -390,18 +424,26 @@ static void tek_create_hit_reactions_moves(struct tek_Character *c)
 {
 	for (uint32_t i = 0; i < c->hit_reactions_length; ++i) {
 		struct tek_HitReactions *r = c->hit_reactions + i;
-		struct tek_Move *standing_move = tek_character_find_move(c, r->standing_move);
-		r->standing_move = tek_create_hit_reactions_move(c, i, standing_move, r->standing_stun, "%s_standing_r%u");
-		struct tek_Move *standing_ch_move = tek_character_find_move(c, r->standing_counter_hit_move);
-		r->standing_counter_hit_move = tek_create_hit_reactions_move(c, i, standing_ch_move, r->standing_counter_hit_stun, "%s_standing_ch_r%u");
-		struct tek_Move *standing_block_move = tek_character_find_move(c, r->standing_block_move);
-		r->standing_block_move = tek_create_hit_reactions_move(c, i, standing_block_move, r->standing_block_stun, "%s_standing_blk_r%u");
-		#if 0
-		struct tek_Move *crouch_move = tek_character_find_move(c, r->crouch_move);
-		r->crouch_move = tek_create_hit_reactions_move(c, i, crouch_move, r->crouch_stun, "%s_crouch_r%u");
-		struct tek_Move *crouch_block_move = tek_character_find_move(c, r->crouch_block_move);
-		r->crouch_block_move = tek_create_hit_reactions_move(c, i, crouch_block_move, r->crouch_block_stun, "%s_crouch_blk_r%u");
-		#endif
+		if (r->standing_move) {
+			struct tek_Move *standing_move = tek_character_find_move(c, r->standing_move);
+			r->standing_move = tek_create_hit_reactions_move(c, i, standing_move, r->standing_stun, "%s_standing_r%u");
+		}
+		if (r->standing_counter_hit_move) {
+			struct tek_Move *standing_ch_move = tek_character_find_move(c, r->standing_counter_hit_move);
+			r->standing_counter_hit_move = tek_create_hit_reactions_move(c, i, standing_ch_move, r->standing_counter_hit_stun, "%s_standing_ch_r%u");
+		}
+		if (r->standing_block_move) {
+			struct tek_Move *standing_block_move = tek_character_find_move(c, r->standing_block_move);
+			r->standing_block_move = tek_create_hit_reactions_move(c, i, standing_block_move, r->standing_block_stun, "%s_standing_blk_r%u");
+		}
+		if (r->crouch_move) {
+			struct tek_Move *crouch_move = tek_character_find_move(c, r->crouch_move);
+			r->crouch_move = tek_create_hit_reactions_move(c, i, crouch_move, r->crouch_stun, "%s_crouch_r%u");
+		}
+		if (r->crouch_block_move) {
+			struct tek_Move *crouch_block_move = tek_character_find_move(c, r->crouch_block_move);
+			r->crouch_block_move = tek_create_hit_reactions_move(c, i, crouch_block_move, r->crouch_block_stun, "%s_crouch_blk_r%u");
+		}
 	}
 }
 
