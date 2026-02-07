@@ -32,6 +32,7 @@
 	    "name": "standing walk forward start",
 	    "animation": "P2M_Regular_Rig|m_walk_forward_start.001",
 	    "cancels": [
+		/*
 		{
 		    "to": "standing forward dash",
 		    "motion_input": 12, // f _ f
@@ -39,6 +40,7 @@
 		    "input_window_start": 0,
 		    "input_window_end": 10,
 		},
+		*/
 		{
 		    "to": "standing walk forward loop",
 		    "motion_input": 64, // f
@@ -659,6 +661,12 @@
 	    "name": "standing moves",
 	    "cancels": [
 		{
+		    "to": "midpunch",
+		    "motion_input": 8, // df
+		    "action_input": 1,  // Sum of: LP(1) RP(2) LK(4) RK(8)
+		    "input_window_end": 999,
+		},
+		{
 		    "to": "jab",
 		    "action_input": 1,  // Sum of: LP(1) RP(2) LK(4) RK(8)
 		    "input_window_end": 999,
@@ -666,12 +674,6 @@
 		{
 		    "to": "two",
 		    "action_input": 2,  // Sum of: LP(1) RP(2) LK(4) RK(8)
-		    "input_window_end": 999,
-		},
-		{
-		    "to": "midpunch",
-		    "motion_input": 8, // df
-		    "action_input": 1,  // Sum of: LP(1) RP(2) LK(4) RK(8)
 		    "input_window_end": 999,
 		},
 		{
@@ -691,11 +693,13 @@
 		    "action_input": 8,  // Sum of: LP(1) RP(2) LK(4) RK(8)
 		    "input_window_end": 999,
 		},
+		/*
 		{
 		    "to": "standing backward dash",
 		    "motion_input": 1, // b _ b
 		    "hold_duration": 64,
 		},
+		*/
 		{
 		    "to": "crouch block",
 		    "motion_input": 14, // db,d,df
