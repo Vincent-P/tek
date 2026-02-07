@@ -375,7 +375,7 @@ static void _evaluate_hit_conditions(struct PlayerEntity *p1, struct PlayerEntit
 						printf("HIIIIIIIIIIIIIIIIIIT hurtbox[%u] distance: %fx%f\n", ihurtbox, hor_distance, vert_distance);
 
 						struct tek_HitCondition hit_condition = current_move->hit_conditions[0];
-						struct tek_HitReactions *hit_reaction = tek_character_find_hit_reaction(c1, hit_condition.reactions_id);
+						struct tek_HitReactions *hit_reaction = c1->hit_reactions + hit_condition.ireactions;
 
 
 						bool is_blocking = p2->tek.current_move_id == TEK_MOVE_BACKWARD_LOOP_ID;

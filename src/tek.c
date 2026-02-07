@@ -96,7 +96,36 @@ bool json_object_get_float(struct json_object_element_s *it, const char *field_n
 	return false;
 }
 
-static struct tek_HitCondition tek_read_hit_condition(struct json_object_s *hit_condition_obj)
+static uint8_t tek_read_json_hit_reaction(struct tek_Character *character, struct json_object_s *obj)
+{
+	if (obj == NULL) {
+		return 255;
+	}
+
+	struct tek_HitReactions reactions = {0};
+	for (struct json_object_element_s* it = obj->start; it != NULL; it = it->next) {
+		json_object_get_string_id(it, "name", &reactions.id);
+		json_object_get_string_id(it, "standing_move", &reactions.standing_move);
+		json_object_get_string_id(it, "standing_counter_hit_move", &reactions.standing_counter_hit_move);
+		json_object_get_string_id(it, "standing_block_move", &reactions.standing_block_move);
+		json_object_get_string_id(it, "crouch_move", &reactions.crouch_move);
+		json_object_get_string_id(it, "crouch_block_move", &reactions.crouch_block_move);
+
+		json_object_get_u8(it, "standing_stun", &reactions.standing_stun);
+		json_object_get_u8(it, "standing_counter_hit_stun", &reactions.standing_counter_hit_stun);
+		json_object_get_u8(it, "standing_block_stun", &reactions.standing_block_stun);
+		json_object_get_u8(it, "crouch_stun", &reactions.crouch_stun);
+		json_object_get_u8(it, "crouch_block_stun", &reactions.crouch_block_stun);
+	}
+
+	uint32_t i = character->hit_reactions_length;
+	assert(i < ARRAY_LENGTH(character->hit_reactions));
+	character->hit_reactions[i] = reactions;
+	character->hit_reactions_length++;
+	return (uint8_t)i;
+}
+
+static struct tek_HitCondition tek_read_hit_condition(struct tek_Character *character, struct json_object_s *hit_condition_obj)
 {
 	struct tek_HitCondition hit_condition = {0};
 	if (hit_condition_obj == NULL) {
@@ -104,14 +133,19 @@ static struct tek_HitCondition tek_read_hit_condition(struct json_object_s *hit_
 	}
 
 	for (struct json_object_element_s* it = hit_condition_obj->start; it != NULL; it = it->next) {
-		json_object_get_string_id(it, "reactions", &hit_condition.reactions_id);
 		json_object_get_u8(it, "damage", &hit_condition.damage);
+		if (strcmp(it->name->string, "reaction") == 0) {
+			struct json_object_s *reaction_obj = json_value_as_object(it->value);
+			hit_condition.ireactions = tek_read_json_hit_reaction(character, reaction_obj);
+		}
 	}
 
 	return hit_condition;
 }
 
-static void tek_read_json_move_hit_conditions(struct tek_Move *move, struct json_array_s *hit_conditions_array)
+static void tek_read_json_move_hit_conditions(struct tek_Character *character,
+					      struct tek_Move *move,
+					      struct json_array_s *hit_conditions_array)
 {
 	if (hit_conditions_array == NULL) {
 		return;
@@ -124,7 +158,7 @@ static void tek_read_json_move_hit_conditions(struct tek_Move *move, struct json
 			continue;
 		}
 
-		move->hit_conditions[hit_condition_index] = tek_read_hit_condition(hit_condition_obj);
+		move->hit_conditions[hit_condition_index] = tek_read_hit_condition(character, hit_condition_obj);
 		hit_condition_index++;
 	}
 	move->hit_conditions_length = hit_condition_index;
@@ -238,7 +272,7 @@ static void tek_read_json_move(struct tek_Character *character, struct json_obje
 	// Process cancels if they exist
 	tek_read_json_move_cancels(&move, cancels);
 
-	tek_read_json_move_hit_conditions(&move, hit_conditions);
+	tek_read_json_move_hit_conditions(character, &move, hit_conditions);
 
 	uint32_t imove = character->moves_length;
 	assert(imove < ARRAY_LENGTH(character->moves));
@@ -309,26 +343,6 @@ static void tek_read_json_hurtbox(struct tek_Character *character, struct json_o
 	character->hurtboxes_length += 1;
 }
 
-static void tek_read_json_hit_reactions(struct tek_Character *character, struct json_object_s *obj)
-{
-	if (obj == NULL) {
-		return;
-	}
-
-	struct tek_HitReactions reactions = {0};
-	for (struct json_object_element_s* it = obj->start; it != NULL; it = it->next) {
-		json_object_get_string_id(it, "name", &reactions.id);
-		json_object_get_string_id(it, "standing_move", &reactions.standing_move);
-		json_object_get_string_id(it, "standing_counter_hit_move", &reactions.standing_counter_hit_move);
-		json_object_get_string_id(it, "standing_block_move", &reactions.standing_block_move);
-	}
-
-	uint32_t i = character->hit_reactions_length;
-	assert(i < ARRAY_LENGTH(character->hit_reactions));
-	character->hit_reactions[i] = reactions;
-	character->hit_reactions_length++;
-}
-
 static void tek_read_json_hitbox(struct tek_Character *character, struct json_object_s *obj)
 {
 	if (obj == NULL) {
@@ -352,6 +366,45 @@ static void tek_read_json_hitbox(struct tek_Character *character, struct json_ob
 	character->hitboxes_length += 1;
 }
 
+static uint32_t tek_create_hit_reactions_move(struct tek_Character *character,
+					  uint32_t ireactions,
+					  struct tek_Move *base_move,
+					  uint8_t stun,
+					  const char *fmt)
+{
+	assert(character->moves_length + 1 < ARRAY_LENGTH(character->moves));
+	struct tek_Move *new_move = character->moves + character->moves_length;
+	memcpy(new_move, base_move, sizeof(struct tek_Move));
+	assert(new_move->cancels_length == 1);
+	new_move->cancels[0].starting_frame = stun;
+	uint32_t imove = base_move - character->moves;
+	struct tek_DebugName *base_name = character->move_names + imove;
+	struct tek_DebugName *name = character->move_names + character->moves_length;
+	int name_length = snprintf(name->string, sizeof(name->string), fmt, base_name->string, ireactions);
+	new_move->id = string_to_id(name->string, name_length);
+	character->moves_length += 1;
+	return new_move->id;
+}
+
+static void tek_create_hit_reactions_moves(struct tek_Character *c)
+{
+	for (uint32_t i = 0; i < c->hit_reactions_length; ++i) {
+		struct tek_HitReactions *r = c->hit_reactions + i;
+		struct tek_Move *standing_move = tek_character_find_move(c, r->standing_move);
+		r->standing_move = tek_create_hit_reactions_move(c, i, standing_move, r->standing_stun, "%s_standing_r%u");
+		struct tek_Move *standing_ch_move = tek_character_find_move(c, r->standing_counter_hit_move);
+		r->standing_counter_hit_move = tek_create_hit_reactions_move(c, i, standing_ch_move, r->standing_counter_hit_stun, "%s_standing_ch_r%u");
+		struct tek_Move *standing_block_move = tek_character_find_move(c, r->standing_block_move);
+		r->standing_block_move = tek_create_hit_reactions_move(c, i, standing_block_move, r->standing_block_stun, "%s_standing_blk_r%u");
+		#if 0
+		struct tek_Move *crouch_move = tek_character_find_move(c, r->crouch_move);
+		r->crouch_move = tek_create_hit_reactions_move(c, i, crouch_move, r->crouch_stun, "%s_crouch_r%u");
+		struct tek_Move *crouch_block_move = tek_character_find_move(c, r->crouch_block_move);
+		r->crouch_block_move = tek_create_hit_reactions_move(c, i, crouch_block_move, r->crouch_block_stun, "%s_crouch_blk_r%u");
+		#endif
+	}
+}
+
 void tek_read_character_json()
 {
 	const char* source_path = "assets/michel.character.json";
@@ -365,7 +418,6 @@ void tek_read_character_json()
 
 	struct json_array_s *moves = NULL;
 	struct json_array_s *group_cancels = NULL;
-	struct json_array_s *hit_reactions = NULL;
 	struct json_array_s *hurtboxes = NULL;
 	struct json_array_s *hitboxes = NULL;
 
@@ -389,9 +441,6 @@ void tek_read_character_json()
 		if (strcmp(it->name->string, "hitboxes") == 0) {
 			hitboxes = json_value_as_array(it->value);
 		}
-		if (strcmp(it->name->string, "hit_reactions") == 0) {
-			hit_reactions = json_value_as_array(it->value);
-		}
 	}
 
 	if (moves != NULL) {
@@ -400,16 +449,12 @@ void tek_read_character_json()
 			tek_read_json_move(&character, move);
 		}
 	}
+	tek_create_hit_reactions_moves(&character);
+
 	if (group_cancels != NULL) {
 		for (struct json_array_element_s* it = group_cancels->start; it != NULL; it = it->next) {
 			struct json_object_s *group_cancel = json_value_as_object(it->value);
 			tek_read_json_cancel_group(&character, group_cancel);
-		}
-	}
-	if (hit_reactions != NULL) {
-		for (struct json_array_element_s* it = hit_reactions->start; it != NULL; it = it->next) {
-			struct json_object_s *hit_reaction = json_value_as_object(it->value);
-			tek_read_json_hit_reactions(&character, hit_reaction);
 		}
 	}
 	if (hurtboxes != NULL) {
@@ -445,17 +490,6 @@ struct tek_CancelGroup *tek_character_find_cancel_group(struct tek_Character *ch
 	for (uint32_t icancel_group = 0; icancel_group < ARRAY_LENGTH(character->cancel_groups); ++icancel_group) {
 		if (character->cancel_groups[icancel_group].id == id) {
 			return character->cancel_groups + icancel_group;
-		}
-	}
-	return NULL;
-}
-
-struct tek_HitReactions *tek_character_find_hit_reaction(struct tek_Character *character, uint32_t id)
-{
-	assert(id != 0);
-	for (uint32_t ihit_reaction = 0; ihit_reaction < ARRAY_LENGTH(character->hit_reactions); ++ihit_reaction) {
-		if (character->hit_reactions[ihit_reaction].id == id) {
-			return character->hit_reactions + ihit_reaction;
 		}
 	}
 	return NULL;

@@ -33,13 +33,13 @@
 	    "animation": "P2M_Regular_Rig|m_walk_forward_start.001",
 	    "cancels": [
 		/*
-		{
-		    "to": "standing forward dash",
-		    "motion_input": 12, // f _ f
-    		    // "type": "continue", // keep the animation frame from the previous move
-		    "input_window_start": 0,
-		    "input_window_end": 10,
-		},
+		  {
+		  "to": "standing forward dash",
+		  "motion_input": 12, // f _ f
+    		  // "type": "continue", // keep the animation frame from the previous move
+		  "input_window_start": 0,
+		  "input_window_end": 10,
+		  },
 		*/
 		{
 		    "to": "standing walk forward loop",
@@ -176,9 +176,16 @@
 	    "first_active": 10,
 	    "hit_conditions": [
 		{
-		    "damage": 10,
-		    "reactions": "jab reaction",
 		    "requirements": "none",
+		    "damage": 10,
+		    "reaction": {
+			"standing_move": "standing hit",
+			"standing_stun": 33, // 25 frames of recovery (+8 on hit)
+			"standing_counter_hit_move": "standing hit",
+			"standing_counter_hit_stun": 33, // 25 frames of recovery (+8 on hit)
+			"standing_block_move": "standing block",
+			"standing_block_stun": 26, // 25 frames of recovery (+1 on block)
+		    },
 		},
 	    ],
 	    // cancels
@@ -193,7 +200,7 @@
 		{
 		    "type": "list",
 		    "to": "standing recovery moves",
-		    "starting_frame": 20, // 20 frames of recovery
+		    "starting_frame": 25, // 25 frames of recovery
 		},
 	    ],
 	},
@@ -207,9 +214,16 @@
 	    "first_active": 25,
 	    "hit_conditions": [
 		{
-		    "damage": 10,
-		    "reactions": "jab reaction",
 		    "requirements": "none",
+		    "damage": 10,
+		    "reaction": {
+			"standing_move": "standing hit",
+			"standing_stun": 35, // 27 frames of recovery (+8 on hit)
+			"standing_counter_hit_move": "standing hit",
+			"standing_counter_hit_stun": 35, // 27 frames of recovery (+8 on hit)
+			"standing_block_move": "standing block",
+			"standing_block_stun": 26, // 27 frames of recovery (-1 on block)
+		    },
 		},
 	    ],
 	    // cancels
@@ -224,7 +238,7 @@
 		{
 		    "type": "list",
 		    "to": "standing recovery moves",
-		    "starting_frame": 20, // 20 frames of recovery
+		    "starting_frame": 52, // 27 frames of recovery
 		},
 	    ],
 	},
@@ -238,9 +252,16 @@
 	    "first_active": 49,
 	    "hit_conditions": [
 		{
-		    "damage": 10,
-		    "reactions": "jab reaction",
 		    "requirements": "none",
+		    "damage": 10,
+		    "reaction": {
+			"standing_move": "standing hit",
+			"standing_stun": 66, // 46 frames of recovery (+20 on hit)
+			"standing_counter_hit_move": "standing hit",
+			"standing_counter_hit_stun": 66, // 46 frames of recovery (+20 on hit)
+			"standing_block_move": "standing block",
+			"standing_block_stun": 26, // 46 frames of recovery (-20 on block)
+		    },
 		},
 	    ],
 	    // cancels
@@ -248,7 +269,7 @@
 		{
 		    "type": "list",
 		    "to": "standing recovery moves",
-		    "starting_frame": 20, // 20 frames of recovery
+		    "starting_frame": 95, // 46 frames of recovery
 		},
 	    ],
 	},
@@ -262,9 +283,16 @@
 	    "first_active": 10,
 	    "hit_conditions": [
 		{
-		    "damage": 10,
-		    "reactions": "jab reaction",
 		    "requirements": "none",
+		    "damage": 10,
+		    "reaction": {
+			"standing_move": "standing hit",
+			"standing_stun": 32, // 20 frames of recovery (+6 on hit)
+			"standing_counter_hit_move": "standing hit",
+			"standing_counter_hit_stun": 32, // 20 frames of recovery (+6 on hit)
+			"standing_block_move": "standing block",
+			"standing_block_stun": 26, // 26 frames of recovery (+0 on block)
+		    },
 		},
 	    ],
 	    // cancels
@@ -279,7 +307,7 @@
 		{
 		    "type": "list",
 		    "to": "standing recovery moves",
-		    "starting_frame": 20, // 20 frames of recovery
+		    "starting_frame": 36, // 26 frames of recovery
 		},
 	    ],
 	},
@@ -290,12 +318,19 @@
 	    "hit_level": "mid",
 	    "hitbox": 1, // index in list
 	    // frame data
-	    "first_active": 27,
+	    "first_active": 26,
 	    "hit_conditions": [
 		{
-		    "damage": 10,
-		    "reactions": "jab reaction",
 		    "requirements": "none",
+		    "damage": 10,
+		    "reaction": {
+			"standing_move": "standing hit",
+			"standing_stun": 33, // 31 frames of recovery (+2 on hit)
+			"standing_counter_hit_move": "standing hit",
+			"standing_counter_hit_stun": 33, // 31 frames of recovery (+2 on hit)
+			"standing_block_move": "standing block",
+			"standing_block_stun": 27, // 31 frames of recovery (-4 on block)
+		    },
 		},
 	    ],
 	    // cancels
@@ -303,7 +338,7 @@
 		{
 		    "type": "list",
 		    "to": "standing recovery moves",
-		    "starting_frame": 20, // 20 frames of recovery
+		    "starting_frame": 67, // 31 frames of recovery
 		},
 	    ],
 	},
@@ -317,9 +352,16 @@
 	    "first_active": 13,
 	    "hit_conditions": [
 		{
-		    "damage": 10,
-		    "reactions": "standing hit",
 		    "requirements": "none",
+		    "damage": 10,
+		    "reaction": {
+			"standing_move": "standing hit",
+			"standing_stun": 42, // 37 frames of recovery (+5 on hit)
+			"standing_counter_hit_move": "standing hit",
+			"standing_counter_hit_stun": 42, // 37 frames of recovery (+5 on hit)
+			"standing_block_move": "standing block",
+			"standing_block_stun": 36, // 37 frames of recovery (-1 on block)
+		    },
 		},
 	    ],
 	    // cancels
@@ -340,9 +382,16 @@
 	    "first_active": 12,
 	    "hit_conditions": [
 		{
-		    "damage": 10,
-		    "reactions": "standing hit",
 		    "requirements": "none",
+		    "damage": 10,
+		    "reaction": {
+			"standing_move": "standing hit",
+			"standing_stun": 39, // 38 frames of recovery (+1 on hit)
+			"standing_counter_hit_move": "standing hit",
+			"standing_counter_hit_stun": 39, // 38 frames of recovery (+1 on hit)
+			"standing_block_move": "standing block",
+			"standing_block_stun": 30, // 38 frames of recovery (-8 on block)
+		    },
 		},
 	    ],
 	    // cancels
@@ -364,9 +413,16 @@
 	    "last_active": 19,
 	    "hit_conditions": [
 		{
-		    "damage": 10,
-		    "reactions": "standing hit",
 		    "requirements": "none",
+		    "damage": 10,
+		    "reaction": {
+			"standing_move": "standing hit",
+			"standing_stun": 34, // 30 frames of recovery (+4 on hit)
+			"standing_counter_hit_move": "standing hit",
+			"standing_counter_hit_stun": 34, // 30 frames of recovery (+4 on hit)
+			"standing_block_move": "standing block",
+			"standing_block_stun": 15, // 30 frames of recovery (-15 on block)
+		    },
 		},
 	    ],
 	    // cancels
@@ -388,9 +444,16 @@
 	    "last_active": 17,
 	    "hit_conditions": [
 		{
-		    "damage": 20,
-		    "reactions": "standing hit",
 		    "requirements": "none",
+		    "damage": 10,
+		    "reaction": {
+			"standing_move": "standing hit",
+			"standing_stun": 28, // 20 frames of recovery (+1 on hit)
+			"standing_counter_hit_move": "standing hit",
+			"standing_counter_hit_stun": 28, // 20 frames of recovery (+8 on hit)
+			"standing_block_move": "standing block",
+			"standing_block_stun": 21, // 20 frames of recovery (+1 on block)
+		    },
 		},
 	    ],
 	    // cancels
@@ -411,9 +474,16 @@
 	    "first_active": 20,
 	    "hit_conditions": [
 		{
-		    "damage": 10,
-		    "reactions": "low hit",
 		    "requirements": "none",
+		    "damage": 10,
+		    "reaction": {
+			"standing_move": "standing hit",
+			"standing_stun": 29, // 30 frames of recovery (-1 on hit)
+			"standing_counter_hit_move": "standing hit",
+			"standing_counter_hit_stun": 29, // 30 frames of recovery (-1 on hit)
+			"standing_block_move": "standing block",
+			"standing_block_stun": 19, // 30 frames of recovery (-11 on block)
+		    },
 		},
 	    ],
 	    // cancels
@@ -434,9 +504,16 @@
 	    "first_active": 14,
 	    "hit_conditions": [
 		{
-		    "damage": 10,
-		    "reactions": "standing hit",
 		    "requirements": "none",
+		    "damage": 10,
+		    "reaction": {
+			"standing_move": "standing hit",
+			"standing_stun": 40, // 30 frames of recovery (+10 on hit)
+			"standing_counter_hit_move": "standing hit",
+			"standing_counter_hit_stun": 40, // 30 frames of recovery (+10 on hit)
+			"standing_block_move": "standing block",
+			"standing_block_stun": 15, // 30 frames of recovery (-15 on block)
+		    },
 		},
 	    ],
 	    // cancels
@@ -457,9 +534,16 @@
 	    "first_active": 11,
 	    "hit_conditions": [
 		{
-		    "damage": 10,
-		    "reactions": "standing hit",
 		    "requirements": "none",
+		    "damage": 10,
+		    "reaction": {
+			"standing_move": "standing hit",
+			"standing_stun": 35, // 30 frames of recovery (+5 on hit)
+			"standing_counter_hit_move": "standing hit",
+			"standing_counter_hit_stun": 35, // 30 frames of recovery (+5 on hit)
+			"standing_block_move": "standing block",
+			"standing_block_stun": 25, // 30 frames of recovery (-5 on block)
+		    },
 		},
 	    ],
 	    // cancels
@@ -470,7 +554,7 @@
 		},
 	    ],
 	},
-		{
+	{
 	    "name": "while standing left punch",
 	    "animation": "P2M_Regular_Rig|a_standing_left_punch",
 	    // hit
@@ -480,9 +564,16 @@
 	    "first_active": 14,
 	    "hit_conditions": [
 		{
-		    "damage": 10,
-		    "reactions": "standing hit",
 		    "requirements": "none",
+		    "damage": 10,
+		    "reaction": {
+			"standing_move": "standing hit",
+			"standing_stun": 42, // 37 frames of recovery (+5 on hit)
+			"standing_counter_hit_move": "standing hit",
+			"standing_counter_hit_stun": 42, // 37 frames of recovery (+5 on hit)
+			"standing_block_move": "standing block",
+			"standing_block_stun": 36, // 37 frames of recovery (-1 on block)
+		    },
 		},
 	    ],
 	    // cancels
@@ -500,12 +591,19 @@
 	    "hit_level": "mid",
 	    "hitbox": 2, // index in list
 	    // frame data
-	    "first_active": 11,
+	    "first_active": 15,
 	    "hit_conditions": [
 		{
-		    "damage": 10,
-		    "reactions": "standing hit",
 		    "requirements": "none",
+		    "damage": 10,
+		    "reaction": {
+			"standing_move": "standing hit",
+			"standing_stun": 55, // 45 frames of recovery (+10 on hit)
+			"standing_counter_hit_move": "standing hit",
+			"standing_counter_hit_stun": 55, // 45 frames of recovery (+10 on hit)
+			"standing_block_move": "standing block",
+			"standing_block_stun": 25, // 45 frames of recovery (-20 on block)
+		    },
 		},
 	    ],
 	    // cancels
@@ -523,8 +621,8 @@
 	    "animation": "P2M_Regular_Rig|hr_standing_high",
 	    "cancels": [
 		{
-		    "type": "list",
-		    "to": "standing recovery moves",
+		    "to": "standing idle",
+		    "starting_frame": 30,
 		},
 	    ],
 	},
@@ -533,8 +631,8 @@
 	    "animation": "P2M_Regular_Rig|hr_standing_low",
 	    "cancels": [
 		{
-		    "type": "list",
-		    "to": "standing recovery moves",
+		    "to": "standing idle",
+		    "starting_frame": 30,
 		},
 	    ],
 	},
@@ -545,28 +643,6 @@
 		{
 		    "to": "standing idle",
 		    "starting_frame": 30,
-		},
-	    ],
-	},
-	{
-	    "name": "jab_blockstun",
-	    "animation": "P2M_Regular_Rig|hr_standing_block_mid",
-	    "cancels": [
-		{
-		    "type": "list",
-		    "to": "standing recovery moves",
-		    "starting_frame": 21, // 20 frames of recovery (+1 on block)
-		},
-	    ],
-	},
-	{
-	    "name": "jab_hitstun",
-	    "animation": "P2M_Regular_Rig|hr_standing_high",
-	    "cancels": [
-		{
-		    "type": "list",
-		    "to": "standing recovery moves",
-		    "starting_frame": 28, // 20 frames of recovery (+8 on block)
 		},
 	    ],
 	},
@@ -694,11 +770,11 @@
 		    "input_window_end": 999,
 		},
 		/*
-		{
-		    "to": "standing backward dash",
-		    "motion_input": 1, // b _ b
-		    "hold_duration": 64,
-		},
+		  {
+		  "to": "standing backward dash",
+		  "motion_input": 1, // b _ b
+		  "hold_duration": 64,
+		  },
 		*/
 		{
 		    "to": "crouch block",
@@ -722,26 +798,6 @@
 		},
 	    ]
 	}
-    ],
-    "hit_reactions": [
-	{
-	    "name": "standing hit",
-	    "standing_move": "standing hit",
-	    "standing_counter_hit_move": "standing hit",
-	    "standing_block_move": "standing block",
-	},
-	{
-	    "name": "low hit",
-	    "standing_move": "low hit",
-	    "standing_counter_hit_move": "low hit",
-	    "standing_block_move": "crouch blockstun",
-	},
-	{
-	    "name": "jab reaction",
-	    "standing_move": "jab_hitstun",
-	    "standing_counter_hit_move": "jab_hitstun",
-	    "standing_block_move": "jab_blockstun",
-	},
     ],
     "hurtboxes": [
 	{

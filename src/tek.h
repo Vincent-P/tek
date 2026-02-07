@@ -131,9 +131,9 @@ struct tek_CancelGroup
 
 struct tek_HitCondition
 {
-	uint32_t reactions_id;
 	uint8_t damage;
 	uint8_t requirements;
+	uint8_t ireactions;
 };
 
 enum tek_HitLevel
@@ -186,7 +186,14 @@ struct tek_HitReactions
 	uint32_t standing_move;
 	uint32_t standing_counter_hit_move;
 	uint32_t standing_block_move;
+	uint32_t crouch_move;
 	uint32_t crouch_block_move;
+	// number of stun frames for each move
+	uint8_t standing_stun;
+	uint8_t standing_counter_hit_stun;
+	uint8_t standing_block_stun;
+	uint8_t crouch_stun;
+	uint8_t crouch_block_stun;
 };
 
 struct tek_DebugName
@@ -232,4 +239,3 @@ void tek_read_character_json();
 
 struct tek_Move *tek_character_find_move(struct tek_Character *character, uint32_t id);
 struct tek_CancelGroup *tek_character_find_cancel_group(struct tek_Character *character, uint32_t id);
-struct tek_HitReactions *tek_character_find_hit_reaction(struct tek_Character *character, uint32_t id);
