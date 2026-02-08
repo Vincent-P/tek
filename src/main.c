@@ -62,6 +62,7 @@ static void load_assets_materials(struct AssetLibrary *assets, struct Renderer *
 
 	const char* programs[] = {
 		"cooking/3356797155",
+		"cooking/4212483871",
 	};
 	for (uint32_t i = 0; i < ARRAY_LENGTH(programs); ++i) {
 		struct ComputeProgramAsset program = {0};

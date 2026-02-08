@@ -1466,6 +1466,39 @@ void vulkan_bind_texture(VulkanDevice *device, VulkanFrame *frame, uint32_t text
 			       0,
 			       1,
 			       &write);
+	device->my_vkCmdPushDescriptorSetKHR(frame->cmd,
+			       VK_PIPELINE_BIND_POINT_COMPUTE,
+			       device->pipeline_layout,
+			       0,
+			       1,
+			       &write);
+}
+
+void vulkan_bind_image(VulkanDevice *device, VulkanFrame *frame, uint32_t texture_handle, uint32_t slot)
+{
+	VkDescriptorImageInfo image_info = {0};
+	image_info.imageView = device->textures[texture_handle].image_view;
+	image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+	VkWriteDescriptorSet write = {.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+	write.dstBinding = 1;
+	write.dstArrayElement = slot;
+	write.descriptorCount = 1;
+	write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+	write.pImageInfo = &image_info;
+
+	device->my_vkCmdPushDescriptorSetKHR(frame->cmd,
+			       VK_PIPELINE_BIND_POINT_GRAPHICS,
+			       device->pipeline_layout,
+			       0,
+			       1,
+			       &write);
+	device->my_vkCmdPushDescriptorSetKHR(frame->cmd,
+			       VK_PIPELINE_BIND_POINT_COMPUTE,
+			       device->pipeline_layout,
+			       0,
+			       1,
+			       &write);
 }
 
 void vulkan_bind_rt_as_texture(VulkanDevice *device, VulkanFrame *frame, uint32_t rt_handle, uint32_t slot)
@@ -1483,6 +1516,39 @@ void vulkan_bind_rt_as_texture(VulkanDevice *device, VulkanFrame *frame, uint32_
 
 	device->my_vkCmdPushDescriptorSetKHR(frame->cmd,
 			       VK_PIPELINE_BIND_POINT_GRAPHICS,
+			       device->pipeline_layout,
+			       0,
+			       1,
+			       &write);
+	device->my_vkCmdPushDescriptorSetKHR(frame->cmd,
+			       VK_PIPELINE_BIND_POINT_COMPUTE,
+			       device->pipeline_layout,
+			       0,
+			       1,
+			       &write);
+}
+
+void vulkan_bind_rt_as_image(VulkanDevice *device, VulkanFrame *frame, uint32_t rt_handle, uint32_t slot)
+{
+	VkDescriptorImageInfo image_info = {0};
+	image_info.imageView = device->rts[rt_handle].image_view;
+	image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+	VkWriteDescriptorSet write = {.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+	write.dstBinding = 1;
+	write.dstArrayElement = slot;
+	write.descriptorCount = 1;
+	write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+	write.pImageInfo = &image_info;
+
+	device->my_vkCmdPushDescriptorSetKHR(frame->cmd,
+			       VK_PIPELINE_BIND_POINT_GRAPHICS,
+			       device->pipeline_layout,
+			       0,
+			       1,
+			       &write);
+	device->my_vkCmdPushDescriptorSetKHR(frame->cmd,
+			       VK_PIPELINE_BIND_POINT_COMPUTE,
 			       device->pipeline_layout,
 			       0,
 			       1,

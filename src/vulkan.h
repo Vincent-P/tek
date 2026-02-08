@@ -156,3 +156,4 @@ void vulkan_dispatch(VulkanDevice *device, VulkanFrame *frame, uint32_t x, uint3
 
 // temp
 void vulkan_bind_texture(VulkanDevice *device, VulkanFrame *frame, uint32_t texture, uint32_t slot);
+void vulkan_bind_image(VulkanDevice *device, VulkanFrame *frame, uint32_t texture, uint32_t slot);

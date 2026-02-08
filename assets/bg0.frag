@@ -33,6 +33,11 @@ struct Ray
 	vec3 dir;
 };
 
+float sdSphere( vec3 p, float r )
+{
+  return length(p) - r;
+}
+
 float sdBox( vec3 p, vec3 b )
 {
 	vec3 q = abs(p) - b;
@@ -92,7 +97,8 @@ float sdWalls(vec3 p)
 float sdScene(vec3 p)
 {
 	p.z += 0.02;
-	return sdBox(p, vec3(100.0,100.0,0.001));
+
+	return max(sdSphere(p, 10), sdBox(p, vec3(100.0,100.0,0.001)));
 
 	p = p - vec3(0,0,-0.04);
 

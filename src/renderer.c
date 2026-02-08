@@ -7,7 +7,6 @@
 #define RENDERER_MESH_INDEX_CAPACITY (64 << 10)
 #define RENDERER_UPLOAD_BUFFER_SIZE (64 << 20)
 
-
 struct DdVert
 {
 	Float3 pos;
@@ -128,15 +127,15 @@ void renderer_init(Renderer *renderer, struct AssetLibrary *assets, SDL_Window *
 
 	renderer->hdr_rt = 1;
 	new_render_target(renderer->device, renderer->hdr_rt,
-			  renderer->device->swapchain_width,
-			  renderer->device->swapchain_height,
+			  renderer->device->swapchain_width / 2,
+			  renderer->device->swapchain_height / 2,
 			  PG_FORMAT_RGBA16F,
 			  4);
 
 	renderer->depth_rt = 2;
 	new_render_target(renderer->device, renderer->depth_rt,
-			  renderer->device->swapchain_width,
-			  renderer->device->swapchain_height,
+			  renderer->device->swapchain_width / 2,
+			  renderer->device->swapchain_height / 2,
 			  PG_FORMAT_D32_SFLOAT,
 			  4);
 
@@ -212,8 +211,8 @@ void renderer_init_materials(Renderer *renderer, struct AssetLibrary *assets)
 	struct MaterialAsset const *dd_material = asset_library_get_material(assets, 3200094153);
 	struct MaterialAsset const *mesh_material = asset_library_get_material(assets, 2455425701);
 	struct MaterialAsset const *bg0_material = asset_library_get_material(assets, 295627051);
-	struct MaterialAsset const *compositing_material = asset_library_get_material(assets, 4245599685);
 	struct ComputeProgramAsset const *convolve_diffuse_irradiance_program = asset_library_get_compute_program(assets, 3356797155);
+	struct ComputeProgramAsset const *compositing_program = asset_library_get_compute_program(assets, 4212483871);
 
 	struct MaterialAsset mesh_depth_material = *mesh_material;
 	mesh_depth_material.pixel_shader_bytecode.data = NULL;
@@ -242,10 +241,10 @@ void renderer_init_materials(Renderer *renderer, struct AssetLibrary *assets)
 	renderer->bg0_pso = 4;
 	new_graphics_program(renderer->device, renderer->bg0_pso, *bg0_material);
 
-	renderer->compositing_pso = 5;
-	new_graphics_program(renderer->device, renderer->compositing_pso, *compositing_material);
+	renderer->compositing_pso = 0;
+	new_compute_program(renderer->device, renderer->compositing_pso, *compositing_program);
 
-	renderer->convolve_diffuse_irradiance_pso = 0;
+	renderer->convolve_diffuse_irradiance_pso = 1;
 	new_compute_program(renderer->device, renderer->convolve_diffuse_irradiance_pso, *convolve_diffuse_irradiance_program);
 }
 
@@ -334,7 +333,7 @@ void renderer_upload_texture(Renderer* renderer, struct RendererTextureUpload up
 static void renderer_debug_draw_pass(Renderer *renderer, VulkanFrame *frame, VulkanRenderPass *pass)
 {
 	uint32_t vertex_size = g_dd.points_length * 6 * sizeof(struct DdVert); //  6 vertices
-	uint32_t index_size = g_dd.points_length * 8 * 3 * sizeof(uint32_t); // 8 faces
+	uint32_t index_size = g_dd.points_length * 8 * 3 * sizeof(uint32_t); // 2 faces
 
 	vertex_size += g_dd.lines_length + 2 * sizeof(struct DdVert);
 	index_size += g_dd.lines_length + 2 * sizeof(uint32_t);
@@ -616,8 +615,8 @@ void renderer_render(Renderer *renderer)
 
 	if (renderer->device->rts[renderer->output_rt].width != swapchain_width || renderer->device->rts[renderer->output_rt].height != swapchain_height) {
 		resize_render_target(renderer->device, renderer->output_rt, swapchain_width, swapchain_height);
-		resize_render_target(renderer->device, renderer->hdr_rt, swapchain_width, swapchain_height);
-		resize_render_target(renderer->device, renderer->depth_rt, swapchain_width, swapchain_height);
+		resize_render_target(renderer->device, renderer->hdr_rt, swapchain_width / 2, swapchain_height / 2);
+		resize_render_target(renderer->device, renderer->depth_rt, swapchain_width / 2, swapchain_height / 2);
 		resize_render_target(renderer->device, renderer->final_rt, swapchain_width, swapchain_height);
 	}
 	vulkan_bind_texture(renderer->device, &frame, renderer->imgui_fontatlas, 0);
@@ -736,20 +735,20 @@ void renderer_render(Renderer *renderer)
 
 	vulkan_bind_rt_as_texture(renderer->device, &frame, renderer->hdr_rt, 1);
 	vulkan_bind_rt_as_texture(renderer->device, &frame, renderer->output_rt, 2);
-	struct VulkanBeginPassInfo compositing_pass_info = (struct VulkanBeginPassInfo){RENDER_PASSES_COMPOSITING, {renderer->final_rt}, 1};
-	begin_render_pass_discard(renderer->device, &frame, &pass, compositing_pass_info);
+	vulkan_bind_rt_as_image(renderer->device, &frame, renderer->final_rt, 0);
 	{
 		struct CompositingConstants
 		{
 			int is_hdr;
 		} constants;
 		constants.is_hdr = renderer->is_hdr;
-		vulkan_insert_debug_label(renderer->device, pass.frame, "compositing");
-		vulkan_bind_graphics_pso(renderer->device, &pass, renderer->compositing_pso);
-		vulkan_push_constants(renderer->device, pass.frame, &constants, sizeof(constants));
-		vulkan_draw_not_indexed(renderer->device, &pass, 3);
+		vulkan_insert_debug_label(renderer->device, &frame, "compositing");
+		vulkan_bind_compute_pso(renderer->device, &frame, renderer->compositing_pso);
+		vulkan_push_constants(renderer->device, &frame, &constants, sizeof(constants));
+		uint32_t x = (swapchain_width + 15) / 16;
+		uint32_t y = (swapchain_height + 15) / 16;
+		vulkan_dispatch(renderer->device, &frame, x, y, 1);
 	}
-	end_render_pass(renderer->device, &pass);
 
 	end_frame(renderer->device, &frame, renderer->final_rt);
 
