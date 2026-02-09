@@ -2,7 +2,6 @@
 
 typedef struct Renderer Renderer;
 typedef struct Camera Camera;
-typedef struct RenderSkeletalMesh RenderSkeletalMesh;
 struct SkeletalMeshInstance;
 struct AssetLibrary;
 

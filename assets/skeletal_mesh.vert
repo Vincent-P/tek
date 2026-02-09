@@ -2,17 +2,9 @@
 #extension GL_EXT_buffer_reference : require
 #extension GL_EXT_scalar_block_layout : enable
 
-struct MeshVert
+layout(scalar, buffer_reference, buffer_reference_align=8) readonly buffer MeshFloat3Buffer
 {
-	vec3 position;
-	uint bone_indices;
-	vec3 normal;
-	uint bone_weights;
-};
-
-layout(scalar, buffer_reference, buffer_reference_align=8) readonly buffer MeshVertexBuffer
-{
-	MeshVert vertices[];
+	vec3 data[];
 };
 
 layout(scalar, buffer_reference, buffer_reference_align=8) readonly buffer BoneMatricesBuffer
@@ -27,7 +19,8 @@ layout(scalar, push_constant) uniform uPushConstant {
     mat4x3 transform;
     vec2 ibl_buffer;
     BoneMatricesBuffer bones_buffer;
-    MeshVertexBuffer vbuffer;
+    MeshFloat3Buffer positions_vbuffer;
+    MeshFloat3Buffer normals_vbuffer;
 } c_;
 
 layout(location = 0) out struct {
@@ -88,8 +81,10 @@ mat3 adjugate(mat4x3 m)
 
 void main()
 {
-    MeshVert vertex = c_.vbuffer.vertices[gl_VertexIndex];
+    vec3 vertex_position = c_.positions_vbuffer.data[gl_VertexIndex];
+    vec3 vertex_normal = c_.normals_vbuffer.data[gl_VertexIndex];
 
+#if 0
     vec4 bone_weights = unpackUnorm4x8(vertex.bone_weights);
     uvec4 bone_indices = unpackUint4x8(vertex.bone_indices);
 
@@ -108,9 +103,15 @@ void main()
     vec3 skinned_p = float34_mul(bone_matrix, vertex.position).xyz;
 #endif
 
+    vertex_normal = (adjugate(bone_matrix) * vertex_normal);
+#else
+
+	vec3 skinned_p = vertex_position;
+
+#endif
     vec4 pos = c_.proj * float34_mul(c_.view, float34_mul(c_.transform, skinned_p).xyz);
 
-    g_out.normal = adjugate(c_.transform) * (adjugate(bone_matrix) * vertex.normal);
+    g_out.normal = adjugate(c_.transform) * vertex_normal;
     g_out.worldpos = float34_mul(c_.transform, skinned_p).xyz;
     gl_Position = pos;
 }
