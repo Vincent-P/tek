@@ -51,7 +51,14 @@ void drawer2d_init(struct Drawer2D *drawer, struct Renderer *renderer)
 	drawer->glyph_cache->atlas_texture = 10;
 	void *empty = calloc(GLYPH_CACHE_ATLAS_SIZE, GLYPH_CACHE_ATLAS_SIZE);
 	memset(empty, 255, GLYPH_CACHE_ATLAS_SIZE*GLYPH_CACHE_ATLAS_SIZE);
-	new_texture(renderer->device, drawer->glyph_cache->atlas_texture, GLYPH_CACHE_ATLAS_SIZE, GLYPH_CACHE_ATLAS_SIZE, PG_FORMAT_R8_UNORM, empty, GLYPH_CACHE_ATLAS_SIZE*GLYPH_CACHE_ATLAS_SIZE);
+	new_texture(renderer->device,
+		    "Drawer2D/Atlas",
+		    drawer->glyph_cache->atlas_texture,
+		    GLYPH_CACHE_ATLAS_SIZE,
+		    GLYPH_CACHE_ATLAS_SIZE,
+		    PG_FORMAT_R8_UNORM,
+		    empty,
+		    GLYPH_CACHE_ATLAS_SIZE*GLYPH_CACHE_ATLAS_SIZE);
 
 
 	drawer->glyph_cache_texture = drawer->glyph_cache->atlas_texture;

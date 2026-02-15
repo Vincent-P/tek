@@ -126,10 +126,10 @@ void* buffer_get_mapped_pointer(VulkanDevice *device, uint32_t handle);
 uint64_t buffer_get_gpu_address(VulkanDevice *device, uint32_t handle);
 uint32_t buffer_get_size(VulkanDevice *device, uint32_t handle);
 
-void new_render_target(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t height, int format, int samples);
+void new_render_target(VulkanDevice *device, const char *name, uint32_t handle, uint32_t width, uint32_t height, int format, int samples);
 void resize_render_target(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t height);
 
-void new_texture(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t height, int format, void *data, uint32_t size);
+void new_texture(VulkanDevice *device, const char* name, uint32_t handle, uint32_t width, uint32_t height, int format, void *data, uint32_t size);
 
 // runtime
 void begin_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t *out_swapchain_w, uint32_t *out_swapchain_h);

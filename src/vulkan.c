@@ -12,7 +12,7 @@
 
 // -- Device
 #define FRAME_COUNT 2
-// #define ENABLE_VALIDATION
+#define ENABLE_VALIDATION
 #define MAIN_MEMORY_SIZE (128 << 20)
 #define RT_MEMORY_SIZE (1 << 30)
 #define MEMORY_ALIGNMENT (256 << 10) // 64K not enough for depth rt ?? -> 256K needed for MSAA
@@ -47,6 +47,7 @@ typedef struct VulkanBuffer
 typedef struct VulkanRenderTarget
 {
 	oa_allocation_t allocation;
+	const char* debug_name;
 	VkImage image;
 	VkImageView image_view;
 	VkFormat format;
@@ -59,6 +60,7 @@ typedef struct VulkanRenderTarget
 typedef struct VulkanTexture
 {
 	oa_allocation_t allocation;
+	const char* debug_name;
 	VkImage image;
 	VkImageView image_view;
 	VkFormat format;
@@ -81,6 +83,7 @@ struct VulkanDevice
 	PFN_vkCreateDebugUtilsMessengerEXT my_vkCreateDebugUtilsMessengerEXT;
 	PFN_vkDestroyDebugUtilsMessengerEXT my_vkDestroyDebugUtilsMessengerEXT;
 	PFN_vkCmdInsertDebugUtilsLabelEXT my_vkCmdInsertDebugUtilsLabelEXT;
+	PFN_vkSetDebugUtilsObjectNameEXT my_vkSetDebugUtilsObjectNameEXT;
 #endif
 	PFN_vkCmdPushDescriptorSetKHR my_vkCmdPushDescriptorSetKHR;
 	// memory
@@ -195,6 +198,7 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	device->my_vkCreateDebugUtilsMessengerEXT  = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(device->instance, "vkCreateDebugUtilsMessengerEXT");
 	device->my_vkDestroyDebugUtilsMessengerEXT = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(device->instance, "vkDestroyDebugUtilsMessengerEXT");
 	device->my_vkCmdInsertDebugUtilsLabelEXT = (PFN_vkCmdInsertDebugUtilsLabelEXT)vkGetInstanceProcAddr(device->instance, "vkCmdInsertDebugUtilsLabelEXT");
+	device->my_vkSetDebugUtilsObjectNameEXT = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetInstanceProcAddr(device->instance, "vkSetDebugUtilsObjectNameEXT");
 
 	if (device->my_vkCreateDebugUtilsMessengerEXT) {
 		VkDebugUtilsMessengerCreateInfoEXT ci	= {.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
@@ -793,7 +797,7 @@ uint32_t buffer_get_size(VulkanDevice *device, uint32_t handle)
 
 
 // -- Render Targets
-void new_render_target(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t height, int format, int samples)
+void new_render_target(VulkanDevice *device, const char* name, uint32_t handle, uint32_t width, uint32_t height, int format, int samples)
 {
 	bool is_depth = format == PG_FORMAT_D32_SFLOAT;
 
@@ -814,6 +818,7 @@ void new_render_target(VulkanDevice *device, uint32_t handle, uint32_t width, ui
 	} else {
 		image_info.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 		image_info.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT; // image may be copied to swapchain
+		image_info.usage |= VK_IMAGE_USAGE_STORAGE_BIT; // image may be written from compute
 	}
 	image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	VkImage image = VK_NULL_HANDLE;
@@ -853,7 +858,21 @@ void new_render_target(VulkanDevice *device, uint32_t handle, uint32_t width, ui
 	VkImageView image_view = VK_NULL_HANDLE;
 	res = vkCreateImageView(device->device, &view_info, NULL, &image_view);
 
+	// debug name
+	if (device->my_vkSetDebugUtilsObjectNameEXT) {
+		VkDebugUtilsObjectNameInfoEXT name_info = {.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT};
+		name_info.objectType = VK_OBJECT_TYPE_IMAGE;
+		name_info.objectHandle = (uint64_t)image;
+		name_info.pObjectName = name;
+		device->my_vkSetDebugUtilsObjectNameEXT(device->device, &name_info);
+
+		name_info.objectType = VK_OBJECT_TYPE_IMAGE_VIEW;
+		name_info.objectHandle = (uint64_t)image_view;
+		device->my_vkSetDebugUtilsObjectNameEXT(device->device, &name_info);
+	}
+
 	device->rts[handle].allocation = allocation;
+	device->rts[handle].debug_name = name;
 	device->rts[handle].image = image;
 	device->rts[handle].image_view = image_view;
 	device->rts[handle].format = format;
@@ -870,10 +889,16 @@ void resize_render_target(VulkanDevice *device, uint32_t handle, uint32_t width,
 	oa_free(&device->rt_memory_allocator, &device->rts[handle].allocation);
 	// TODO: free VkImage and VkImageView
 
-	new_render_target(device, handle, width, height, device->rts[handle].format, device->rts[handle].multisamples);
+	new_render_target(device,
+			  device->rts[handle].debug_name,
+			  handle,
+			  width,
+			  height,
+			  device->rts[handle].format,
+			  device->rts[handle].multisamples);
 }
 
-void new_texture(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t height, int format, void *data, uint32_t size)
+void new_texture(VulkanDevice *device, const char* name, uint32_t handle, uint32_t width, uint32_t height, int format, void *data, uint32_t size)
 {
 	VkImageCreateInfo image_info = {.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
 	image_info.flags = 0;
@@ -921,7 +946,21 @@ void new_texture(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t
 	VkImageView image_view = VK_NULL_HANDLE;
 	res = vkCreateImageView(device->device, &view_info, NULL, &image_view);
 
+	// debug name
+	if (device->my_vkSetDebugUtilsObjectNameEXT) {
+		VkDebugUtilsObjectNameInfoEXT name_info = {.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT};
+		name_info.objectType = VK_OBJECT_TYPE_IMAGE;
+		name_info.objectHandle = (uint64_t)image;
+		name_info.pObjectName = name;
+		device->my_vkSetDebugUtilsObjectNameEXT(device->device, &name_info);
+
+		name_info.objectType = VK_OBJECT_TYPE_IMAGE_VIEW;
+		name_info.objectHandle = (uint64_t)image_view;
+		device->my_vkSetDebugUtilsObjectNameEXT(device->device, &name_info);
+	}
+
 	device->textures[handle].allocation = allocation;
+	device->textures[handle].debug_name = name;
 	device->textures[handle].image = image;
 	device->textures[handle].image_view = image_view;
 	device->textures[handle].format = format;
@@ -929,20 +968,16 @@ void new_texture(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t
 	device->textures[handle].height = height;
 
 	// temp: prepare upload
-
 	assert(device->upload_buffer_offset + size <= device->buffers[device->upload_buffer].size);
 	memcpy((char*)device->buffers[device->upload_buffer].mapped + device->upload_buffer_offset,
 	       data,
 	       size);
-
-
 	vulkan_copy_buffer_to_texture(device, (struct VulkanBufferTextureCopy){.buffer = device->upload_buffer,
 					       .texture = handle,
 					       .offset = device->upload_buffer_offset,
 					       .width  = width,
 					       .height = height,
 		});
-
 	device->upload_buffer_offset += size;
 }
 

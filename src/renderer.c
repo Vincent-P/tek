@@ -148,21 +148,27 @@ void renderer_init(Renderer *renderer, struct AssetLibrary *assets, SDL_Window *
 	vulkan_create_device(renderer->device, hwnd);
 
 	renderer->output_rt = 0;
-	new_render_target(renderer->device, renderer->output_rt,
+	new_render_target(renderer->device,
+			  "Renderer/Output",
+			  renderer->output_rt,
 			  renderer->device->swapchain_width,
 			  renderer->device->swapchain_height,
 			  PG_FORMAT_R8G8B8A8_UNORM,
 			  1);
 
 	renderer->hdr_rt = 1;
-	new_render_target(renderer->device, renderer->hdr_rt,
+	new_render_target(renderer->device,
+			  "Renderer/HDR",
+			  renderer->hdr_rt,
 			  renderer->device->swapchain_width / 2,
 			  renderer->device->swapchain_height / 2,
 			  PG_FORMAT_RGBA16F,
 			  4);
 
 	renderer->depth_rt = 2;
-	new_render_target(renderer->device, renderer->depth_rt,
+	new_render_target(renderer->device,
+			  "Renderer/Depth",
+			  renderer->depth_rt,
 			  renderer->device->swapchain_width / 2,
 			  renderer->device->swapchain_height / 2,
 			  PG_FORMAT_D32_SFLOAT,
@@ -172,7 +178,9 @@ void renderer_init(Renderer *renderer, struct AssetLibrary *assets, SDL_Window *
 	renderer->is_hdr = (surface_format == PG_FORMAT_A2B10G10R10_UNORM_PACK32);
 
 	renderer->final_rt = 3;
-	new_render_target(renderer->device, renderer->final_rt,
+	new_render_target(renderer->device,
+			  "Renderer/Final",
+			  renderer->final_rt,
 			  renderer->device->swapchain_width,
 			  renderer->device->swapchain_height,
 			  surface_format,
@@ -196,7 +204,7 @@ void renderer_init(Renderer *renderer, struct AssetLibrary *assets, SDL_Window *
 	int bpp = 0;
 	ImGuiIO *io = ImGui_GetIO();
 	ImFontAtlas_GetTexDataAsRGBA32(io->Fonts, &pixels, &width, &height, &bpp);
-	new_texture(renderer->device, renderer->imgui_fontatlas, width, height, PG_FORMAT_R8G8B8A8_UNORM, pixels, width*height*bpp);
+	new_texture(renderer->device, "ImGui/FontAtlas", renderer->imgui_fontatlas, width, height, PG_FORMAT_R8G8B8A8_UNORM, pixels, width*height*bpp);
 
 	// Create debug draw resources
 	renderer->dd_ibuffer = 4;
