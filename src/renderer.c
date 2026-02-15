@@ -99,6 +99,7 @@ struct Renderer
 	oa_allocator_t mesh_vbuffer_allocator;
 	oa_allocator_t mesh_ibuffer_allocator;
 	uint32_t mesh_positions_vbuffer;
+	uint32_t mesh_last_positions_vbuffer;
 	uint32_t mesh_normals_vbuffer;
 	// global deformable geometry buffer
 	oa_allocator_t mesh_skinned_vbuffer_allocator;
@@ -224,6 +225,7 @@ void renderer_init(Renderer *renderer, struct AssetLibrary *assets, SDL_Window *
 	renderer->mesh_skinned_normals_vbuffer = 8;
 	renderer->mesh_skinned_bone_indices_weights_vbuffer = 9;
 	renderer->mesh_positions_vbuffer = 10;
+	renderer->mesh_last_positions_vbuffer = 15;
 	renderer->mesh_normals_vbuffer = 11;
 
 	new_index_buffer(renderer->device, renderer->mesh_ibuffer, RENDERER_MESH_INDEX_CAPACITY * sizeof(uint32_t));
@@ -231,6 +233,7 @@ void renderer_init(Renderer *renderer, struct AssetLibrary *assets, SDL_Window *
 	new_storage_buffer(renderer->device, renderer->mesh_skinned_normals_vbuffer, RENDERER_MESH_VERTEX_CAPACITY * sizeof(Float3));
 	new_storage_buffer(renderer->device, renderer->mesh_skinned_bone_indices_weights_vbuffer, RENDERER_MESH_VERTEX_CAPACITY * 2 * sizeof(uint32_t));
 	new_storage_buffer(renderer->device, renderer->mesh_positions_vbuffer, RENDERER_MESH_VERTEX_CAPACITY * sizeof(Float3));
+	new_storage_buffer(renderer->device, renderer->mesh_last_positions_vbuffer, RENDERER_MESH_VERTEX_CAPACITY * sizeof(Float3));
 	new_storage_buffer(renderer->device, renderer->mesh_normals_vbuffer, RENDERER_MESH_VERTEX_CAPACITY * sizeof(Float3));
 
 	// memset(buffer_get_mapped_pointer(renderer->device, renderer->mesh_vbuffer), 0, buffer_get_size(renderer->device, renderer->mesh_vbuffer));
@@ -719,6 +722,7 @@ void renderer_render(Renderer *renderer)
 			uint64_t skinned_normals_vbuffer;
 			uint64_t skinned_bone_indices_weigths_vbuffer;
 			uint64_t positions_vbuffer;
+			uint64_t last_positions_vbuffer;
 			uint64_t normals_vbuffer;
 			uint32_t first_vertex;
 			uint32_t vertex_count;
@@ -734,6 +738,8 @@ void renderer_render(Renderer *renderer)
 		constants.skinned_bone_indices_weigths_vbuffer = constants.skinned_bone_indices_weigths_vbuffer + render_mesh->skinned_vbuffer_allocation.offset * 2 * sizeof(uint32_t);
 		constants.positions_vbuffer = buffer_get_gpu_address(renderer->device, renderer->mesh_positions_vbuffer);
 		constants.positions_vbuffer = constants.positions_vbuffer + vbuffer_allocation.offset * sizeof(Float3);
+		constants.last_positions_vbuffer = buffer_get_gpu_address(renderer->device, renderer->mesh_last_positions_vbuffer);
+		constants.last_positions_vbuffer = constants.last_positions_vbuffer + vbuffer_allocation.offset * sizeof(Float3);
 		constants.normals_vbuffer = buffer_get_gpu_address(renderer->device, renderer->mesh_normals_vbuffer);
 		constants.normals_vbuffer = constants.normals_vbuffer + vbuffer_allocation.offset * sizeof(Float3);
 		constants.first_vertex = 0;
@@ -788,6 +794,7 @@ void renderer_render(Renderer *renderer)
 		Float3x4 transform;
 		uint64_t ibl_buffer;
 		uint64_t positions_vbuffer;
+		uint64_t last_positions_vbuffer;
 		uint64_t normals_vbuffer;
 	};
 	struct SkeletalMeshConstants mesh_constants[8] = {};
@@ -806,6 +813,7 @@ void renderer_render(Renderer *renderer)
 		constants.transform = *dynamic_data_transform;
 		constants.ibl_buffer = buffer_get_gpu_address(renderer->device, renderer->diffuse_ibl_buffer);
 		constants.positions_vbuffer = buffer_get_gpu_address(renderer->device, renderer->mesh_positions_vbuffer);
+		constants.last_positions_vbuffer = buffer_get_gpu_address(renderer->device, renderer->mesh_last_positions_vbuffer);
 		constants.normals_vbuffer = buffer_get_gpu_address(renderer->device, renderer->mesh_normals_vbuffer);
 		mesh_constants[iinstance] = constants;
 

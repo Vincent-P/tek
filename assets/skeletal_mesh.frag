@@ -6,6 +6,16 @@
 #include "pbr.h"
 #include "sh.h"
 
+vec4 float34_mul(mat4x3 m, vec3 v)
+{
+	vec4 result;
+	result.x = m[0][0] * v.x + m[1][0] * v.y + m[2][0] * v.z + m[3][0];
+	result.y = m[0][1] * v.x + m[1][1] * v.y + m[2][1] * v.z + m[3][1];
+	result.z = m[0][2] * v.x + m[1][2] * v.y + m[2][2] * v.z + m[3][2];
+	result.w = 1.0;
+	return result;
+}
+
 layout(scalar, buffer_reference, buffer_reference_align=8) buffer IBLData
 {
 	SH_L2_RGB irradiance;
@@ -16,6 +26,7 @@ layout(location = 0) out vec4 outColor;
 layout(location = 0) in struct {
 	vec3 normal;
 	vec3 worldpos;
+	vec3 lastworldpos;
 } g_in;
 
 layout(scalar, push_constant) uniform uPushConstant {
@@ -49,4 +60,10 @@ void main()
 	// diffuse part
 	shading += GetSkyIrradiance(normal, c_.ibl_buffer.irradiance) * (params.BaseColor / M_PI);
 	outColor = vec4(shading, 1.0);
+
+	vec4 current_clip = c_.proj * float34_mul(c_.view, g_in.worldpos.xyz);
+	vec4 last_clip = c_.proj * float34_mul(c_.view, g_in.lastworldpos.xyz);
+
+	vec2 velocity = (current_clip.xy / current_clip.w) - (last_clip.xy / last_clip.w);
+	outColor = vec4(abs(velocity)*10, 0.0, 1.0);
 }

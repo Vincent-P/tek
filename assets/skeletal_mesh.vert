@@ -14,12 +14,14 @@ layout(scalar, push_constant) uniform uPushConstant {
     mat4x3 transform;
     vec2 ibl_buffer;
     MeshFloat3Buffer positions_vbuffer;
+    MeshFloat3Buffer last_positions_vbuffer;
     MeshFloat3Buffer normals_vbuffer;
 } c_;
 
 layout(location = 0) out struct {
     vec3 normal;
     vec3 worldpos;
+    vec3 lastworldpos;
 } g_out;
 
 vec4 float34_mul(mat4x3 m, vec3 v)
@@ -65,6 +67,7 @@ mat3 adjugate(mat4x3 m)
 
 void main()
 {
+    vec3 last_vertex_position = c_.last_positions_vbuffer.data[gl_VertexIndex];
     vec3 vertex_position = c_.positions_vbuffer.data[gl_VertexIndex];
     vec3 vertex_normal = c_.normals_vbuffer.data[gl_VertexIndex];
 
@@ -72,5 +75,6 @@ void main()
 
     g_out.normal = adjugate(c_.transform) * vertex_normal;
     g_out.worldpos = float34_mul(c_.transform, vertex_position).xyz;
+    g_out.lastworldpos = float34_mul(c_.transform, last_vertex_position).xyz;
     gl_Position = pos;
 }

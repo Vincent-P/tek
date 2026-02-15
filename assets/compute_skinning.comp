@@ -76,6 +76,7 @@ layout(scalar, push_constant) uniform uPushConstant {
     MeshUintBuffer skinned_bone_indices_weigths_vbuffer;
 
     MeshFloat3Buffer positions_vbuffer;
+    MeshFloat3Buffer last_positions_vbuffer;
     MeshFloat3Buffer normals_vbuffer;
 
     uint first_vertex;
@@ -113,6 +114,7 @@ void main()
     vertex_position = float34_mul(bone_matrix, vertex_position).xyz;
     vertex_normal = (adjugate(bone_matrix) * vertex_normal);
 
+    c_.last_positions_vbuffer.data[vertex_index] = c_.positions_vbuffer.data[vertex_index];
     c_.positions_vbuffer.data[vertex_index] = vertex_position;
     c_.normals_vbuffer.data[vertex_index] = vertex_normal;
 }
