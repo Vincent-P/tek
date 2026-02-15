@@ -163,7 +163,7 @@ void main()
     uvec3 global_idx = gl_GlobalInvocationID;
     uvec3 group_idx  = gl_WorkGroupID;
     ivec2 pixel_coords = ivec2(global_idx.xy);
-    ivec2 output_size = imageSize(global_images_2d_rgba32f[IMAGE_OUTPUT]);
+    ivec2 output_size = imageSize(global_images_2d_rgba8[IMAGE_OUTPUT]);
     vec2 screen_uv  = (vec2(pixel_coords) + vec2(0.5)) / vec2(output_size);
     if (any(greaterThan(pixel_coords, output_size)))
     {
@@ -236,5 +236,5 @@ void main()
 
     }
 
-    imageStore(global_images_2d_rgba32f[IMAGE_OUTPUT], pixel_coords, outColor);
+    imageStore(global_images_2d_rgba8[IMAGE_OUTPUT], pixel_coords, outColor);
 }

@@ -3,7 +3,7 @@
 #include "drawer2d.h"
 
 #define RENDERER_SKELETAL_MESH_CAPACITY (8)
-#define RENDERER_MESH_VERTEX_CAPACITY (64 << 10)
+#define RENDERER_MESH_VERTEX_CAPACITY (128 << 10)
 #define RENDERER_MESH_INDEX_CAPACITY (64 << 10)
 #define RENDERER_UPLOAD_BUFFER_SIZE (64 << 20)
 
@@ -53,25 +53,19 @@ struct SkeletalMeshCBuffer
 	Float3x4 bone_matrices[MAX_BONES_PER_MESH];
 };
 
-struct SkeletalMeshConstants
-{
-	Float4x4 proj;
-	Float3x4 view;
-	Float3x4 invview;
-	Float3x4 transform;
-	uint64_t ibl_buffer;
-	uint64_t bones_matrices_buffer;
-	uint64_t positions_vbuffer;
-	uint64_t normals_vbuffer;
-};
-
 struct RenderMesh
 {
-	oa_allocation_t vbuffer_allocation;
+	oa_allocation_t skinned_vbuffer_allocation;
 	oa_allocation_t ibuffer_allocation;
+	uint32_t vertex_count;
 	uint32_t index_count;
 	uint32_t first_index;
 	int32_t vertex_offset;
+};
+
+struct RenderMeshInstance
+{
+	oa_allocation_t vbuffer_allocation;
 };
 
 struct Renderer
@@ -97,16 +91,20 @@ struct Renderer
 	uint32_t dd_ibuffer;
 	uint32_t dd_vbuffer;
 	// 3d meshes
+	uint32_t skinning_compute_pso;
 	uint32_t mesh_pso;
 	uint32_t mesh_depth_pso;
+	// global geometry buffer
 	uint32_t mesh_ibuffer;
 	oa_allocator_t mesh_vbuffer_allocator;
 	oa_allocator_t mesh_ibuffer_allocator;
+	uint32_t mesh_positions_vbuffer;
+	uint32_t mesh_normals_vbuffer;
+	// global deformable geometry buffer
+	oa_allocator_t mesh_skinned_vbuffer_allocator;
 	uint32_t mesh_skinned_positions_vbuffer;
 	uint32_t mesh_skinned_normals_vbuffer;
 	uint32_t mesh_skinned_bone_indices_weights_vbuffer;
-	uint32_t mesh_positions_vbuffer;
-	uint32_t mesh_normals_vbuffer;
 	struct RenderMesh meshes[RENDERER_SKELETAL_MESH_CAPACITY];
 	// background shaders
 	uint32_t bg0_pso;
@@ -129,6 +127,7 @@ struct Renderer
 	// scene
 	struct Camera main_camera;
 	struct SkeletalMeshInstanceData skeletal_mesh_instances[2];
+	struct RenderMeshInstance mesh_instances[2];
 	uint32_t skeletal_mesh_instances_length;
 	struct Drawer2D *drawer;
 };
@@ -218,6 +217,8 @@ void renderer_init(Renderer *renderer, struct AssetLibrary *assets, SDL_Window *
 	assert(res == 0);
 	res = oa_create(&renderer->mesh_ibuffer_allocator, RENDERER_MESH_INDEX_CAPACITY, MAX_MESH_ALLOCATIONS);
 	assert(res == 0);
+	res = oa_create(&renderer->mesh_skinned_vbuffer_allocator, RENDERER_MESH_VERTEX_CAPACITY, MAX_MESH_ALLOCATIONS);
+	assert(res == 0);
 	renderer->mesh_ibuffer = 6;
 	renderer->mesh_skinned_positions_vbuffer = 7;
 	renderer->mesh_skinned_normals_vbuffer = 8;
@@ -259,6 +260,7 @@ void renderer_init_materials(Renderer *renderer, struct AssetLibrary *assets)
 	struct MaterialAsset const *bg0_material = asset_library_get_material(assets, 295627051);
 	struct ComputeProgramAsset const *convolve_diffuse_irradiance_program = asset_library_get_compute_program(assets, 3356797155);
 	struct ComputeProgramAsset const *compositing_program = asset_library_get_compute_program(assets, 4212483871);
+	struct ComputeProgramAsset const *skinning_compute_program = asset_library_get_compute_program(assets, 4060554051);
 
 	struct MaterialAsset mesh_depth_material = *mesh_material;
 	mesh_depth_material.pixel_shader_bytecode.data = NULL;
@@ -292,43 +294,67 @@ void renderer_init_materials(Renderer *renderer, struct AssetLibrary *assets)
 
 	renderer->convolve_diffuse_irradiance_pso = 1;
 	new_compute_program(renderer->device, renderer->convolve_diffuse_irradiance_pso, *convolve_diffuse_irradiance_program);
+
+	renderer->skinning_compute_pso = 2;
+	new_compute_program(renderer->device, renderer->skinning_compute_pso, *skinning_compute_program);
 }
 
 void renderer_create_render_skeletal_mesh(Renderer *renderer, struct SkeletalMeshAsset *asset, uint32_t handle)
 {
-	oa_allocation_t vbuffer_allocation = {0};
-	int alloc_res = oa_allocate(&renderer->mesh_vbuffer_allocator, asset->vertices_length, &vbuffer_allocation);
+	// Allocate vertices and indices in the global deformable
+	// geometry buffers.
+	oa_allocation_t skinned_vbuffer_allocation = {0};
+	int alloc_res = oa_allocate(&renderer->mesh_skinned_vbuffer_allocator, asset->vertices_length, &skinned_vbuffer_allocation);
 	assert(alloc_res == 0);
 	oa_allocation_t ibuffer_allocation = {0};
 	alloc_res = oa_allocate(&renderer->mesh_ibuffer_allocator, asset->indices_length, &ibuffer_allocation);
 	assert(alloc_res == 0);
 
-	renderer->meshes[handle].vbuffer_allocation = vbuffer_allocation;
+	// Fill data
+	renderer->meshes[handle].skinned_vbuffer_allocation = skinned_vbuffer_allocation;
 	renderer->meshes[handle].ibuffer_allocation = ibuffer_allocation;
+	renderer->meshes[handle].vertex_count = asset->vertices_length;
 	renderer->meshes[handle].index_count = asset->indices_length;
 	renderer->meshes[handle].first_index = ibuffer_allocation.offset;
-	renderer->meshes[handle].vertex_offset = vbuffer_allocation.offset;
+	renderer->meshes[handle].vertex_offset = skinned_vbuffer_allocation.offset;
 
-	uint32_t *gpu_indices = buffer_get_mapped_pointer(renderer->device, renderer->mesh_ibuffer);
-	Float3 *gpu_positions = buffer_get_mapped_pointer(renderer->device, renderer->mesh_positions_vbuffer);
-	Float3 *gpu_normals = buffer_get_mapped_pointer(renderer->device, renderer->mesh_normals_vbuffer);
-
-	memcpy(gpu_indices + ibuffer_allocation.offset, asset->indices, asset->indices_length * sizeof(uint32_t));
-	memcpy(gpu_positions + vbuffer_allocation.offset, asset->vertices_positions, asset->vertices_length * sizeof(Float3));
-	memcpy(gpu_normals + vbuffer_allocation.offset, asset->vertices_normals, asset->vertices_length * sizeof(Float3));
-
+	// Save the render handle into the asset
 	asset->render_handle = handle;
+
+	// Upload vertices and indices
+	uint32_t *gpu_indices = buffer_get_mapped_pointer(renderer->device, renderer->mesh_ibuffer);
+	gpu_indices += ibuffer_allocation.offset;
+	Float3 *gpu_positions = buffer_get_mapped_pointer(renderer->device, renderer->mesh_skinned_positions_vbuffer);
+	gpu_positions += skinned_vbuffer_allocation.offset;
+	Float3 *gpu_normals = buffer_get_mapped_pointer(renderer->device, renderer->mesh_skinned_normals_vbuffer);
+	gpu_normals += skinned_vbuffer_allocation.offset;
+	uint32_t *gpu_bone_indices = buffer_get_mapped_pointer(renderer->device, renderer->mesh_skinned_bone_indices_weights_vbuffer);
+	gpu_bone_indices += skinned_vbuffer_allocation.offset;
+	memcpy(gpu_indices, asset->indices, asset->indices_length * sizeof(uint32_t));
+	memcpy(gpu_positions, asset->vertices_positions, asset->vertices_length * sizeof(Float3));
+	memcpy(gpu_normals, asset->vertices_normals, asset->vertices_length * sizeof(Float3));
+	for (uint32_t i = 0; i < asset->vertices_length; ++i) {
+		gpu_bone_indices[2*i+0] = asset->vertices_bone_indices[i];
+		gpu_bone_indices[2*i+1] = asset->vertices_bone_weights[i];
+	}
 }
 
 void renderer_register_skeletal_mesh_instance(Renderer *renderer, struct SkeletalMeshInstanceData data)
 {
+	// Create instance into our instances array
 	uint32_t iinstance = renderer->skeletal_mesh_instances_length;
 	assert(iinstance < ARRAY_LENGTH(renderer->skeletal_mesh_instances));
-
 	data.mesh_render_handle = data.mesh->render_handle;
-
 	renderer->skeletal_mesh_instances[iinstance] = data;
 	renderer->skeletal_mesh_instances_length += 1;
+
+	// Allocate vertices in the global geometry buffers, we need
+	// each instance to allocate data because they may be deformed
+	// differently.
+	int alloc_res = oa_allocate(&renderer->mesh_vbuffer_allocator,
+				    data.mesh->vertices_length,
+				    &renderer->mesh_instances[iinstance].vbuffer_allocation);
+	assert(alloc_res == 0);
 }
 
 void renderer_clear_skeletal_mesh_instances(Renderer *renderer)
@@ -674,6 +700,54 @@ void renderer_render(Renderer *renderer)
 		vulkan_dispatch(renderer->device, &frame, 1, 1, 1);
 	}
 
+	// dispatch gpu skinning
+	vulkan_insert_debug_label(renderer->device, &frame, "GpuSkinning");
+	vulkan_bind_compute_pso(renderer->device, &frame, renderer->skinning_compute_pso);
+	for (uint32_t iinstance = 0; iinstance < renderer->skeletal_mesh_instances_length; ++iinstance){
+		struct RenderMesh *render_mesh = &renderer->meshes[renderer->skeletal_mesh_instances[iinstance].mesh_render_handle];
+		struct SkeletalMeshInstance const *dynamic_data_mesh = renderer->skeletal_mesh_instances[iinstance].dynamic_data_mesh;
+		// upload bone matrices to constant buffer
+		char *gpu_data = buffer_get_mapped_pointer(renderer->device, renderer->constant_buffer);
+		gpu_data += renderer->constant_offset;
+		assert(renderer->constant_offset + sizeof(dynamic_data_mesh->pose) <= buffer_get_size(renderer->device, renderer->constant_buffer));
+		memcpy(gpu_data, dynamic_data_mesh->pose, sizeof(dynamic_data_mesh->pose));
+
+		struct ComputeSkinningConstants
+		{
+			uint64_t bones_matrices_buffer;
+			uint64_t skinned_positions_vbuffer;
+			uint64_t skinned_normals_vbuffer;
+			uint64_t skinned_bone_indices_weigths_vbuffer;
+			uint64_t positions_vbuffer;
+			uint64_t normals_vbuffer;
+			uint32_t first_vertex;
+			uint32_t vertex_count;
+		};
+		oa_allocation_t vbuffer_allocation = renderer->mesh_instances[iinstance].vbuffer_allocation;
+		struct ComputeSkinningConstants constants = {0};
+		constants.bones_matrices_buffer = buffer_get_gpu_address(renderer->device, renderer->constant_buffer) + renderer->constant_offset;
+		constants.skinned_positions_vbuffer = buffer_get_gpu_address(renderer->device, renderer->mesh_skinned_positions_vbuffer);
+		constants.skinned_positions_vbuffer = constants.skinned_positions_vbuffer + render_mesh->skinned_vbuffer_allocation.offset * sizeof(Float3);
+		constants.skinned_normals_vbuffer = buffer_get_gpu_address(renderer->device, renderer->mesh_skinned_normals_vbuffer);
+		constants.skinned_normals_vbuffer = constants.skinned_normals_vbuffer + render_mesh->skinned_vbuffer_allocation.offset * sizeof(Float3);
+		constants.skinned_bone_indices_weigths_vbuffer = buffer_get_gpu_address(renderer->device, renderer->mesh_skinned_bone_indices_weights_vbuffer);
+		constants.skinned_bone_indices_weigths_vbuffer = constants.skinned_bone_indices_weigths_vbuffer + render_mesh->skinned_vbuffer_allocation.offset * 2 * sizeof(uint32_t);
+		constants.positions_vbuffer = buffer_get_gpu_address(renderer->device, renderer->mesh_positions_vbuffer);
+		constants.positions_vbuffer = constants.positions_vbuffer + vbuffer_allocation.offset * sizeof(Float3);
+		constants.normals_vbuffer = buffer_get_gpu_address(renderer->device, renderer->mesh_normals_vbuffer);
+		constants.normals_vbuffer = constants.normals_vbuffer + vbuffer_allocation.offset * sizeof(Float3);
+		constants.first_vertex = 0;
+		constants.vertex_count = render_mesh->vertex_count;
+
+		vulkan_push_constants(renderer->device, &frame, &constants, sizeof(constants));
+		// Dispatch 1 compute shader per skinned instance, with 1 thread per vertex
+		uint32_t x = (render_mesh->vertex_count + 63) / 64;
+		vulkan_dispatch(renderer->device, &frame, x, 1, 1);
+
+		renderer->constant_offset += sizeof(dynamic_data_mesh->pose);
+	}
+	renderer->constant_offset = 0;
+
 	VulkanRenderPass pass = {0};
 	union VulkanClearColor clear_color = {0};
 
@@ -706,18 +780,23 @@ void renderer_render(Renderer *renderer)
 		vulkan_draw_not_indexed(renderer->device, &pass, 3);
 	}
 
+	struct SkeletalMeshConstants
+	{
+		Float4x4 proj;
+		Float3x4 view;
+		Float3x4 invview;
+		Float3x4 transform;
+		uint64_t ibl_buffer;
+		uint64_t positions_vbuffer;
+		uint64_t normals_vbuffer;
+	};
 	struct SkeletalMeshConstants mesh_constants[8] = {};
-	// prepare mesh constants
-	for (uint32_t iinstance = 0; iinstance < renderer->skeletal_mesh_instances_length && iinstance < ARRAY_LENGTH(mesh_constants); ++iinstance){
-		struct RenderMesh *render_mesh = &renderer->meshes[renderer->skeletal_mesh_instances[iinstance].mesh_render_handle];
-		struct SkeletalMeshInstance const *dynamic_data_mesh = renderer->skeletal_mesh_instances[iinstance].dynamic_data_mesh;
+	vulkan_insert_debug_label(renderer->device, pass.frame, "skeletal meshes depth");
+	vulkan_bind_index_buffer(renderer->device, &pass, renderer->mesh_ibuffer);
+	vulkan_bind_graphics_pso(renderer->device, &pass, renderer->mesh_depth_pso);
+	for (uint32_t iinstance = 0; iinstance < renderer->skeletal_mesh_instances_length && iinstance < ARRAY_LENGTH(mesh_constants); ++iinstance) {
 		Float3x4 const* dynamic_data_transform = &renderer->skeletal_mesh_instances[iinstance].dynamic_data_spatial->world_transform;
-		// upload bone matrices
-		// char *gpu_data = buffer_get_mapped_pointer(renderer->device, renderer->constant_buffer);
-		// gpu_data += renderer->constant_offset;
-		// assert(renderer->constant_offset + sizeof(struct SkeletalMeshCBuffer) <= buffer_get_size(renderer->device, renderer->constant_buffer));
-		// struct SkeletalMeshCBuffer *gpu_cbuffer = (struct SkeletalMeshCBuffer*)gpu_data;
-		// memcpy(gpu_cbuffer, dynamic_data_mesh->pose, sizeof(dynamic_data_mesh->pose));
+		oa_allocation_t vbuffer_allocation = renderer->mesh_instances[iinstance].vbuffer_allocation;
 
 		// prepare constants
 		struct SkeletalMeshConstants constants = {0};
@@ -726,37 +805,30 @@ void renderer_render(Renderer *renderer)
 		constants.invview = renderer->invview;
 		constants.transform = *dynamic_data_transform;
 		constants.ibl_buffer = buffer_get_gpu_address(renderer->device, renderer->diffuse_ibl_buffer);
-		constants.bones_matrices_buffer = buffer_get_gpu_address(renderer->device, renderer->constant_buffer) + renderer->constant_offset;
 		constants.positions_vbuffer = buffer_get_gpu_address(renderer->device, renderer->mesh_positions_vbuffer);
 		constants.normals_vbuffer = buffer_get_gpu_address(renderer->device, renderer->mesh_normals_vbuffer);
 		mesh_constants[iinstance] = constants;
-		renderer->constant_offset += sizeof(struct SkeletalMeshCBuffer);
-	}
-	renderer->constant_offset = 0;
 
-	vulkan_insert_debug_label(renderer->device, pass.frame, "skeletal meshes depth");
-	vulkan_bind_index_buffer(renderer->device, &pass, renderer->mesh_ibuffer);
-	vulkan_bind_graphics_pso(renderer->device, &pass, renderer->mesh_depth_pso);
-	for (uint32_t iinstance = 0; iinstance < renderer->skeletal_mesh_instances_length && iinstance < ARRAY_LENGTH(mesh_constants); ++iinstance){
 		struct RenderMesh *render_mesh = &renderer->meshes[renderer->skeletal_mesh_instances[iinstance].mesh_render_handle];
 		vulkan_push_constants(renderer->device, pass.frame, &mesh_constants[iinstance], sizeof(struct SkeletalMeshConstants));
 		struct VulkanDraw draw = {render_mesh->index_count,
 					  1,
 					  render_mesh->first_index,
-					  render_mesh->vertex_offset,
+					  vbuffer_allocation.offset,
 					  0};
 		vulkan_draw(renderer->device, &pass, draw);
-
 	}
+
 	vulkan_insert_debug_label(renderer->device, pass.frame, "skeletal meshes shading");
 	vulkan_bind_graphics_pso(renderer->device, &pass, renderer->mesh_pso);
-	for (uint32_t iinstance = 0; iinstance < renderer->skeletal_mesh_instances_length; ++iinstance){
+	for (uint32_t iinstance = 0; iinstance < renderer->skeletal_mesh_instances_length; ++iinstance) {
+		oa_allocation_t vbuffer_allocation = renderer->mesh_instances[iinstance].vbuffer_allocation;
 		struct RenderMesh *render_mesh = &renderer->meshes[renderer->skeletal_mesh_instances[iinstance].mesh_render_handle];
 		vulkan_push_constants(renderer->device, pass.frame, &mesh_constants[iinstance], sizeof(struct SkeletalMeshConstants));
 		struct VulkanDraw draw = {render_mesh->index_count,
 					  1,
 					  render_mesh->first_index,
-					  render_mesh->vertex_offset,
+					  vbuffer_allocation.offset,
 					  0};
 		vulkan_draw(renderer->device, &pass, draw);
 	}

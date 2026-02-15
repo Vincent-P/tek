@@ -1,0 +1,118 @@
+#version 450
+#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_scalar_block_layout : enable
+#include "bindless.h"
+
+uvec4 unpackUint4x8(uint v)
+{
+	uvec4 result;
+	result.a =  (v >> 24) & 0xff;
+	result.b =  (v >> 16) & 0xff;
+	result.g =  (v >> 8) & 0xff;
+	result.r =  (v >> 0) & 0xff;
+	return result;
+}
+
+vec4 float34_mul(mat4x3 m, vec3 v)
+{
+	vec4 result;
+	result.x = m[0][0] * v.x + m[1][0] * v.y + m[2][0] * v.z + m[3][0];
+	result.y = m[0][1] * v.x + m[1][1] * v.y + m[2][1] * v.z + m[3][1];
+	result.z = m[0][2] * v.x + m[1][2] * v.y + m[2][2] * v.z + m[3][2];
+	result.w = 1.0;
+	return result;
+}
+
+mat3 adjugate(mat4x3 m)
+{
+    return mat3(cross(m[1].xyz, m[2].xyz),
+                cross(m[2].xyz, m[0].xyz),
+                cross(m[0].xyz, m[1].xyz));
+
+    /*
+    // alternative way to write the adjoint
+
+    return mat3(
+     m[1].yzx*m[2].zxy-m[1].zxy*m[2].yzx,
+     m[2].yzx*m[0].zxy-m[2].zxy*m[0].yzx,
+     m[0].yzx*m[1].zxy-m[0].zxy*m[1].yzx );
+    */
+
+    /*
+    // alternative way to write the adjoint
+
+    return mat3(
+     m[1][1]*m[2][2]-m[1][2]*m[2][1],
+     m[1][2]*m[2][0]-m[1][0]*m[2][2],
+     m[1][0]*m[2][1]-m[1][1]*m[2][0],
+     m[0][2]*m[2][1]-m[0][1]*m[2][2],
+	 m[0][0]*m[2][2]-m[0][2]*m[2][0],
+     m[0][1]*m[2][0]-m[0][0]*m[2][1],
+     m[0][1]*m[1][2]-m[0][2]*m[1][1],
+     m[0][2]*m[1][0]-m[0][0]*m[1][2],
+     m[0][0]*m[1][1]-m[0][1]*m[1][0] );
+    */
+}
+
+layout(scalar, buffer_reference, buffer_reference_align=8) readonly buffer MeshUintBuffer
+{
+	uint data[];
+};
+
+layout(scalar, buffer_reference, buffer_reference_align=8) readonly buffer MeshFloat3Buffer
+{
+	vec3 data[];
+};
+
+layout(scalar, buffer_reference, buffer_reference_align=8) readonly buffer BoneMatricesBuffer
+{
+	mat4x3 matrices[];
+};
+
+layout(scalar, push_constant) uniform uPushConstant {
+    BoneMatricesBuffer bones_buffer;
+    MeshFloat3Buffer skinned_positions_vbuffer;
+    MeshFloat3Buffer skinned_normals_vbuffer;
+    MeshUintBuffer skinned_bone_indices_weigths_vbuffer;
+
+    MeshFloat3Buffer positions_vbuffer;
+    MeshFloat3Buffer normals_vbuffer;
+
+    uint first_vertex;
+    uint vertex_count;
+} c_;
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+void main()
+{
+    // inputs
+
+    uint  local_idx  = gl_LocalInvocationIndex;
+    uvec3 global_idx = gl_GlobalInvocationID;
+    uvec3 group_idx  = gl_WorkGroupID;
+    if (global_idx.x >= c_.vertex_count)
+    {
+        return;
+    }
+
+    uint vertex_index = c_.first_vertex + global_idx.x;
+
+    vec3 vertex_position = c_.skinned_positions_vbuffer.data[vertex_index];
+    vec3 vertex_normal = c_.skinned_normals_vbuffer.data[vertex_index];
+    uint vertex_bone_indices = c_.skinned_bone_indices_weigths_vbuffer.data[2*vertex_index+0];
+    uint vertex_bone_weights = c_.skinned_bone_indices_weigths_vbuffer.data[2*vertex_index+1];
+
+    uvec4 bone_indices = unpackUint4x8(vertex_bone_indices);
+    vec4 bone_weights = unpackUnorm4x8(vertex_bone_weights);
+
+    mat4x3 bone_matrix = bone_weights[0] * c_.bones_buffer.matrices[bone_indices[0]]
+    	   	       + bone_weights[1] * c_.bones_buffer.matrices[bone_indices[1]]
+    	   	       + bone_weights[2] * c_.bones_buffer.matrices[bone_indices[2]]
+    	   	       + bone_weights[3] * c_.bones_buffer.matrices[bone_indices[3]];
+
+    vertex_position = float34_mul(bone_matrix, vertex_position).xyz;
+    vertex_normal = (adjugate(bone_matrix) * vertex_normal);
+
+    c_.positions_vbuffer.data[vertex_index] = vertex_position;
+    c_.normals_vbuffer.data[vertex_index] = vertex_normal;
+}
