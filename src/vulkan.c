@@ -773,6 +773,10 @@ void new_upload_buffer(VulkanDevice *device, uint32_t handle, uint32_t size)
 	new_buffer_internal(device, handle, size, 0, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 }
 
+void new_indirect_upload_buffer(VulkanDevice *device, uint32_t handle, uint32_t size)
+{
+	new_buffer_internal(device, handle, size, 0, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
+}
 
 void* buffer_get_mapped_pointer(VulkanDevice *device, uint32_t handle)
 {
@@ -799,6 +803,8 @@ uint32_t buffer_get_size(VulkanDevice *device, uint32_t handle)
 // -- Render Targets
 void new_render_target(VulkanDevice *device, const char* name, uint32_t handle, uint32_t width, uint32_t height, int format, int samples)
 {
+	assert(device->rts[handle].image == VK_NULL_HANDLE);
+
 	bool is_depth = format == PG_FORMAT_D32_SFLOAT;
 
 	VkImageCreateInfo image_info = {.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};

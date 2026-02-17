@@ -1,0 +1,110 @@
+#version 450
+#extension GL_EXT_scalar_block_layout : enable
+#include "bindless.h"
+#include "agx.h"
+
+#define HDR_MSAA_TEXTURE_INPUT 1
+#define HDR_RESOLVED_OUTPUT 0
+
+const vec2 MSAA4_SubSampleOffsets[4] = {
+    vec2(-0.125f, -0.375f),
+    vec2( 0.375f, -0.125f),
+    vec2(-0.375f,  0.125f),
+    vec2( 0.125f,  0.375f),
+};
+
+
+// All filtering functions assume that 'x' is normalized to [0, 1], where 1 == FilteRadius
+float FilterBox(float x)
+{
+    return float(x <= 1.0f);
+}
+
+
+float FilterCubic(in float x, in float B, in float C)
+{
+    float y = 0.0f;
+    float x2 = x * x;
+    float x3 = x * x * x;
+    if(x < 1)
+        y = (12 - 9 * B - 6 * C) * x3 + (-18 + 12 * B + 6 * C) * x2 + (6 - 2 * B);
+    else if (x <= 2)
+        y = (-B - 6 * C) * x3 + (6 * B + 30 * C) * x2 + (-12 * B - 48 * C) * x + (8 * B + 24 * C);
+
+    return y / 6.0f;
+}
+
+float Filter(float x)
+{
+    // Cubic filters naturually work in a [-2, 2] domain. For the resolve case we
+    // want to rescale the filter so that it works in [-1, 1] instead
+    float cubicX = x * 2.0;
+
+    // Box
+//    return FilterBox(x);
+    // BSpline
+    return FilterCubic(cubicX, 1.0, 0.0f);
+    // CatmullRom
+    return FilterCubic(cubicX, 0, 0.5f);
+    // Mitchell
+    return FilterCubic(cubicX, 1 / 3.0f, 1 / 3.0f);
+}
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+void main()
+{
+    // inputs
+    uint  local_idx  = gl_LocalInvocationIndex;
+    uvec3 global_idx = gl_GlobalInvocationID;
+    uvec3 group_idx  = gl_WorkGroupID;
+    ivec2 pixel_coords = ivec2(global_idx.xy);
+    ivec2 output_size = imageSize(global_images_2d_rgba8[HDR_RESOLVED_OUTPUT]);
+    vec2 screen_uv  = (vec2(pixel_coords) + vec2(0.5)) / vec2(output_size);
+    if (any(greaterThan(pixel_coords, output_size)))
+    {
+        return;
+    }
+
+
+    // Filter MSAA HDR target
+    const int SampleRadius = 2;
+    const float ResolveFilterDiameter = 4.0;
+    const ivec2 HDR_TEXTURE_SIZE = textureSize(global_textures_ms[HDR_MSAA_TEXTURE_INPUT]);
+    ivec2 hdr_pixel_coords = ivec2(screen_uv * HDR_TEXTURE_SIZE);
+
+    vec3 sum = vec3(0.0);
+    float totalWeight = 0.0;
+    for(int y = -SampleRadius; y <= SampleRadius; ++y)
+    {
+	    for(int x = -SampleRadius; x <= SampleRadius; ++x)
+	    {
+		    vec2 sampleOffset = vec2(x, y);
+		    vec2 samplePos = hdr_pixel_coords + sampleOffset;
+		    samplePos = clamp(samplePos, vec2(0.0), HDR_TEXTURE_SIZE - vec2(1.0));
+
+		    for(int subSampleIdx = 0; subSampleIdx < 4; ++subSampleIdx)
+		    {
+			vec2 subSampleOffset = MSAA4_SubSampleOffsets[subSampleIdx].xy;
+		    	vec2 sampleDist = abs(sampleOffset + subSampleOffset) / (ResolveFilterDiameter / 2.0f);
+			bool useSample = all(lessThanEqual(sampleDist, vec2(1.0)));
+			if(useSample)
+			{
+			    vec3 subSample = texelFetch(global_textures_ms[HDR_MSAA_TEXTURE_INPUT], ivec2(samplePos), subSampleIdx).rgb;
+//			    subSample = ACESFilm(subSample);
+			    subSample = agx(subSample);
+			    subSample = agxLookPunchy(subSample);
+			    subSample = agxEotf(subSample);
+			    subSample = max(subSample, 0.0f);
+			    float weight =
+			        Filter(sampleDist.x) *
+			    	Filter(sampleDist.y);
+			    sum += subSample * weight;
+			    totalWeight += weight;
+			}
+		    }
+	    }
+    }
+    vec3 hdr = sum / max(totalWeight, 0.0001);
+    vec4 outColor = vec4(hdr, 1);
+    imageStore(global_images_2d_rgba16f[HDR_RESOLVED_OUTPUT], pixel_coords, outColor);
+}

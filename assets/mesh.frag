@@ -21,22 +21,20 @@ layout(scalar, buffer_reference, buffer_reference_align=8) buffer IBLData
 	SH_L2_RGB irradiance;
 };
 
-layout(location = 0) out vec4 outColor;
+
+layout(scalar, push_constant) uniform uPushConstant {
+    mat4 proj;
+    mat4x3 view;
+    mat4x3 invview;
+    IBLData ibl_buffer;
+} c_;
 
 layout(location = 0) in struct {
 	vec3 normal;
 	vec3 worldpos;
-	vec3 lastworldpos;
 } g_in;
 
-layout(scalar, push_constant) uniform uPushConstant {
-	mat4 proj;
-	mat4x3 view;
-	mat4x3 invview;
-	mat4x3 transform;
-	IBLData ibl_buffer;
-} c_;
-
+layout(location = 0) out vec4 outColor;
 void main()
 {
 	vec3 camera_pos = c_.invview[3].xyz;
@@ -60,10 +58,4 @@ void main()
 	// diffuse part
 	shading += GetSkyIrradiance(normal, c_.ibl_buffer.irradiance) * (params.BaseColor / M_PI);
 	outColor = vec4(shading, 1.0);
-
-	vec4 current_clip = c_.proj * float34_mul(c_.view, g_in.worldpos.xyz);
-	vec4 last_clip = c_.proj * float34_mul(c_.view, g_in.lastworldpos.xyz);
-
-	vec2 velocity = (current_clip.xy / current_clip.w) - (last_clip.xy / last_clip.w);
-	outColor = vec4(abs(velocity)*10, 0.0, 1.0);
 }

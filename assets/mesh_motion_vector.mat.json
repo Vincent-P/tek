@@ -1,0 +1,5 @@
+{
+    "vertex_shader": "mesh_motion_vector.vert",
+    "pixel_shader": "mesh_motion_vector.frag",
+    "render_pass": "mesh_motion_vector",
+}

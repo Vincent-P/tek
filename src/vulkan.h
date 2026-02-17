@@ -12,6 +12,7 @@ enum ImageFormat
 	PG_FORMAT_A2B10G10R10_UNORM_PACK32 = 64,
 	PG_FORMAT_D32_SFLOAT = 126,
 	PG_FORMAT_B10G11R11_UFLOAT_PACK32 = 122,
+	PG_FORMAT_RG16F = 83,
 	PG_FORMAT_RGBA16F = 97,
 };
 
@@ -29,6 +30,7 @@ struct RenderPass
 enum RenderPassesId
 {
 	RENDER_PASSES_MESH = 0,
+	RENDER_PASSES_MESH_MOTION_VECTOR,
 	RENDER_PASSES_DEBUG_DRAW,
 	RENDER_PASSES_UI,
 	RENDER_PASSES_COMPOSITING,
@@ -40,6 +42,7 @@ enum RenderPassesId
 static struct RenderPass RENDER_PASSES[RENDER_PASSES_COUNT] =
 {
 	{"mesh", {PG_FORMAT_RGBA16F}, 1, PG_FORMAT_D32_SFLOAT, 4, true, true},
+	{"mesh_motion_vector", {PG_FORMAT_RG16F}, 1, PG_FORMAT_D32_SFLOAT, 1, true, true},
 	{"debugdraw", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_NONE, 1, false, false},
 	{"ui", {PG_FORMAT_R8G8B8A8_UNORM}, 1, PG_FORMAT_NONE, 1, false, false},
 #if defined(VULKAN_HDR_SUPPORT)
@@ -122,6 +125,7 @@ void new_compute_program(VulkanDevice *device, uint32_t handle, ComputeProgramAs
 void new_index_buffer(VulkanDevice *device, uint32_t handle, uint32_t size);
 void new_storage_buffer(VulkanDevice *device, uint32_t handle, uint32_t size);
 void new_upload_buffer(VulkanDevice *device, uint32_t handle, uint32_t size);
+void new_indirect_upload_buffer(VulkanDevice *device, uint32_t handle, uint32_t size);
 void* buffer_get_mapped_pointer(VulkanDevice *device, uint32_t handle);
 uint64_t buffer_get_gpu_address(VulkanDevice *device, uint32_t handle);
 uint32_t buffer_get_size(VulkanDevice *device, uint32_t handle);

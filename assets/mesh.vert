@@ -2,6 +2,11 @@
 #extension GL_EXT_buffer_reference : require
 #extension GL_EXT_scalar_block_layout : enable
 
+layout(scalar, buffer_reference, buffer_reference_align=8) readonly buffer TransformBuffer
+{
+	mat4x3 matrices[];
+};
+
 layout(scalar, buffer_reference, buffer_reference_align=8) readonly buffer MeshFloat3Buffer
 {
 	vec3 data[];
@@ -11,8 +16,8 @@ layout(scalar, push_constant) uniform uPushConstant {
     mat4 proj;
     mat4x3 view;
     mat4x3 invview;
-    mat4x3 transform;
     vec2 ibl_buffer;
+    TransformBuffer instances_buffer;
     MeshFloat3Buffer positions_vbuffer;
     MeshFloat3Buffer last_positions_vbuffer;
     MeshFloat3Buffer normals_vbuffer;
@@ -21,7 +26,6 @@ layout(scalar, push_constant) uniform uPushConstant {
 layout(location = 0) out struct {
     vec3 normal;
     vec3 worldpos;
-    vec3 lastworldpos;
 } g_out;
 
 vec4 float34_mul(mat4x3 m, vec3 v)
@@ -65,16 +69,17 @@ mat3 adjugate(mat4x3 m)
     */
 }
 
+
 void main()
 {
-    vec3 last_vertex_position = c_.last_positions_vbuffer.data[gl_VertexIndex];
     vec3 vertex_position = c_.positions_vbuffer.data[gl_VertexIndex];
     vec3 vertex_normal = c_.normals_vbuffer.data[gl_VertexIndex];
 
-    vec4 pos = c_.proj * float34_mul(c_.view, float34_mul(c_.transform, vertex_position).xyz);
+    mat4x3 instance_transform = c_.instances_buffer.matrices[gl_InstanceIndex*2+0];
 
-    g_out.normal = adjugate(c_.transform) * vertex_normal;
-    g_out.worldpos = float34_mul(c_.transform, vertex_position).xyz;
-    g_out.lastworldpos = float34_mul(c_.transform, last_vertex_position).xyz;
+    vec4 pos = c_.proj * float34_mul(c_.view, float34_mul(instance_transform, vertex_position).xyz);
+
+    g_out.normal = adjugate(instance_transform) * vertex_normal;
+    g_out.worldpos = float34_mul(instance_transform, vertex_position).xyz;
     gl_Position = pos;
 }

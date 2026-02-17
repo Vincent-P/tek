@@ -1,0 +1,5 @@
+{
+    "vertex_shader": "mesh.vert",
+    "pixel_shader": "mesh.frag",
+    "render_pass": "mesh",
+}

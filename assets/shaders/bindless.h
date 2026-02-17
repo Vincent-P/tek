@@ -5,7 +5,7 @@
 #extension GL_EXT_nonuniform_qualifier : require
 
 #define GLOBAL_BINDLESS_SET 0
-#define GLOBAL_SAMPLER_COUNT 8 
+#define GLOBAL_SAMPLER_COUNT 8
 #define GLOBAL_SAMPLER_BINDING 0
 #define GLOBAL_IMAGE_COUNT 8
 #define GLOBAL_IMAGE_BINDING 1
