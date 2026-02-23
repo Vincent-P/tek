@@ -379,6 +379,75 @@
 	    ],
 	},
 	{
+	    "name": "three",
+	    "animation": "P2M_Regular_Rig|a_left_kick",
+	    // hit
+	    "hit_level": "mid",
+	    "hitbox": 3, // index in list
+	    // frame data
+	    "first_active": 13,
+	    "hit_conditions": [
+		{
+		    "requirements": "none",
+		    "damage": 10,
+		    "reaction": {
+			"standing_move": "standing hit",
+			"standing_stun": 33, // 32 frames of recovery (+1 on hit)
+			"standing_counter_hit_move": "standing hit",
+			"standing_counter_hit_stun": 33, // 32 frames of recovery (+1 on hit)
+			"standing_block_move": "standing block",
+			"standing_block_stun": 23, // 32 frames of recovery (-9 on block)
+		    },
+		},
+	    ],
+	    // cancels
+	    "cancels": [
+		{
+		    "to": "threethree",
+		    "action_input": 4,  // Sum of: LP(1) RP(2) LK(4) RK(8)
+    		    "type": "continue", // keep the animation frame from the previous move
+		    "input_window_start": 13,
+		    "input_window_end": 27,
+		},
+		{
+		    "type": "list",
+		    "to": "standing recovery moves",
+		    "starting_frame": 45, // 32 frames of recovery
+		},
+	    ],
+	},
+	{
+	    "name": "threethree",
+	    "animation": "P2M_Regular_Rig|a_left_left_kicks",
+	    // hit
+	    "hit_level": "mid",
+	    "hitbox": 3, // index in list
+	    // frame data
+	    "first_active": 51,
+	    "hit_conditions": [
+		{
+		    "requirements": "none",
+		    "damage": 10,
+		    "reaction": {
+			"standing_move": "standing hit",
+			"standing_stun": 38, // 37 frames of recovery (+1 on hit)
+			"standing_counter_hit_move": "standing hit",
+			"standing_counter_hit_stun": 38, // 37 frames of recovery (+1 on hit)
+			"standing_block_move": "standing block",
+			"standing_block_stun": 36, // 37 frames of recovery (-1 on block)
+		    },
+		},
+	    ],
+	    // cancels
+	    "cancels": [
+		{
+		    "type": "list",
+		    "to": "standing recovery moves",
+		    "starting_frame": 88, // 37 frames of recovery
+		},
+	    ],
+	},
+	{
 	    "name": "highkick",
 	    "animation": "P2M_Regular_Rig|a_highkick",
 	    // hit
@@ -505,7 +574,7 @@
 	    "animation": "P2M_Regular_Rig|a_standing_left_kick",
 	    // hit
 	    "hit_level": "mid",
-	    "hitbox": 2, // index in list
+	    "hitbox": 3, // index in list
 	    // frame data
 	    "first_active": 14,
 	    "hit_conditions": [
@@ -565,7 +634,7 @@
 	    "animation": "P2M_Regular_Rig|a_standing_left_punch",
 	    // hit
 	    "hit_level": "mid",
-	    "hitbox": 2, // index in list
+	    "hitbox": 1, // index in list
 	    // frame data
 	    "first_active": 14,
 	    "hit_conditions": [
@@ -595,7 +664,7 @@
 	    "animation": "P2M_Regular_Rig|a_standing_right_punch",
 	    // hit
 	    "hit_level": "mid",
-	    "hitbox": 2, // index in list
+	    "hitbox": 0, // index in list
 	    // frame data
 	    "first_active": 15,
 	    "hit_conditions": [
@@ -672,6 +741,40 @@
 
 	// Crouch stance
 	{
+	    "name": "crouching",
+	    "animation": "P2M_Regular_Rig|m_crouching_start",
+	    "cancels": [
+		// You can still do standing attacks! Match attacks with d first
+		{
+		    "type": "list",
+		    "to": "standing attacks",
+		},
+		// keep crouching if d is pressed
+		{
+		    "to": "crouching",
+    		    "type": "continue", // keep the animation frame from the previous move
+		    "motion_input": 14, // db,d,df
+		    "input_window_start": 0,
+		    "input_window_end": 10,
+		},
+		// if we keep pressing d after frame 10, go to full crouch
+		{
+		    "to": "crouch block",
+		    "motion_input": 14, // db,d,df
+		    "input_window_start": 10,
+		    "input_window_end": 999,
+		},
+		// If nothing matched, stand
+	    	{
+		    "to": "standing idle",
+		    "starting_frame": 0,
+		},
+	    ],
+	    "properties": {
+		"allow_crouching": 1,
+	    },
+	},
+	{
 	    "name": "crouch block",
 	    "animation": "P2M_Regular_Rig|hr_crouch_block",
 	    "cancels": [
@@ -716,7 +819,6 @@
 		    "action_input": 2,  // Sum of: LP(1) RP(2) LK(4) RK(8)
 		    "input_window_end": 999,
 		},
-
 		{
 		    "type": "list",
 		    "to": "standing recovery moves",
@@ -741,7 +843,7 @@
 		{
 		    "to": "crouch block",
 		    "motion_input": 14, // d(8)
-		    "hold_duration": 10,
+		    "hold_duration": 10, // hold for 10 frames
 		    "input_window_end": 999,
 		},
 	    	{
@@ -786,6 +888,11 @@
 		    "action_input": 8,  // Sum of: LP(1) RP(2) LK(4) RK(8)
 		    "input_window_end": 999,
 		},
+		{
+		    "to": "three",
+		    "action_input": 4,  // Sum of: LP(1) RP(2) LK(4) RK(8)
+		    "input_window_end": 999,
+		},
 		/*
 		  {
 		  "to": "standing backward dash",
@@ -793,15 +900,52 @@
 		  "hold_duration": 64,
 		  },
 		*/
+		// keep crouching if d is pressed
 		{
-		    "to": "crouch block",
+		    "to": "crouching",
 		    "motion_input": 14, // db,d,df
-		    "hold_duration": 10,
-		    "input_window_end": 999,
 		},
 		{
 		    "to": "standing idle",
 		    "condition": "eoa",
+		},
+	    ]
+	},
+	{
+	    "name": "standing attacks",
+	    "cancels": [
+		{
+		    "to": "midpunch",
+		    "motion_input": 8, // df
+		    "action_input": 1,  // Sum of: LP(1) RP(2) LK(4) RK(8)
+		    "input_window_end": 999,
+		},
+		{
+		    "to": "jab",
+		    "action_input": 1,  // Sum of: LP(1) RP(2) LK(4) RK(8)
+		    "input_window_end": 999,
+		},
+		{
+		    "to": "two",
+		    "action_input": 2,  // Sum of: LP(1) RP(2) LK(4) RK(8)
+		    "input_window_end": 999,
+		},
+		{
+		    "to": "steelpedal",
+		    "motion_input": 16, // b(2)
+		    "action_input": 8,  // Sum of: LP(1) RP(2) LK(4) RK(8)
+		    "input_window_end": 999,
+		},
+		{
+		    "to": "lowkick",
+		    "motion_input": 14, // d(8)
+		    "action_input": 8,  // Sum of: LP(1) RP(2) LK(4) RK(8)
+		    "input_window_end": 999,
+		},
+		{
+		    "to": "highkick",
+		    "action_input": 8,  // Sum of: LP(1) RP(2) LK(4) RK(8)
+		    "input_window_end": 999,
 		},
 	    ]
 	},
