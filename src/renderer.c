@@ -414,6 +414,17 @@ void renderer_register_skeletal_mesh_instance(Renderer *renderer, struct Skeleta
 
 void renderer_clear_skeletal_mesh_instances(Renderer *renderer)
 {
+	for (uint32_t iinstance = 0; iinstance < ARRAY_LENGTH(renderer->skeletal_mesh_instances); ++iinstance) {
+		bool is_valid = renderer->skeletal_mesh_instances[iinstance].mesh != NULL;
+		if (is_valid) {
+			oa_free(&renderer->mesh_vbuffer_allocator, &renderer->mesh_instances[iinstance].vbuffer_allocation);
+		}
+	}
+
+	memset(renderer->mesh_instances, 0, sizeof(renderer->mesh_instances));
+	memset(renderer->skeletal_mesh_instances, 0, sizeof(renderer->skeletal_mesh_instances));
+
+
 	renderer->mesh_instances_length = 0;
 }
 
