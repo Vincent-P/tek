@@ -181,6 +181,7 @@ struct tek_Move
 	// frame data
 	uint8_t first_active;
 	uint8_t last_active;
+	uint8_t recovery;
 	// cancels
 	struct tek_Cancel cancels[MAX_CANCELS_PER_MOVE];
 	uint32_t cancels_length;
@@ -198,12 +199,12 @@ struct tek_HitReactions
 	uint32_t standing_block_move;
 	uint32_t crouch_move;
 	uint32_t crouch_block_move;
-	// number of stun frames for each move
-	uint8_t standing_stun;
-	uint8_t standing_counter_hit_stun;
-	uint8_t standing_block_stun;
-	uint8_t crouch_stun;
-	uint8_t crouch_block_stun;
+	// number of stun frames (relative to recovery of attack) for each move
+	int8_t standing_stun;
+	int8_t standing_counter_hit_stun;
+	int8_t standing_block_stun;
+	int8_t crouch_stun;
+	int8_t crouch_block_stun;
 };
 
 struct tek_DebugName

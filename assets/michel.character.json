@@ -180,17 +180,18 @@
 	    "hitbox": 1, // index in list
 	    // frame data
 	    "first_active": 10,
+	    "recovery": 25,
 	    "hit_conditions": [
 		{
 		    "requirements": "none",
 		    "damage": 10,
 		    "reaction": {
 			"standing_move": "standing hit",
-			"standing_stun": 33, // 25 frames of recovery (+8 on hit)
+			"standing_stun": 8,
 			"standing_counter_hit_move": "standing hit",
-			"standing_counter_hit_stun": 33, // 25 frames of recovery (+8 on hit)
+			"standing_counter_hit_stun": 8,
 			"standing_block_move": "standing block",
-			"standing_block_stun": 26, // 25 frames of recovery (+1 on block)
+			"standing_block_stun": -1,
 		    },
 		},
 	    ],
@@ -218,17 +219,18 @@
 	    "hitbox": 1, // index in list
 	    // frame data
 	    "first_active": 25,
+	    "recovery": 27,
 	    "hit_conditions": [
 		{
 		    "requirements": "none",
 		    "damage": 10,
 		    "reaction": {
 			"standing_move": "standing hit",
-			"standing_stun": 35, // 27 frames of recovery (+8 on hit)
+			"standing_stun": 8,
 			"standing_counter_hit_move": "standing hit",
-			"standing_counter_hit_stun": 35, // 27 frames of recovery (+8 on hit)
+			"standing_counter_hit_stun": 8,
 			"standing_block_move": "standing block",
-			"standing_block_stun": 26, // 27 frames of recovery (-1 on block)
+			"standing_block_stun": -1,
 		    },
 		},
 	    ],
@@ -256,17 +258,18 @@
 	    "hitbox": 0, // index in list
 	    // frame data
 	    "first_active": 49,
+	    "recovery": 46,
 	    "hit_conditions": [
 		{
 		    "requirements": "none",
 		    "damage": 10,
 		    "reaction": {
 			"standing_move": "standing hit",
-			"standing_stun": 66, // 46 frames of recovery (+20 on hit)
+			"standing_stun": 20,
 			"standing_counter_hit_move": "standing hit",
-			"standing_counter_hit_stun": 66, // 46 frames of recovery (+20 on hit)
+			"standing_counter_hit_stun": 20,
 			"standing_block_move": "standing block",
-			"standing_block_stun": 26, // 46 frames of recovery (-20 on block)
+			"standing_block_stun": -20,
 		    },
 		},
 	    ],
@@ -287,17 +290,18 @@
 	    "hitbox": 0, // index in list
 	    // frame data
 	    "first_active": 10,
+	    "recovery": 20,
 	    "hit_conditions": [
 		{
 		    "requirements": "none",
 		    "damage": 10,
 		    "reaction": {
 			"standing_move": "standing hit",
-			"standing_stun": 32, // 20 frames of recovery (+6 on hit)
+			"standing_stun": 6,
 			"standing_counter_hit_move": "standing hit",
-			"standing_counter_hit_stun": 32, // 20 frames of recovery (+6 on hit)
+			"standing_counter_hit_stun": 6,
 			"standing_block_move": "standing block",
-			"standing_block_stun": 26, // 26 frames of recovery (+0 on block)
+			"standing_block_stun": 0,
 		    },
 		},
 	    ],
@@ -325,17 +329,18 @@
 	    "hitbox": 1, // index in list
 	    // frame data
 	    "first_active": 26,
+	    "recovery": 31,
 	    "hit_conditions": [
 		{
 		    "requirements": "none",
 		    "damage": 10,
 		    "reaction": {
 			"standing_move": "standing hit",
-			"standing_stun": 33, // 31 frames of recovery (+2 on hit)
+			"standing_stun": 2,
 			"standing_counter_hit_move": "standing hit",
-			"standing_counter_hit_stun": 33, // 31 frames of recovery (+2 on hit)
+			"standing_counter_hit_stun": 2,
 			"standing_block_move": "standing block",
-			"standing_block_stun": 27, // 31 frames of recovery (-4 on block)
+			"standing_block_stun": -4,
 		    },
 		},
 	    ],
@@ -356,17 +361,18 @@
 	    "hitbox": 1, // index in list
 	    // frame data
 	    "first_active": 13,
+	    "recovery": 37,
 	    "hit_conditions": [
 		{
 		    "requirements": "none",
 		    "damage": 10,
 		    "reaction": {
 			"standing_move": "standing hit",
-			"standing_stun": 42, // 37 frames of recovery (+5 on hit)
+			"standing_stun": 5,
 			"standing_counter_hit_move": "standing hit",
-			"standing_counter_hit_stun": 42, // 37 frames of recovery (+5 on hit)
+			"standing_counter_hit_stun": 5,
 			"standing_block_move": "standing block",
-			"standing_block_stun": 36, // 37 frames of recovery (-1 on block)
+			"standing_block_stun": -1,
 		    },
 		},
 	    ],
@@ -386,17 +392,18 @@
 	    "hitbox": 3, // index in list
 	    // frame data
 	    "first_active": 13,
+	    "recovery": 32,
 	    "hit_conditions": [
 		{
 		    "requirements": "none",
 		    "damage": 10,
 		    "reaction": {
 			"standing_move": "standing hit",
-			"standing_stun": 33, // 32 frames of recovery (+1 on hit)
+			"standing_stun": 1,
 			"standing_counter_hit_move": "standing hit",
-			"standing_counter_hit_stun": 33, // 32 frames of recovery (+1 on hit)
+			"standing_counter_hit_stun": 1,
 			"standing_block_move": "standing block",
-			"standing_block_stun": 23, // 32 frames of recovery (-9 on block)
+			"standing_block_stun": -9,
 		    },
 		},
 	    ],
@@ -424,17 +431,18 @@
 	    "hitbox": 3, // index in list
 	    // frame data
 	    "first_active": 51,
+	    "recovery": 37,
 	    "hit_conditions": [
 		{
 		    "requirements": "none",
 		    "damage": 10,
 		    "reaction": {
 			"standing_move": "standing hit",
-			"standing_stun": 38, // 37 frames of recovery (+1 on hit)
+			"standing_stun": 1,
 			"standing_counter_hit_move": "standing hit",
-			"standing_counter_hit_stun": 38, // 37 frames of recovery (+1 on hit)
+			"standing_counter_hit_stun": 1,
 			"standing_block_move": "standing block",
-			"standing_block_stun": 36, // 37 frames of recovery (-1 on block)
+			"standing_block_stun": -1,
 		    },
 		},
 	    ],
@@ -455,17 +463,18 @@
 	    "hitbox": 2, // index in list
 	    // frame data
 	    "first_active": 12,
+	    "recovery": 38,
 	    "hit_conditions": [
 		{
 		    "requirements": "none",
 		    "damage": 10,
 		    "reaction": {
 			"standing_move": "standing hit",
-			"standing_stun": 39, // 38 frames of recovery (+1 on hit)
+			"standing_stun": 1,
 			"standing_counter_hit_move": "standing hit",
-			"standing_counter_hit_stun": 39, // 38 frames of recovery (+1 on hit)
+			"standing_counter_hit_stun": 1,
 			"standing_block_move": "standing block",
-			"standing_block_stun": 30, // 38 frames of recovery (-8 on block)
+			"standing_block_stun": -8,
 		    },
 		},
 	    ],
@@ -486,17 +495,18 @@
 	    // frame data
 	    "first_active": 17,
 	    "last_active": 19,
+	    "recovery": 30,
 	    "hit_conditions": [
 		{
 		    "requirements": "none",
 		    "damage": 10,
 		    "reaction": {
 			"standing_move": "standing hit",
-			"standing_stun": 34, // 30 frames of recovery (+4 on hit)
+			"standing_stun": 4,
 			"standing_counter_hit_move": "standing hit",
-			"standing_counter_hit_stun": 34, // 30 frames of recovery (+4 on hit)
+			"standing_counter_hit_stun": 4,
 			"standing_block_move": "standing block",
-			"standing_block_stun": 15, // 30 frames of recovery (-15 on block)
+			"standing_block_stun": -15,
 		    },
 		},
 	    ],
@@ -517,17 +527,18 @@
 	    // frame data
 	    "first_active": 15,
 	    "last_active": 17,
+	    "recovery": 20,
 	    "hit_conditions": [
 		{
 		    "requirements": "none",
 		    "damage": 10,
 		    "reaction": {
 			"standing_move": "standing hit",
-			"standing_stun": 28, // 20 frames of recovery (+1 on hit)
+			"standing_stun": 1,
 			"standing_counter_hit_move": "standing hit",
-			"standing_counter_hit_stun": 28, // 20 frames of recovery (+8 on hit)
+			"standing_counter_hit_stun": 1,
 			"standing_block_move": "standing block",
-			"standing_block_stun": 21, // 20 frames of recovery (+1 on block)
+			"standing_block_stun": -1,
 		    },
 		},
 	    ],
@@ -547,6 +558,7 @@
 	    "hitbox": 2, // index in list
 	    // frame data
 	    "first_active": 20,
+	    "recovery": 30,
 	    "hit_conditions": [
 		{
 		    "requirements": "none",
@@ -577,17 +589,18 @@
 	    "hitbox": 3, // index in list
 	    // frame data
 	    "first_active": 14,
+	    "recovery": 30,
 	    "hit_conditions": [
 		{
 		    "requirements": "none",
 		    "damage": 10,
 		    "reaction": {
 			"standing_move": "standing hit",
-			"standing_stun": 40, // 30 frames of recovery (+10 on hit)
+			"standing_stun": 10,
 			"standing_counter_hit_move": "standing hit",
-			"standing_counter_hit_stun": 40, // 30 frames of recovery (+10 on hit)
+			"standing_counter_hit_stun": 10,
 			"standing_block_move": "standing block",
-			"standing_block_stun": 15, // 30 frames of recovery (-15 on block)
+			"standing_block_stun": -15,
 		    },
 		},
 	    ],
@@ -607,17 +620,18 @@
 	    "hitbox": 2, // index in list
 	    // frame data
 	    "first_active": 11,
+	    "recovery": 30,
 	    "hit_conditions": [
 		{
 		    "requirements": "none",
 		    "damage": 10,
 		    "reaction": {
 			"standing_move": "standing hit",
-			"standing_stun": 35, // 30 frames of recovery (+5 on hit)
+			"standing_stun": 5,
 			"standing_counter_hit_move": "standing hit",
-			"standing_counter_hit_stun": 35, // 30 frames of recovery (+5 on hit)
+			"standing_counter_hit_stun": 5,
 			"standing_block_move": "standing block",
-			"standing_block_stun": 25, // 30 frames of recovery (-5 on block)
+			"standing_block_stun": -5,
 		    },
 		},
 	    ],
@@ -637,17 +651,18 @@
 	    "hitbox": 1, // index in list
 	    // frame data
 	    "first_active": 14,
+	    "recovery": 37,
 	    "hit_conditions": [
 		{
 		    "requirements": "none",
 		    "damage": 10,
 		    "reaction": {
 			"standing_move": "standing hit",
-			"standing_stun": 42, // 37 frames of recovery (+5 on hit)
+			"standing_stun": 5,
 			"standing_counter_hit_move": "standing hit",
-			"standing_counter_hit_stun": 42, // 37 frames of recovery (+5 on hit)
+			"standing_counter_hit_stun": 5,
 			"standing_block_move": "standing block",
-			"standing_block_stun": 36, // 37 frames of recovery (-1 on block)
+			"standing_block_stun": -1,
 		    },
 		},
 	    ],
@@ -667,17 +682,18 @@
 	    "hitbox": 0, // index in list
 	    // frame data
 	    "first_active": 15,
+	    "recovery": 45,
 	    "hit_conditions": [
 		{
 		    "requirements": "none",
 		    "damage": 10,
 		    "reaction": {
 			"standing_move": "standing hit",
-			"standing_stun": 55, // 45 frames of recovery (+10 on hit)
+			"standing_stun": 10,
 			"standing_counter_hit_move": "standing hit",
-			"standing_counter_hit_stun": 55, // 45 frames of recovery (+10 on hit)
+			"standing_counter_hit_stun": 10,
 			"standing_block_move": "standing block",
-			"standing_block_stun": 25, // 45 frames of recovery (-20 on block)
+			"standing_block_stun": -20,
 		    },
 		},
 	    ],

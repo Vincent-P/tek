@@ -65,6 +65,22 @@ bool json_object_get_u8(struct json_object_element_s *it, const char *field_name
 	return false;
 }
 
+bool json_object_get_i8(struct json_object_element_s *it, const char *field_name, int8_t *i8)
+{
+	if (strcmp(it->name->string, field_name) == 0) {
+		struct json_number_s *n = json_value_as_number(it->value);
+		if (n != NULL) {
+			int value = atol(n->number);
+			*i8 = (int8_t)value;
+#if defined(TEK_DEBUG_PRINT_JSON)
+			fprintf(stderr, "[json] read i8 %s = %u\n", field_name, (int32_t)*i8);
+#endif
+			return true;
+		}
+	}
+	return false;
+}
+
 bool json_object_get_u16(struct json_object_element_s *it, const char *field_name, uint16_t *u16)
 {
 	if (strcmp(it->name->string, field_name) == 0) {
@@ -112,7 +128,7 @@ bool json_object_get_float(struct json_object_element_s *it, const char *field_n
 	return false;
 }
 
-static uint8_t tek_read_json_hit_reaction(struct tek_Character *character, struct json_object_s *obj)
+static uint8_t tek_read_json_hit_reaction(struct tek_Character *character, struct tek_Move *parent_move, struct json_object_s *obj)
 {
 	if (obj == NULL) {
 		return 255;
@@ -127,12 +143,18 @@ static uint8_t tek_read_json_hit_reaction(struct tek_Character *character, struc
 		json_object_get_string_id(it, "crouch_move", &reactions.crouch_move);
 		json_object_get_string_id(it, "crouch_block_move", &reactions.crouch_block_move);
 
-		json_object_get_u8(it, "standing_stun", &reactions.standing_stun);
-		json_object_get_u8(it, "standing_counter_hit_stun", &reactions.standing_counter_hit_stun);
-		json_object_get_u8(it, "standing_block_stun", &reactions.standing_block_stun);
-		json_object_get_u8(it, "crouch_stun", &reactions.crouch_stun);
-		json_object_get_u8(it, "crouch_block_stun", &reactions.crouch_block_stun);
+		json_object_get_i8(it, "standing_stun", &reactions.standing_stun);
+		json_object_get_i8(it, "standing_counter_hit_stun", &reactions.standing_counter_hit_stun);
+		json_object_get_i8(it, "standing_block_stun", &reactions.standing_block_stun);
+		json_object_get_i8(it, "crouch_stun", &reactions.crouch_stun);
+		json_object_get_i8(it, "crouch_block_stun", &reactions.crouch_block_stun);
 	}
+
+	reactions.standing_stun += (int8_t)parent_move->recovery;
+	reactions.standing_counter_hit_stun += (int8_t)parent_move->recovery;
+	reactions.standing_block_stun += (int8_t)parent_move->recovery;
+	reactions.crouch_stun += (int8_t)parent_move->recovery;
+	reactions.crouch_block_stun += (int8_t)parent_move->recovery;
 
 	uint32_t i = character->hit_reactions_length;
 	assert(i < ARRAY_LENGTH(character->hit_reactions));
@@ -141,7 +163,7 @@ static uint8_t tek_read_json_hit_reaction(struct tek_Character *character, struc
 	return (uint8_t)i;
 }
 
-static struct tek_HitCondition tek_read_hit_condition(struct tek_Character *character, struct json_object_s *hit_condition_obj)
+static struct tek_HitCondition tek_read_hit_condition(struct tek_Character *character, struct tek_Move *parent_move, struct json_object_s *hit_condition_obj)
 {
 	struct tek_HitCondition hit_condition = {0};
 	if (hit_condition_obj == NULL) {
@@ -152,7 +174,7 @@ static struct tek_HitCondition tek_read_hit_condition(struct tek_Character *char
 		json_object_get_u8(it, "damage", &hit_condition.damage);
 		if (strcmp(it->name->string, "reaction") == 0) {
 			struct json_object_s *reaction_obj = json_value_as_object(it->value);
-			hit_condition.ireactions = tek_read_json_hit_reaction(character, reaction_obj);
+			hit_condition.ireactions = tek_read_json_hit_reaction(character, parent_move, reaction_obj);
 		}
 	}
 
@@ -160,7 +182,7 @@ static struct tek_HitCondition tek_read_hit_condition(struct tek_Character *char
 }
 
 static void tek_read_json_move_hit_conditions(struct tek_Character *character,
-					      struct tek_Move *move,
+					      struct tek_Move *parent_move,
 					      struct json_array_s *hit_conditions_array)
 {
 	if (hit_conditions_array == NULL) {
@@ -174,11 +196,11 @@ static void tek_read_json_move_hit_conditions(struct tek_Character *character,
 			continue;
 		}
 
-		move->hit_conditions[hit_condition_index] = tek_read_hit_condition(character, hit_condition_obj);
+		parent_move->hit_conditions[hit_condition_index] = tek_read_hit_condition(character, parent_move, hit_condition_obj);
 		hit_condition_index++;
 	}
-	move->hit_conditions_length = hit_condition_index;
-	assert(move->hit_conditions_length <= ARRAY_LENGTH(move->hit_conditions));
+	parent_move->hit_conditions_length = hit_condition_index;
+	assert(parent_move->hit_conditions_length <= ARRAY_LENGTH(parent_move->hit_conditions));
 }
 
 static struct tek_Cancel tek_read_cancel(struct json_object_s *cancel_obj)
@@ -288,6 +310,7 @@ static void tek_read_json_move(struct tek_Character *character, struct json_obje
 			// If we don't have a "last_active" field, assume the move is active for 1 frame.
 			move.last_active = move.first_active;
 		}
+		json_object_get_u8(it, "recovery", &move.recovery);
 
 		if (strcmp(it->name->string, "hit_conditions") == 0) {
 			hit_conditions = json_value_as_array(it->value);
