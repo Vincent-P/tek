@@ -160,9 +160,9 @@ vec3 MotionBlur(vec2 screen_uv)
 {
     vec3 hdr = texture(global_textures[HDR_RESOLVED_TEXTURE], screen_uv).rgb;
     vec2 velocity = texture(global_textures[MOTION_VECTORS_TEXTURE], screen_uv).rg;
-    velocity *= 8;
+    velocity *= 2;
 
-    int nSamples = 16;
+    int nSamples = 4;
     for (int i = 1; i < nSamples; ++i) {
         vec2 offset = velocity * (float(i) / float(nSamples - 1) - 0.5);
 	hdr += texture(global_textures[HDR_RESOLVED_TEXTURE], screen_uv + offset).rgb;
