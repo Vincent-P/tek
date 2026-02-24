@@ -12,7 +12,7 @@
 
 // -- Device
 #define FRAME_COUNT 2
-#define ENABLE_VALIDATION
+//#define ENABLE_VALIDATION
 #define MAIN_MEMORY_SIZE (128 << 20)
 #define RT_MEMORY_SIZE (1 << 30)
 #define MEMORY_ALIGNMENT (256 << 10) // 64K not enough for depth rt ?? -> 256K needed for MSAA
@@ -865,6 +865,7 @@ void new_render_target(VulkanDevice *device, const char* name, uint32_t handle, 
 	res = vkCreateImageView(device->device, &view_info, NULL, &image_view);
 
 	// debug name
+#if defined(ENABLE_VALIDATION)
 	if (device->my_vkSetDebugUtilsObjectNameEXT) {
 		VkDebugUtilsObjectNameInfoEXT name_info = {.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT};
 		name_info.objectType = VK_OBJECT_TYPE_IMAGE;
@@ -876,6 +877,7 @@ void new_render_target(VulkanDevice *device, const char* name, uint32_t handle, 
 		name_info.objectHandle = (uint64_t)image_view;
 		device->my_vkSetDebugUtilsObjectNameEXT(device->device, &name_info);
 	}
+#endif
 
 	device->rts[handle].allocation = allocation;
 	device->rts[handle].debug_name = name;
@@ -953,6 +955,7 @@ void new_texture(VulkanDevice *device, const char* name, uint32_t handle, uint32
 	res = vkCreateImageView(device->device, &view_info, NULL, &image_view);
 
 	// debug name
+#if defined(ENABLE_VALIDATION)
 	if (device->my_vkSetDebugUtilsObjectNameEXT) {
 		VkDebugUtilsObjectNameInfoEXT name_info = {.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT};
 		name_info.objectType = VK_OBJECT_TYPE_IMAGE;
@@ -964,6 +967,7 @@ void new_texture(VulkanDevice *device, const char* name, uint32_t handle, uint32
 		name_info.objectHandle = (uint64_t)image_view;
 		device->my_vkSetDebugUtilsObjectNameEXT(device->device, &name_info);
 	}
+#endif
 
 	device->textures[handle].allocation = allocation;
 	device->textures[handle].debug_name = name;
