@@ -299,8 +299,8 @@ static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel can
 			uint32_t needle = (1u << current_input.motion);
 			match_dir = match_dir && ((cancel.command.fields.motion == TEK_MOTION_INPUT_ANY) || ((needle & cancel.command.fields.motion) != 0));
 
-			match_action = match_action && (current_input.actions & cancel.command.fields.action.not_held) == 0;
-			match_action = match_action && (current_input.actions & cancel.command.fields.action.pressed) == cancel.command.fields.action.pressed;
+			match_action = match_action && ((current_input.actions & cancel.command.fields.action.not_held) == 0);
+			match_action = match_action && ((current_input.actions & cancel.command.fields.action.pressed) == cancel.command.fields.action.pressed);
 		}
 	}
 
