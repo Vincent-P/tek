@@ -52,7 +52,7 @@ static const char* _get_action_label(struct BattleInput input)
 		"RP+LK+RK",
 		"LP+RP+LK+RK",
 	};
-	assert(input.actions <= ARRAY_LENGTH(ACTIONS_LABELS));
+	assert(input.actions < ARRAY_LENGTH(ACTIONS_LABELS));
 	return ACTIONS_LABELS[input.actions];
 }
 
@@ -288,7 +288,9 @@ static bool match_cancel(struct TekPlayerComponent player, struct tek_Cancel can
 	/** Input checks: **/
 	bool match_dir = true;
 	bool match_action = true;
-	if (player.input_buffer_head < cancel.command.fields.hold_duration || cancel.command.fields.hold_duration > INPUT_BUFFER_SIZE) {
+	bool has_enough_inputs = player.input_buffer_head >= cancel.command.fields.hold_duration;
+	bool is_larger_than_buffer = cancel.command.fields.hold_duration > INPUT_BUFFER_SIZE;
+	if (!has_enough_inputs || is_larger_than_buffer) {
 		match_dir = false;
 		match_action = false;
 	} else {
@@ -324,7 +326,7 @@ static void player_translate_world(uint32_t iplayer, struct PlayerEntity **playe
 
 			float distance = float3_distance(target_position, other_position);
 			float dd = distance - (player_radius + other_radius);
-			if (dd < 0 && dd > closest_distance) {
+			if (dd < 0 && dd >= closest_distance) {
 				found_col = true;
 				closest_position = other_position;
 				closest_distance = dd;
@@ -372,8 +374,6 @@ static void _evaluate_hit_conditions(struct PlayerEntity *p1, struct PlayerEntit
 					bool inside_hor = hor_distance <= (hit_radius + hurt_radius);
 					bool inside = is_valid & inside_vert & inside_hor;
 					if (inside) {
-						printf("HIIIIIIIIIIIIIIIIIIT hurtbox[%u] distance: %fx%f\n", ihurtbox, hor_distance, vert_distance);
-
 						struct tek_HitCondition hit_condition = current_move->hit_conditions[0];
 						struct tek_HitReactions *hit_reaction = c1->hit_reactions + hit_condition.ireactions;
 
@@ -674,7 +674,7 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 	// someone won a round?
 	if (players[0]->tek.hp <= 0) {
 		// TODO: outro, now we wait 60 frames to finish
-		if (players[0]->animation.frame > 60) {
+		if (players[0]->animation.frame >= 60) {
 			nonstate->rounds_p2_won += 1;
 			battle_state_new_round(ctx);
 		}
@@ -685,7 +685,7 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 	}
 	if (players[1]->tek.hp <= 0) {
 		// TODO: outro, now we wait 60 frames to finish
-		if (players[1]->animation.frame > 60) {
+		if (players[1]->animation.frame >= 60) {
 			nonstate->rounds_p1_won += 1;
 			battle_state_new_round(ctx);
 		}
