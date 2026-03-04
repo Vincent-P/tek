@@ -28,11 +28,14 @@ bool inputs_process_event(SDL_Event *event, struct Inputs *inputs)
 	if (event->type == SDL_EVENT_GAMEPAD_ADDED) {
 		SDL_JoystickID gamepad_id = event->gdevice.which;
 		SDL_Gamepad *gamepad = SDL_OpenGamepad(gamepad_id);
+		inputs->gamepads[0] = gamepad;
 
 		printf("[inputs] gamepad added %x\n", gamepad_id);
 	} else if (event->type == SDL_EVENT_GAMEPAD_REMOVED) {
 		SDL_JoystickID gamepad_id = event->gdevice.which;
 		printf("[inputs] gamepad removed %x\n", gamepad_id);
+
+		inputs->gamepads[0] = NULL;
 	} else if (event->type == SDL_EVENT_GAMEPAD_REMAPPED) {
 		SDL_JoystickID gamepad_id = event->gdevice.which;
 		printf("[inputs] gamepad remapped %x\n", gamepad_id);
@@ -47,7 +50,7 @@ bool inputs_process_event(SDL_Event *event, struct Inputs *inputs)
 		inputs->buttons_transitions_count[X] += 1;	\
 		inputs->buttons_ended_down[X] = is_button_down; \
 	}
-	
+
 	if (is_button_up || is_button_down) {
 		if (event->key.scancode == SDL_SCANCODE_W) {
 			UPDATE_BUTTON(InputButtons_W);
@@ -101,7 +104,7 @@ void inputs_begin_frame(struct Inputs *inputs)
 	for (uint32_t ibutton = 0; ibutton < InputButtons_Count; ++ibutton) {
 		inputs->buttons_is_down[ibutton] = inputs->buttons_ended_down[ibutton];
 		inputs->buttons_was_pressed[ibutton] = inputs->buttons_ended_down[ibutton] && (inputs->buttons_transitions_count[ibutton] % 2 == 1);
-		
+
 		inputs->buttons_transitions_count[ibutton] = 0;
 	}
 }
@@ -110,7 +113,7 @@ void inputs_imgui(struct Inputs *inputs)
 {
 	for (uint32_t ibutton = 0; ibutton < InputButtons_Count; ++ibutton) {
 		ImGui_Text("%s transitions: %u", InputButtons_str[ibutton], inputs->buttons_transitions_count[ibutton]);
-		
+
 		ImGui_Text("%s %s", InputButtons_str[ibutton], inputs->buttons_is_down[ibutton] ? "down" : "up");
 		ImGui_Text("%s %s", InputButtons_str[ibutton], inputs->buttons_was_pressed[ibutton] ? "pressed" : "not pressed");
 	}

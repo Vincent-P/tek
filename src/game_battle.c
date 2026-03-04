@@ -155,6 +155,33 @@ struct BattleInputs battle_read_input(struct Inputs const *inputs)
 		p2_raw |= BATTLE_INPUT_RKICK;
 	}
 
+	// Add left stick directional input (works alongside D-pad)
+	// SDL gamepad axes are typically -1.0 to 1.0, with 0 being center
+	// Deadzone threshold to prevent drift
+	float stick_deadzone = 2.0f;
+	if (inputs->gamepads[0]) {
+		float left_stick_x = SDL_GetGamepadAxis(inputs->gamepads[0], SDL_GAMEPAD_AXIS_LEFTX);
+		float left_stick_y = SDL_GetGamepadAxis(inputs->gamepads[0], SDL_GAMEPAD_AXIS_LEFTY);
+
+		printf("[inputs] gamepad left stick %f x %f\n", left_stick_x, left_stick_y);
+
+		if (-stick_deadzone < left_stick_y && left_stick_y < stick_deadzone) {
+			// NONE
+		} else if (left_stick_y < 0.0f) {
+			p2_raw |= BATTLE_INPUT_UP;
+		} else if (left_stick_y > 0.0f) {
+			p2_raw |= BATTLE_INPUT_DOWN;
+		}
+
+		if (-stick_deadzone < left_stick_x && left_stick_x < stick_deadzone) {
+			// NONE
+		} else if (left_stick_x < 0.0f) {
+			p2_raw |= BATTLE_INPUT_FORWARD;
+		} else if (left_stick_x > 0.0f) {
+			p2_raw |= BATTLE_INPUT_BACK;
+		}
+	}
+
 	struct BattleInputs input = {0};
 	input.player1 = _battle_input_from_raw(p1_raw);
 	input.player2 = _battle_input_from_raw(p2_raw);
