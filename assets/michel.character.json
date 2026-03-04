@@ -126,7 +126,7 @@
 	},
 	{
 	    "name": "standing walk backward",
-	    "animation": "P2M_Regular_Rig|m_walk_backward_loop.003",
+	    "animation": "P2M_Regular_Rig|m_walk_backward_loop.001_slow",
 	    // "animation": "P2M_Regular_Rig|walk_backward_loop",
 	    "cancels": [
 		// can cancel to crouch
@@ -180,7 +180,7 @@
 	    "hitbox": 1, // index in list
 	    // frame data
 	    "first_active": 10,
-	    "recovery": 25,
+	    "recovery": 19,
 	    "hit_conditions": [
 		{
 		    "requirements": "none",
@@ -207,7 +207,6 @@
 		{
 		    "type": "list",
 		    "to": "standing recovery moves",
-		    "starting_frame": 25, // 25 frames of recovery
 		},
 	    ],
 	},
@@ -219,7 +218,7 @@
 	    "hitbox": 1, // index in list
 	    // frame data
 	    "first_active": 25,
-	    "recovery": 27,
+	    "recovery": 19,
 	    "hit_conditions": [
 		{
 		    "requirements": "none",
@@ -246,7 +245,6 @@
 		{
 		    "type": "list",
 		    "to": "standing recovery moves",
-		    "starting_frame": 52, // 27 frames of recovery
 		},
 	    ],
 	},
@@ -257,17 +255,17 @@
 	    "hit_level": "mid",
 	    "hitbox": 0, // index in list
 	    // frame data
-	    "first_active": 49,
-	    "recovery": 46,
+	    "first_active": 44,
+	    "recovery": 36,
 	    "hit_conditions": [
 		{
 		    "requirements": "none",
 		    "damage": 10,
 		    "reaction": {
 			"standing_move": "standing hit",
-			"standing_stun": 20,
+			"standing_stun": 9,
 			"standing_counter_hit_move": "standing hit",
-			"standing_counter_hit_stun": 20,
+			"standing_counter_hit_stun": 9,
 			"standing_block_move": "standing block",
 			"standing_block_stun": -20,
 		    },
@@ -278,7 +276,6 @@
 		{
 		    "type": "list",
 		    "to": "standing recovery moves",
-		    "starting_frame": 95, // 46 frames of recovery
 		},
 	    ],
 	},
@@ -317,7 +314,6 @@
 		{
 		    "type": "list",
 		    "to": "standing recovery moves",
-		    "starting_frame": 36, // 26 frames of recovery
 		},
 	    ],
 	},
@@ -349,7 +345,6 @@
 		{
 		    "type": "list",
 		    "to": "standing recovery moves",
-		    "starting_frame": 67, // 31 frames of recovery
 		},
 	    ],
 	},
@@ -361,7 +356,7 @@
 	    "hitbox": 1, // index in list
 	    // frame data
 	    "first_active": 13,
-	    "recovery": 37,
+	    "recovery": 20,
 	    "hit_conditions": [
 		{
 		    "requirements": "none",
@@ -419,7 +414,6 @@
 		{
 		    "type": "list",
 		    "to": "standing recovery moves",
-		    "starting_frame": 45, // 32 frames of recovery
 		},
 	    ],
 	},
@@ -451,7 +445,6 @@
 		{
 		    "type": "list",
 		    "to": "standing recovery moves",
-		    "starting_frame": 88, // 37 frames of recovery
 		},
 	    ],
 	},
