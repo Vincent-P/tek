@@ -47,6 +47,7 @@ struct SkeletalMeshInstanceData
 	// dynamic
 	struct SkeletalMeshInstance const *dynamic_data_mesh;
 	struct SpatialComponent const *dynamic_data_spatial;
+	struct TekPlayerComponent const *dynamic_data_tek;
 };
 
 struct RendererTextureUpload

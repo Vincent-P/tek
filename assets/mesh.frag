@@ -1,5 +1,6 @@
 #version 450
 #extension GL_EXT_buffer_reference : require
+#extension GL_EXT_shader_explicit_arithmetic_types : require
 #extension GL_EXT_scalar_block_layout : enable
 
 #include "hash.h"
@@ -27,12 +28,18 @@ layout(scalar, push_constant) uniform uPushConstant {
     mat4x3 view;
     mat4x3 invview;
     IBLData ibl_buffer;
+    uint64_t instances_buffer;
+    uint64_t positions_vbuffer;
+    uint64_t last_positions_vbuffer;
+    uint64_t normals_vbuffer;
+    uint32_t instance_colors[2];
 } c_;
 
 layout(location = 0) in struct {
 	vec3 normal;
 	vec3 worldpos;
 } g_in;
+layout(location = 2) in flat uint32_t in_instance_index;
 
 layout(location = 0) out vec4 outColor;
 void main()
@@ -42,8 +49,11 @@ void main()
 	vec3 normal = g_in.normal;
 	vec3 r = reflect(-view, normal);
 
+	vec4 instance_color = unpackUnorm4x8(c_.instance_colors[in_instance_index]);
+	instance_color.a = 0.5;
+
 	brdf_params_t params;
-	params.BaseColor = vec3(0.93);
+	params.BaseColor = (1.0 - instance_color.a) * vec3(0.93) + instance_color.rgb * instance_color.a;
 	params.Metallic = 0.0;
 	params.Roughness = 0.2;
 	params.Reflectance = 0.5;

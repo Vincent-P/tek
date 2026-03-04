@@ -59,12 +59,12 @@ const float SH_CosineA1 = (2.0 * M_PI) / 3.0;
 const float SH_CosineA2 = (0.25 * M_PI);
 
 const float SH_BasisL0 = 1 / (2 * M_SQRTPI);
-const float SH_BasisL1 = sqrt(3) / (2 * M_SQRTPI);
-const float SH_BasisL2_MN2 = sqrt(15) / (2 * M_SQRTPI);
-const float SH_BasisL2_MN1 = sqrt(15) / (2 * M_SQRTPI);
-const float SH_BasisL2_M0 = sqrt(5) / (4 * M_SQRTPI);
-const float SH_BasisL2_M1 = sqrt(15) / (2 * M_SQRTPI);
-const float SH_BasisL2_M2 = sqrt(15) / (4 * M_SQRTPI);
+const float SH_BasisL1 = sqrt(3.0) / (2 * M_SQRTPI);
+const float SH_BasisL2_MN2 = sqrt(15.0) / (2 * M_SQRTPI);
+const float SH_BasisL2_MN1 = sqrt(15.0) / (2 * M_SQRTPI);
+const float SH_BasisL2_M0 = sqrt(5.0) / (4 * M_SQRTPI);
+const float SH_BasisL2_M1 = sqrt(15.0) / (2 * M_SQRTPI);
+const float SH_BasisL2_M2 = sqrt(15.0) / (4 * M_SQRTPI);
 
 // Core SH types containing the coefficients
 const uint SH_L1_NumCoefficients = 4;

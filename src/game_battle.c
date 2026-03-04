@@ -194,6 +194,7 @@ void battle_state_init_player(struct BattleContext *ctx, struct PlayerEntity *p,
 	render_instance_data.mesh = skeletal_mesh;
 	render_instance_data.dynamic_data_mesh = &pn->mesh_instance;
 	render_instance_data.dynamic_data_spatial = &p->spatial;
+	render_instance_data.dynamic_data_tek = &p->tek;
 	renderer_register_skeletal_mesh_instance(ctx->renderer, render_instance_data);
 }
 
@@ -403,27 +404,42 @@ static void _evaluate_hit_conditions(struct PlayerEntity *p1, struct PlayerEntit
 						if (is_crushing) {
 							// nothing happens.
 						} else if (is_blocking) {
+							uint32_t stun_duration = 0;
 							if (current_move->hit_level == TEK_HIT_LEVEL_LOW) {
 								p2->tek.requested_move_id = hit_reaction->crouch_block_move;
+								stun_duration = hit_reaction->crouch_block_stun;
 							} else {
 								p2->tek.requested_move_id = hit_reaction->standing_block_move;
+								stun_duration = hit_reaction->standing_block_stun;
 							}
 
 							p2->tek.pushback_remaining_frames = 3;
 							p2->tek.pushback_strength = 0.1f;
+
+							p2->tek.status = CHARACTER_STATUS_BLOCKSTUN;
+							p2->tek.status_remaining = stun_duration;
 						} else {
 							p2->tek.hp -= hit_condition.damage;
+
+							uint32_t stun_duration = 0;
 							if (current_move->hit_level == TEK_HIT_LEVEL_LOW) {
 								p2->tek.requested_move_id = hit_reaction->crouch_move;
+								stun_duration = hit_reaction->crouch_stun;
 							} else {
 								p2->tek.requested_move_id = hit_reaction->standing_move;
+								stun_duration = hit_reaction->standing_stun;
 							}
+							p2->tek.status = CHARACTER_STATUS_HITSTUN;
+							p2->tek.status_remaining = stun_duration;
 						}
 
 						if (p2->tek.hp <= 0) {
 							p2->tek.requested_move_id = TEK_MOVE_DEATH_ID;
 						}
 					}
+					// Set attacker to recovery
+					p1->tek.status = CHARACTER_STATUS_RECOVERY;
+					p1->tek.status_remaining = current_move->recovery;
 				}
 			}
 
@@ -471,6 +487,15 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 		}
 	}
 
+	// Apply status decay
+	for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
+		if (players[iplayer]->tek.status_remaining > 0) {
+			players[iplayer]->tek.status_remaining -= 1;
+			if (players[iplayer]->tek.status_remaining == 0) {
+				players[iplayer]->tek.status = CHARACTER_STATUS_IDLE;
+			}
+		}
+	}
 
 	// apply requested move from previous simulation
 	for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {

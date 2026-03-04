@@ -1,5 +1,6 @@
 #version 450
 #extension GL_EXT_buffer_reference : require
+#extension GL_EXT_shader_explicit_arithmetic_types : require
 #extension GL_EXT_scalar_block_layout : enable
 
 layout(scalar, buffer_reference, buffer_reference_align=8) readonly buffer TransformBuffer
@@ -27,6 +28,7 @@ layout(location = 0) out struct {
     vec3 normal;
     vec3 worldpos;
 } g_out;
+layout(location = 2) out flat uint32_t out_instance_index;
 
 vec4 float34_mul(mat4x3 m, vec3 v)
 {
@@ -81,5 +83,6 @@ void main()
 
     g_out.normal = adjugate(instance_transform) * vertex_normal;
     g_out.worldpos = float34_mul(instance_transform, vertex_position).xyz;
+    out_instance_index = gl_InstanceIndex;
     gl_Position = pos;
 }

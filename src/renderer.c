@@ -392,6 +392,7 @@ void renderer_register_skeletal_mesh_instance(Renderer *renderer, struct Skeleta
 	data.mesh_render_handle = data.mesh->render_handle;
 	renderer->skeletal_mesh_instances[iinstance] = data;
 	renderer->mesh_instances_length += 1;
+	renderer->skeletal_mesh_instances[iinstance].dynamic_data_tek = data.dynamic_data_tek;
 
 	// Allocate vertices in the global geometry buffers, we need
 	// each instance to allocate data because they may be deformed
@@ -849,6 +850,7 @@ void renderer_render(Renderer *renderer)
 		uint64_t positions_vbuffer;
 		uint64_t last_positions_vbuffer;
 		uint64_t normals_vbuffer;
+		uint32_t instance_colors[2];
 	};
 	struct MeshInstanceConstants mesh_constants = {0};
 	mesh_constants.proj = renderer->proj;
@@ -859,6 +861,29 @@ void renderer_render(Renderer *renderer)
 	mesh_constants.positions_vbuffer = buffer_get_gpu_address(renderer->device, renderer->mesh_positions_vbuffer);
 	mesh_constants.last_positions_vbuffer = buffer_get_gpu_address(renderer->device, renderer->mesh_last_positions_vbuffer);
 	mesh_constants.normals_vbuffer = buffer_get_gpu_address(renderer->device, renderer->mesh_normals_vbuffer);
+
+	// Fetch colors from status
+	for (uint32_t iinstance = 0; iinstance < renderer->mesh_instances_length; ++iinstance) {
+		struct TekPlayerComponent const *tek = renderer->skeletal_mesh_instances[iinstance].dynamic_data_tek;
+		uint32_t color = 0xFFFFFFFF;  // Default white
+
+		switch (tek->status) {
+			case CHARACTER_STATUS_IDLE:
+				color = 0x88FFFFFF;  // White
+				break;
+			case CHARACTER_STATUS_RECOVERY:
+				color = 0x88FF0000;  // Blue
+				break;
+			case CHARACTER_STATUS_HITSTUN:
+				color = 0x880000FF;  // Red
+				break;
+			case CHARACTER_STATUS_BLOCKSTUN:
+				color = 0x8800FF00;  // Green
+				break;
+		}
+
+		mesh_constants.instance_colors[iinstance] = color;
+	}
 
 	// Render motion vectors in a separate motion_vector + depth buffer without MSAA
 	struct VulkanBeginPassInfo mesh_motion_pass_info = (struct VulkanBeginPassInfo){RENDER_PASSES_MESH_MOTION_VECTOR, {renderer->motion_vectors_rt}, 1, renderer->depth_rt};

@@ -32,10 +32,21 @@ struct BattleInputs
 };
 
 // Component for the battle system
+enum CharacterStatus
+{
+	CHARACTER_STATUS_IDLE = 0,
+	CHARACTER_STATUS_RECOVERY,
+	CHARACTER_STATUS_HITSTUN,
+	CHARACTER_STATUS_BLOCKSTUN
+};
+
 struct TekPlayerComponent
 {
 	// character
 	uint32_t character_id;
+	// status
+	uint8_t status;
+	uint8_t status_remaining;
 	// status
 	uint32_t requested_move_id;
 	uint32_t current_move_id;
