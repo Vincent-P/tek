@@ -23,6 +23,48 @@ union Float3
 };
 SerializeSimpleType(Float3);
 
+
+typedef union Quat Quat;
+union Quat
+{
+	struct
+	{
+		float x;
+		float y;
+		float z;
+		float w;
+	};
+	float values[4];
+};
+SerializeSimpleType(Quat);
+
+typedef struct Float4x4 Float4x4;
+struct Float4x4
+{
+	float values[16];
+};
+SerializeSimpleType(Float4x4);
+
+
+typedef struct Float3x4 Float3x4;
+struct Float3x4
+{
+	union
+	{
+		float values[12];
+		Float3 cols[4];
+	};
+};
+SerializeSimpleType(Float3x4);
+
+// Column major
+#define F44(m, i, j) m.values[(j * 4 + i)]
+#define F34(m, i, j) m.values[(j * 3 + i)]
+
+// 0 3 = 0*3+3 = 3  != 9
+// 1 3 = 1*3+3 = 4  != 10
+// 2 3 = 2*3+3 = 9  != 11
+
 Float3 float3_from_float(float a)
 {
 	Float3 r;
@@ -115,21 +157,6 @@ Float3 float3_lerp(Float3 a, Float3 b, float coef)
 	return r;
 }
 
-typedef union Quat Quat;
-union Quat
-{
-	struct
-	{
-		float x;
-		float y;
-		float z;
-		float w;
-	};
-	float values[4];
-};
-SerializeSimpleType(Quat);
-
-
 Quat quat_normalize(Quat a)
 {
 	float norm = sqrtf(a.x*a.x+a.y*a.y+a.z*a.z+a.w*a.w);
@@ -140,7 +167,7 @@ Quat quat_normalize(Quat a)
 	return r;
 }
 
-Quat quat_slerp(Quat a, Quat b, float coef) 
+Quat quat_slerp(Quat a, Quat b, float coef)
 {
 	float dot = a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w;
 	if (dot < 0.0) {
@@ -165,6 +192,61 @@ Quat quat_slerp(Quat a, Quat b, float coef)
 	ret.z = z * rcp_len;
 	ret.w = w * rcp_len;
 	return ret;
+}
+
+// Conjugate of a unit quaternion (same as inverse for rotations)
+Quat quat_conjugate(Quat q)
+{
+	return (Quat){ -q.x, -q.y, -q.z, q.w };
+}
+
+// Multiply two Quaternions: q1 * q2
+Quat quat_mul(Quat a, Quat b)
+{
+	Quat r;
+	r.x = a.w*b.x + a.x*b.w + a.y*b.z - a.z*b.y;
+	r.y = a.w*b.y - a.x*b.z + a.y*b.w + a.z*b.x;
+	r.z = a.w*b.z + a.x*b.y - a.y*b.x + a.z*b.w;
+	r.w = a.w*b.w - a.x*b.x - a.y*b.y - a.z*b.z;
+	return r;
+}
+
+// Compute delta rotation: rotation that takes start → end
+Quat quat_delta(Quat start, Quat end)
+{
+	return quat_mul(quat_conjugate(end), start);
+}
+
+Float3 quat_rotate_vec(Quat q, Float3 v)
+{
+	Float3 t; // 2 * q.xyz^v
+	t.x = 2.0f * (q.y*v.z - q.z*v.y);
+	t.y = 2.0f * (q.z*v.x - q.x*v.z);
+	t.z = 2.0f * (q.x*v.y - q.y*v.x);
+
+	Float3 r; // v + q.w * t + q.xyz^t
+	r.x = v.x + q.w * t.x + (q.y*t.z - q.z*t.y);
+	r.y = v.y + q.w * t.y + (q.z*t.x - q.x*t.z);
+	r.z = v.z + q.w * t.z + (q.x*t.y - q.y*t.x);
+	return r;
+
+}
+
+// Apply quaternion rotation to a world matrix (rotation + scale)
+Float3x4 quat_rotate_mat(Quat q, Float3x4 m)
+{
+    Float3 x = {F34(m,0,0), F34(m,1,0), F34(m,2,0)};
+    Float3 y = {F34(m,0,1), F34(m,1,1), F34(m,2,1)};
+    Float3 z = {F34(m,0,2), F34(m,1,2), F34(m,2,2)};
+
+    x = quat_rotate_vec(q, x);
+    y = quat_rotate_vec(q, y);
+    z = quat_rotate_vec(q, z);
+
+    F34(m,0,0) = x.x; F34(m,0,1) = y.x; F34(m,0,2) = z.x;
+    F34(m,1,0) = x.y; F34(m,1,1) = y.y; F34(m,1,2) = z.y;
+    F34(m,2,0) = x.z; F34(m,2,1) = y.z; F34(m,2,2) = z.z;
+    return m;
 }
 
 struct FloatList
@@ -213,33 +295,6 @@ void Serialize_QuatList(Serializer *serializer, struct QuatList *value)
 	SerializeBytes(serializer, value->data, value->length * sizeof(Quat));
 }
 
-typedef struct Float4x4 Float4x4;
-struct Float4x4
-{
-	float values[16];
-};
-SerializeSimpleType(Float4x4);
-
-
-typedef struct Float3x4 Float3x4;
-struct Float3x4
-{
-	union
-	{
-		float values[12];
-		Float3 cols[4];
-	};
-};
-SerializeSimpleType(Float3x4);
-
-// Column major
-#define F44(m, i, j) m.values[(j * 4 + i)]
-#define F34(m, i, j) m.values[(j * 3 + i)]
-
-// 0 3 = 0*3+3 = 3  != 9
-// 1 3 = 1*3+3 = 4  != 10
-// 2 3 = 2*3+3 = 9  != 11
-
 Float4x4 float4x4_mul(Float4x4 a, Float4x4 b)
 {
 	Float4x4 result = {0};
@@ -249,7 +304,7 @@ Float4x4 float4x4_mul(Float4x4 a, Float4x4 b)
 			for (uint32_t i = 0; i < 4; ++i) {
 				F44(result, irow, icol) += F44(a, irow, i) * F44(b, i, icol);
 			}
-			
+
 		}
 	}
 	return result;
@@ -269,7 +324,7 @@ Float4x4 perspective_projection(float vertical_fov, float aspect_ratio, float n,
     F44(p,0,0) =    x;	F44(p,0,1) = 0.0f;	F44(p,0,2) = 0.0f;	F44(p,0,3) = 0.0f;
     F44(p,1,0) = 0.0f;	F44(p,1,1) = 0.0f;	F44(p,1,2) =    y;	F44(p,1,3) = 0.0f;
     F44(p,2,0) = 0.0f;	F44(p,2,1) =    A;	F44(p,2,2) = 0.0f;	F44(p,2,3) =    B;
-    F44(p,3,0) = 0.0f;	F44(p,3,1) = 1.0f;	F44(p,3,2) = 0.0f;	F44(p,3,3) = 0.0f; 
+    F44(p,3,0) = 0.0f;	F44(p,3,1) = 1.0f;	F44(p,3,2) = 0.0f;	F44(p,3,3) = 0.0f;
 
     if (inverse) {
 	    Float4x4 ip;
@@ -286,7 +341,7 @@ Float4x4 perspective_projection(float vertical_fov, float aspect_ratio, float n,
 Float3x4 lookat_view(Float3 from, Float3 to, Float3x4 *inverse)
 {
 	Float3 UP_AXIS = (Float3){0.0f, 0.0f, 1.0f};
-	
+
 	Float3 forward = float3_normalize(float3_sub(to, from));
 	Float3 right = float3_normalize(float3_cross(forward, UP_AXIS));
 	Float3 up = float3_normalize(float3_cross(right, forward));
@@ -321,11 +376,11 @@ Float3x4 float3x4_mul(Float3x4 a, Float3x4 b)
 	F34(result,0,2) = F34(a,0,0)*F34(b,0,2) + F34(a,0,1)*F34(b,1,2) + F34(a,0,2)*F34(b,2,2);
 	F34(result,1,2) = F34(a,1,0)*F34(b,0,2) + F34(a,1,1)*F34(b,1,2) + F34(a,1,2)*F34(b,2,2);
 	F34(result,2,2) = F34(a,2,0)*F34(b,0,2) + F34(a,2,1)*F34(b,1,2) + F34(a,2,2)*F34(b,2,2);
-	
+
 	F34(result,0,3) = F34(a,0,0)*F34(b,0,3) + F34(a,0,1)*F34(b,1,3) + F34(a,0,2)*F34(b,2,3) + F34(a,0,3);
 	F34(result,1,3) = F34(a,1,0)*F34(b,0,3) + F34(a,1,1)*F34(b,1,3) + F34(a,1,2)*F34(b,2,3) + F34(a,1,3);
 	F34(result,2,3) = F34(a,2,0)*F34(b,0,3) + F34(a,2,1)*F34(b,1,3) + F34(a,2,2)*F34(b,2,3) + F34(a,2,3);
-	
+
 	return result;
 }
 

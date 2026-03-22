@@ -454,11 +454,11 @@ int cook_fbx()
 			out_track->rotations.data = calloc(baked_node->rotation_keys.count, sizeof(Quat));
 			struct QuatList rotations = out_track->rotations;
 			ufbx_baked_quat_list baked_rotations = baked_node->rotation_keys;
-			for (uint32_t itrans = 0; itrans < baked_node->rotation_keys.count; ++itrans) {
-				rotations.data[itrans].x = baked_rotations.data[itrans].value.x;
-				rotations.data[itrans].y = baked_rotations.data[itrans].value.y;
-				rotations.data[itrans].z = baked_rotations.data[itrans].value.z;
-				rotations.data[itrans].w = baked_rotations.data[itrans].value.w;
+			for (uint32_t irot = 0; irot < baked_node->rotation_keys.count; ++irot) {
+				rotations.data[irot].x = baked_rotations.data[irot].value.x;
+				rotations.data[irot].y = baked_rotations.data[irot].value.y;
+				rotations.data[irot].z = baked_rotations.data[irot].value.z;
+				rotations.data[irot].w = baked_rotations.data[irot].value.w;
 			}
 			out_track->scales.length = baked_node->scale_keys.count;
 			out_track->scales.data = calloc(baked_node->scale_keys.count, sizeof(Float3));

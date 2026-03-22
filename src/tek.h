@@ -175,6 +175,7 @@ struct tek_Move
 	uint32_t id;
 	// animation
 	uint32_t animation_id;
+	float animation_root_motion_scale;
 	// hit
 	enum tek_HitLevel hit_level;
 	uint8_t hitbox; // index in hitbox list

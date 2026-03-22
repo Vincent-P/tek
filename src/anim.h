@@ -61,6 +61,7 @@ struct AnimPose
 	Float3x4 local_transforms[MAX_BONES_PER_MESH]; // bone space
 	Float3x4 global_transforms[MAX_BONES_PER_MESH]; // character space
 	Float3  root_motion_delta_translation;
+	Quat root_motion_delta_rotation;
 };
 
 #define MAX_WEIGHTS  4
@@ -83,7 +84,7 @@ struct SkeletalMeshAsset
 	uint32_t bones_length;
 	uint32_t render_handle;
 };
-	
+
 struct SkeletalMeshInstance
 {
 	uint32_t render_bone_from_anim_bone[MAX_BONES_PER_MESH]; // mapping from anim skeleton to render skeleton

@@ -19,6 +19,10 @@
 		    "motion_input": 16, // b
 		},
 		{
+		    "to": "sidestep left",
+		    "motion_input": 256, // u
+		},
+		{
 		    "type": "list",
 		    "to": "standing moves",
 		},
@@ -33,7 +37,7 @@
 	},
 	{
 	    "name": "standing walk forward start",
-	    "animation": "P2M_Regular_Rig|m_walk_forward_start.001",
+	    "animation": "P2M_Regular_Rig|m_walk_forward_start",
 	    "cancels": [
 		/*
 		  {
@@ -71,7 +75,7 @@
 	},
 	{
 	    "name": "standing walk forward loop",
-	    "animation": "P2M_Regular_Rig|m_walk_forward_loop.002",
+	    "animation": "P2M_Regular_Rig|m_walk_forward_loop",
 	    "cancels": [
 		// loop (should be last?)
 		{
@@ -126,7 +130,7 @@
 	},
 	{
 	    "name": "standing walk backward",
-	    "animation": "P2M_Regular_Rig|m_walk_backward_loop.001_slow",
+	    "animation": "P2M_Regular_Rig|m_walk_backward_loop.001",
 	    // "animation": "P2M_Regular_Rig|walk_backward_loop",
 	    "cancels": [
 		// can cancel to crouch
@@ -167,6 +171,58 @@
 		{
 		    "type": "list",
 		    "to": "movement recovery moves",
+		},
+	    ],
+	},
+
+	{
+	    "name": "sidestep left",
+	    "animation": "P2M_Regular_Rig|m_sidestep_left",
+	    "root_motion_scale": 2.0,
+	    "cancels": [
+		{
+		    "to": "standing walk backward",
+		    "motion_input": 16, // b
+		},
+		{
+		    "to": "standing walk forward start",
+		    "motion_input": 64, // f
+		},
+
+		{
+		    "type": "list",
+		    "to": "standing moves",
+		},
+
+		{
+		    "to": "standing idle",
+		    "condition": "eoa",
+		},
+	    ],
+	},
+
+	{
+	    "name": "sidestep right",
+	    "animation": "P2M_Regular_Rig|m_sidestep_right",
+	    "root_motion_scale": 2.0,
+	    "cancels": [
+		{
+		    "to": "standing walk backward",
+		    "motion_input": 16, // b
+		},
+		{
+		    "to": "standing walk forward start",
+		    "motion_input": 64, // f
+		},
+
+
+		{
+		    "type": "list",
+		    "to": "standing moves",
+		},
+		{
+		    "to": "standing idle",
+		    "condition": "eoa",
 		},
 	    ],
 	},
@@ -337,6 +393,37 @@
 			"standing_counter_hit_stun": 2,
 			"standing_block_move": "standing block",
 			"standing_block_stun": -4,
+		    },
+		},
+	    ],
+	    // cancels
+	    "cancels": [
+		{
+		    "type": "list",
+		    "to": "standing recovery moves",
+		},
+	    ],
+	},
+	{
+	    "name": "megamid",
+	    "animation": "P2M_Regular_Rig|a_mega_mid",
+	    // hit
+	    "hit_level": "mid",
+	    "hitbox": 0, // index in list
+	    // frame data
+	    "first_active": 18,
+	    "recovery": 42,
+	    "hit_conditions": [
+		{
+		    "requirements": "none",
+		    "damage": 20,
+		    "reaction": {
+			"standing_move": "standing hit",
+			"standing_stun": 5,
+			"standing_counter_hit_move": "standing hit",
+			"standing_counter_hit_stun": 5,
+			"standing_block_move": "standing block",
+			"standing_block_stun": -10,
 		    },
 		},
 	    ],
@@ -775,7 +862,7 @@
 		},
 		// If nothing matched, stand
 	    	{
-		    "to": "standing idle",
+		    "to": "sidestep right",
 		    "starting_frame": 0,
 		},
 	    ],
@@ -876,6 +963,12 @@
 		    "input_window_end": 999,
 		},
 		{
+		    "to": "megamid",
+		    "motion_input": 64, // f
+		    "action_input": 2,  // Sum of: LP(1) RP(2) LK(4) RK(8)
+		    "input_window_end": 999,
+		},
+		{
 		    "to": "two",
 		    "action_input": 2,  // Sum of: LP(1) RP(2) LK(4) RK(8)
 		    "input_window_end": 999,
@@ -932,6 +1025,12 @@
 		{
 		    "to": "jab",
 		    "action_input": 1,  // Sum of: LP(1) RP(2) LK(4) RK(8)
+		    "input_window_end": 999,
+		},
+		{
+		    "to": "megamid",
+		    "motion_input": 64, // f
+		    "action_input": 2,  // Sum of: LP(1) RP(2) LK(4) RK(8)
 		    "input_window_end": 999,
 		},
 		{

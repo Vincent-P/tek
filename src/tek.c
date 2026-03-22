@@ -286,12 +286,16 @@ static void tek_read_json_move(struct tek_Character *character, struct json_obje
 	struct json_array_s *hit_conditions = NULL;
 	struct json_string_s *movename = NULL;
 
+	// default values
+	move.animation_root_motion_scale = 1.0f;
+
 	for (struct json_object_element_s* it = obj->start; it != NULL; it = it->next) {
 
 		if (json_object_get_string_id(it, "name", &move.id)) {
 			movename = json_value_as_string(it->value);
 		}
 		json_object_get_string_id(it, "animation", &move.animation_id);
+		json_object_get_float(it, "root_motion_scale", &move.animation_root_motion_scale);
 
 		// hit
 		if (strcmp(it->name->string, "hit_level") == 0) {

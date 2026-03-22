@@ -344,6 +344,9 @@ static void player_translate_world(uint32_t iplayer, struct PlayerEntity **playe
 
 	Float3 target_position = float3_add(player_position, world_translate);
 
+
+
+
 	bool found_col = false;
 	Float3 closest_position = {};
 	float closest_distance = -100.0f;
@@ -684,12 +687,45 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 			// update render skeleton
 			anim_pose_compute_global_transforms(anim_skeleton, &nonplayers[iplayer]->pose);
 			skeletal_mesh_apply_pose(&nonplayers[iplayer]->mesh_instance, &nonplayers[iplayer]->pose);
-			// use root motion
+			// apply root motion
 			Float3 root_translation = float3x4_transform_direction(players[iplayer]->spatial.world_transform, nonplayers[iplayer]->pose.root_motion_delta_translation);
+
+			struct tek_Move *current_move = tek_character_find_move(characters[iplayer], players[iplayer]->tek.current_move_id);
+			if (current_move) {
+				root_translation = float3_mul_scalar(root_translation, current_move->animation_root_motion_scale);
+			}
+
 			player_translate_world(iplayer, players, characters, ARRAY_LENGTH(players), root_translation);
+
+			players[iplayer]->spatial.world_transform = quat_rotate_mat(nonplayers[iplayer]->pose.root_motion_delta_rotation, players[iplayer]->spatial.world_transform);
 		}
 		// Update animation component
 		players[iplayer]->animation.frame += 1;
+	}
+
+	// Make players track each other
+		for (uint32_t iplayer = 0; iplayer < 2; ++iplayer) {
+			uint32_t iother = 1 - iplayer;
+
+			Float3 current_position = players[iplayer]->spatial.world_transform.cols[3];
+			Float3 other_position = players[iother]->spatial.world_transform.cols[3];
+
+			// Y forward
+			Float3 dir = float3_normalize(float3_sub(other_position, current_position));
+			// Z up
+			Float3 up = (Float3){0.0f, 0.0f, 1.0f};
+			// X right
+			Float3 tangent = float3_normalize(float3_cross(dir, up));
+
+			players[iplayer]->spatial.world_transform.cols[0] = tangent;
+			players[iplayer]->spatial.world_transform.cols[1] = dir;
+			players[iplayer]->spatial.world_transform.cols[2] = up;
+		}
+
+
+	// Once all transform calculations are done, we can update hitboxes and evaluate hits
+	for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
+		struct AnimSkeleton const *anim_skeleton = asset_library_get_anim_skeleton(ctx->assets, players[iplayer]->anim_skeleton.anim_skeleton_id);
 		// update hurtboxes positions
 		for (uint32_t ihurtbox = 0; ihurtbox < characters[iplayer]->hurtboxes_length; ++ihurtbox) {
 			uint32_t hurtbox_bone_id = characters[iplayer]->hurtboxes_bone_id[ihurtbox];
@@ -715,7 +751,6 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 			}
 		}
 	}
-
 	_evaluate_hit_conditions(players[0], players[1], nonplayers[0], nonplayers[1], characters[0], characters[1]);
 	_evaluate_hit_conditions(players[1], players[0], nonplayers[1], nonplayers[0], characters[1], characters[0]);
 

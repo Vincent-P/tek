@@ -101,11 +101,21 @@ bool anim_evaluate_animation(struct AnimSkeleton const *skeleton, Animation cons
 		Float3 prev_translation = anim->root_motion_track.translations.data[frame-1];
 		Float3 current_translation = anim->root_motion_track.translations.data[frame];
 		out_pose->root_motion_delta_translation = float3_sub(current_translation, prev_translation);
+
+		Quat prev_rotation = anim->root_motion_track.rotations.data[frame-1];
+		Quat current_rotation = anim->root_motion_track.rotations.data[frame];
+		out_pose->root_motion_delta_rotation = quat_delta(current_rotation, prev_rotation);
 	} else {
 		// apply the first root motion translation key
 		assert(anim->root_motion_track.translations.length == count);
 		Float3 current_translation = anim->root_motion_track.translations.data[frame];
 		out_pose->root_motion_delta_translation = current_translation;
+
+		Quat current_rotation = anim->root_motion_track.rotations.data[frame];
+		out_pose->root_motion_delta_rotation = current_rotation;
+
+		out_pose->root_motion_delta_translation = (Float3){0.0f, 0.0f, 0.0f};
+		out_pose->root_motion_delta_rotation = (Quat){0.0f, 0.0f, 0.0f, 1.0f};
         }
 
 	return has_ended;
