@@ -704,23 +704,30 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 	}
 
 	// Make players track each other
-		for (uint32_t iplayer = 0; iplayer < 2; ++iplayer) {
-			uint32_t iother = 1 - iplayer;
+	for (uint32_t iplayer = 0; iplayer < 2; ++iplayer) {
+		uint32_t iother = 1 - iplayer;
 
-			Float3 current_position = players[iplayer]->spatial.world_transform.cols[3];
-			Float3 other_position = players[iother]->spatial.world_transform.cols[3];
+		uint8_t cur = players[iplayer]->animation.frame;
 
-			// Y forward
-			Float3 dir = float3_normalize(float3_sub(other_position, current_position));
-			// Z up
-			Float3 up = (Float3){0.0f, 0.0f, 1.0f};
-			// X right
-			Float3 tangent = float3_normalize(float3_cross(dir, up));
+		struct tek_Move *current_move = tek_character_find_move(characters[iplayer], players[iplayer]->tek.current_move_id);
+		if (current_move) {
+			if (current_move->track_first <= cur && cur <= current_move->track_end) {
+				Float3 current_position = players[iplayer]->spatial.world_transform.cols[3];
+				Float3 other_position = players[iother]->spatial.world_transform.cols[3];
 
-			players[iplayer]->spatial.world_transform.cols[0] = tangent;
-			players[iplayer]->spatial.world_transform.cols[1] = dir;
-			players[iplayer]->spatial.world_transform.cols[2] = up;
+				// Y forward
+				Float3 dir = float3_normalize(float3_sub(other_position, current_position));
+				// Z up
+				Float3 up = (Float3){0.0f, 0.0f, 1.0f};
+				// X right
+				Float3 tangent = float3_normalize(float3_cross(dir, up));
+
+				players[iplayer]->spatial.world_transform.cols[0] = tangent;
+				players[iplayer]->spatial.world_transform.cols[1] = dir;
+				players[iplayer]->spatial.world_transform.cols[2] = up;
+			}
 		}
+	}
 
 
 	// Once all transform calculations are done, we can update hitboxes and evaluate hits

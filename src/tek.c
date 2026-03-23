@@ -289,6 +289,9 @@ static void tek_read_json_move(struct tek_Character *character, struct json_obje
 	// default values
 	move.animation_root_motion_scale = 1.0f;
 
+	bool has_last_active_frame = false;
+	bool has_track_first = false;
+	bool has_track_end = false;
 	for (struct json_object_element_s* it = obj->start; it != NULL; it = it->next) {
 
 		if (json_object_get_string_id(it, "name", &move.id)) {
@@ -310,11 +313,10 @@ static void tek_read_json_move(struct tek_Character *character, struct json_obje
 
 		// frame data
 		json_object_get_u8(it, "first_active", &move.first_active);
-		if (!json_object_get_u8(it, "last_active", &move.last_active)) {
-			// If we don't have a "last_active" field, assume the move is active for 1 frame.
-			move.last_active = move.first_active;
-		}
+		has_last_active_frame = has_last_active_frame || json_object_get_u8(it, "last_active", &move.last_active);
 		json_object_get_u8(it, "recovery", &move.recovery);
+		has_track_first = has_track_first || json_object_get_u8(it, "track_first", &move.track_first);
+		has_track_end = has_track_end || json_object_get_u8(it, "track_end", &move.track_end);
 
 		if (strcmp(it->name->string, "hit_conditions") == 0) {
 			hit_conditions = json_value_as_array(it->value);
@@ -328,6 +330,13 @@ static void tek_read_json_move(struct tek_Character *character, struct json_obje
 			struct json_object_s *properties = json_value_as_object(it->value);
 			tek_read_json_move_properties(&move.properties, properties);
 		}
+	}
+	if (!has_last_active_frame) {
+		// If we don't have a "last_active" field, assume the move is active for 1 frame.
+		move.last_active = move.first_active;
+	}
+	if (has_track_first && !has_track_end) {
+		move.track_end = move.last_active + move.recovery;
 	}
 
 	// Process cancels if they exist

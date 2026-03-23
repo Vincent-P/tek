@@ -183,6 +183,8 @@ struct tek_Move
 	uint8_t first_active;
 	uint8_t last_active;
 	uint8_t recovery;
+	uint8_t track_first;
+	uint8_t track_end;
 	// cancels
 	struct tek_Cancel cancels[MAX_CANCELS_PER_MOVE];
 	uint32_t cancels_length;
