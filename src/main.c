@@ -8,6 +8,8 @@
 #include <dcimgui.h>
 #include <tracy/tracy/TracyC.h>
 #include <clay.h>
+#define ADJUST_IMPLEMENTATION
+#include <adjust.h>
 
 #include "core.h"
 #include "asset.h"
@@ -114,6 +116,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
 	TracyCZoneN(f, "AppInit", true);
 
+	adjust_init();
+
 	struct Application *application = calloc(1, sizeof(struct Application));
 	*appstate = application;
 
@@ -164,6 +168,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 void SDL_AppQuit(void *appstate, SDL_AppResult result)
 {
 	struct Application *application = appstate;
+	adjust_cleanup();
 }
 
 ImGuiKey ImGui_ImplSDL3_KeyEventToImGuiKey(SDL_Keycode keycode, SDL_Scancode scancode)
@@ -429,6 +434,8 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
 	struct Application *application = appstate;
 
+	// hot-reload tweaks
+	adjust_update();
 	// hot-reload materials
 	bool atleast_one_change = watcher_tick();
 	if (atleast_one_change) {

@@ -706,22 +706,26 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 	// Make players track each other
 	for (uint32_t iplayer = 0; iplayer < 2; ++iplayer) {
 		uint32_t iother = 1 - iplayer;
-
 		uint8_t cur = players[iplayer]->animation.frame;
-
 		struct tek_Move *current_move = tek_character_find_move(characters[iplayer], players[iplayer]->tek.current_move_id);
+
+		// If the current move can track
 		if (current_move) {
 			if (current_move->track_first <= cur && cur <= current_move->track_end) {
+
+				// Get positions
 				Float3 current_position = players[iplayer]->spatial.world_transform.cols[3];
 				Float3 other_position = players[iother]->spatial.world_transform.cols[3];
-
+				// Slowly interpolate to the other player position
+				ADJUST_CONST_FLOAT(TRACKING_COEF, 0.16f); // 1% every frame
+				Float3 target = float3_lerp(players[iplayer]->tek.tracking_target, other_position, TRACKING_COEF);
+				players[iplayer]->tek.tracking_target = target;
 				// Y forward
-				Float3 dir = float3_normalize(float3_sub(other_position, current_position));
+				Float3 dir = float3_normalize(float3_sub(target, current_position));
 				// Z up
 				Float3 up = (Float3){0.0f, 0.0f, 1.0f};
 				// X right
 				Float3 tangent = float3_normalize(float3_cross(dir, up));
-
 				players[iplayer]->spatial.world_transform.cols[0] = tangent;
 				players[iplayer]->spatial.world_transform.cols[1] = dir;
 				players[iplayer]->spatial.world_transform.cols[2] = up;

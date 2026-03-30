@@ -54,6 +54,8 @@ struct TekPlayerComponent
 	// pushback
 	int pushback_remaining_frames;
 	float pushback_strength;
+	// tracking / alignment
+	Float3 tracking_target;
 	// input buffer
 	struct BattleInput input_buffer[INPUT_BUFFER_SIZE];
 	uint64_t input_buffer_head;
