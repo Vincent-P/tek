@@ -86,6 +86,9 @@ StateRenderFn const STATE_RENDER_FUNCTIONS[GAME_STATE_COUNT] = {
 	network_battle_render,
 };
 
+// 1st line of the main, called before any other init
+void game_first_init(struct Game *game);
+
 void game_init(struct Game *game);
 void game_update(struct Game *game, struct GameUpdateContext const* ctx);
 void game_render(struct Game *game);

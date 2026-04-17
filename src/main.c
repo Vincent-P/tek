@@ -121,6 +121,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 	struct Application *application = calloc(1, sizeof(struct Application));
 	*appstate = application;
 
+	game_first_init(&application->game);
+
 	inputs_init(&application->inputs);
 	TracyCZoneN(sdli, "SDL_Init", true);
 	SDL_InitSubSystem(SDL_INIT_GAMEPAD);
