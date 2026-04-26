@@ -5,9 +5,11 @@
 
 enum NetworkBattleState
 {
-	NETWORK_BATTLE_STATE_PRELOBBY,
-	NETWORK_BATTLE_STATE_HOSTING,
-	NETWORK_BATTLE_STATE_JOINING,
+	NETWORK_BATTLE_STATE_MAIN_MENU, // Display Host/Join menu
+	NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_PLAYERS, // Once player clicks "Host", a steam lobby is created, wait for someone to join
+	NETWORK_BATTLE_STATE_HOSTING, // Once someone joined, we create a GGPO session and start updating battle state
+	NETWORK_BATTLE_STATE_CONNECTING_TO_LOBBY, // Once a player clicks "Join", we try to join a steam lobby
+	NETWORK_BATTLE_STATE_JOINING, // When we connect to a steam lobby successfully, we create a GGPO session and start updating battle state
 };
 
 struct NetworkBattleData
@@ -285,7 +287,7 @@ void network_battle_term(void **state_data)
 	struct NetworkBattleData *data = *state_data;
 
 	switch (data->state) {
-	case NETWORK_BATTLE_STATE_PRELOBBY: {
+	case NETWORK_BATTLE_STATE_MAIN_MENU: {
 		break;
 	}
 
@@ -308,7 +310,7 @@ struct GameUpdateResult network_battle_update(void **state_data, struct GameUpda
 	struct NetworkBattleData *data = *state_data;
 	struct GameUpdateResult result = {0};
 	switch (data->state) {
-	case NETWORK_BATTLE_STATE_PRELOBBY: {
+	case NETWORK_BATTLE_STATE_MAIN_MENU: {
 
 		if (data->host_pressed) {
 			network_battle_state_host(data);
@@ -387,7 +389,7 @@ struct GameUpdateResult network_battle_update(void **state_data, struct GameUpda
 						} else if (data->state == NETWORK_BATTLE_STATE_JOINING) {
 							network_battle_state_join_term(data);
 						}
-						data->state = NETWORK_BATTLE_STATE_PRELOBBY;
+						data->state = NETWORK_BATTLE_STATE_MAIN_MENU;
 						break;
 					}
 				}
@@ -572,8 +574,8 @@ void network_battle_render(void **state_data)
 		}
 
 
-		if (data->state == NETWORK_BATTLE_STATE_PRELOBBY) {
-			CLAY({.id = CLAY_ID("PRELOBBY_FRAME"), .floating = { .attachTo = CLAY_ATTACH_TO_PARENT }, .layout = {.sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0)}}, .backgroundColor = {0, 0, 0, 128}} ) {
+		if (data->state == NETWORK_BATTLE_STATE_MAIN_MENU) {
+			CLAY({.id = CLAY_ID("MAIN_MENU_FRAME"), .floating = { .attachTo = CLAY_ATTACH_TO_PARENT }, .layout = {.sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0)}}, .backgroundColor = {0, 0, 0, 128}} ) {
 				CLAY({
 						.id = CLAY_ID("Floating"),
 						.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = { .width = CLAY_SIZING_FIT(300), .height = CLAY_SIZING_FIT(0) }, .padding = CLAY_PADDING_ALL(16), .childGap = 16 },

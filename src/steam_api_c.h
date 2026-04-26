@@ -31,10 +31,18 @@ typedef int32_t HSteamPipe;
 #define false 0
 #define true  1
 #endif
+typedef uint64_t SteamAPICall_t;
+const SteamAPICall_t k_uAPICallInvalid = 0x0;
+
 enum { k_cchMaxSteamErrMsg = 1024 };
 typedef char SteamErrMsg[ k_cchMaxSteamErrMsg ];
 enum SteamCallbacksConstants
 {
+	k_iSteamMatchmakingCallbacks = 500,
+	k_iSteamMatchmakingLobbyInviteCallback = k_iSteamMatchmakingCallbacks + 3,
+	k_iSteamMatchmakingLobbyEnterCallback = k_iSteamMatchmakingCallbacks + 4,
+	k_iSteamMatchmakingLobbyCreatedCallback = k_iSteamMatchmakingCallbacks + 13,
+
 	k_iSteamNetworkingMessagesCallbacks = 1250,
 	k_iSteamNetworkingMessagesSessionRequestCallback = k_iSteamNetworkingMessagesCallbacks + 1,
 	k_iSteamNetworkingSteamNetworkingMessagesSessionFailedCallback = k_iSteamNetworkingMessagesCallbacks + 2,
@@ -230,6 +238,19 @@ enum ESteamAPIInitResult
 };
 typedef enum ESteamAPIInitResult ESteamAPIInitResult;
 
+// lobby type description
+enum ELobbyType
+{
+	k_ELobbyTypePrivate = 0,		// only way to join the lobby is to invite to someone else
+	k_ELobbyTypeFriendsOnly = 1,	// shows for friends or invitees, but not in public lobby list, allows those who join to invite their own friends
+	k_ELobbyTypePublic = 2,			// visible for friends and in lobby list
+	k_ELobbyTypeInvisible = 3,		// returned by search, but not visible to other friends
+									//    useful if you want a user in two lobbies, for example matching groups together
+									//	  a user can be in only one regular lobby, and up to two invisible lobbies
+	k_ELobbyTypePrivateUnique = 4,	// private, unique and does not delete when empty - only one of these may exist per unique keypair set
+									// can only create from webapi
+};
+typedef enum ELobbyType ELobbyType;
 
 // -- structs
 
@@ -384,6 +405,42 @@ struct CallbackMsg_t
 typedef struct CallbackMsg_t CallbackMsg_t;
 #pragma pack( pop )
 
+// ISteamMatchmaking
+typedef struct ISteamMatchmaking ISteamMatchmaking;
+
+struct LobbyInvite_t
+{
+	uint64_t m_ulSteamIDUser;		// Steam ID of the person making the invite
+	uint64_t m_ulSteamIDLobby;	// Steam ID of the Lobby
+	uint64_t m_ulGameID;			// GameID of the Lobby
+};
+typedef struct LobbyInvite_t LobbyInvite_t;
+
+struct LobbyEnter_t
+{
+	uint64_t m_ulSteamIDLobby;							// SteamID of the Lobby you have entered
+	uint32_t m_rgfChatPermissions;						// Permissions of the current user
+	bool m_bLocked;										// If true, then only invited users may join
+	uint32_t m_EChatRoomEnterResponse;	// EChatRoomEnterResponse
+};
+typedef struct LobbyEnter_t LobbyEnter_t;
+struct LobbyCreated_t
+{
+	EResult m_eResult;		// k_EResultOK - the lobby was successfully created
+							// k_EResultNoConnection - your Steam client doesn't have a connection to the back-end
+							// k_EResultTimeout - you the message to the Steam servers, but it didn't respond
+							// k_EResultFail - the server responded, but with an unknown internal error
+							// k_EResultAccessDenied - your game isn't set to allow lobbies, or your client does haven't rights to play the game
+							// k_EResultLimitExceeded - your game client has created too many lobbies
+
+	uint64_t m_ulSteamIDLobby;		// chat room, zero if failed
+};
+typedef struct LobbyCreated_t LobbyCreated_t;
+
+// ISteamFriends
+typedef struct ISteamFriends ISteamFriends;
+
+
 // -- SteamAPI
 S_API ESteamAPIInitResult S_CALLTYPE SteamAPI_InitFlat(SteamErrMsg* pOutErrMsg);
 S_API void S_CALLTYPE SteamAPI_ManualDispatch_Init();
@@ -402,6 +459,13 @@ S_API HSteamUser SteamAPI_ISteamUser_GetHSteamUser(ISteamUser* self);
 S_API bool SteamAPI_ISteamUser_BLoggedOn(ISteamUser* self);
 S_API uint64_steamid SteamAPI_ISteamUser_GetSteamID(ISteamUser* self);
 
+// ISteamFriends
+// A versioned accessor is exported by the library
+S_API ISteamFriends *SteamAPI_SteamFriends_v018();
+// Inline, unversioned accessor to get the current version.  Essentially the same as SteamFriends(), but using this ensures that you are using a matching library.
+inline ISteamFriends *SteamAPI_SteamFriends() { return SteamAPI_SteamFriends_v018(); }
+S_API void SteamAPI_ISteamFriends_ActivateGameOverlay( ISteamFriends* self, const char * pchDialog );
+S_API void SteamAPI_ISteamFriends_ActivateGameOverlayInviteDialog( ISteamFriends* self, uint64_steamid steamIDLobby );
 
 // -- SteamNetworkingMessages
 // A versioned accessor is exported by the library
@@ -421,9 +485,54 @@ S_API ESteamNetworkingConnectionState SteamAPI_ISteamNetworkingMessages_GetSessi
 S_API void SteamAPI_SteamNetworkingMessage_t_Release( SteamNetworkingMessage_t* self );
 
 // -- SteamNetworkingUtils
+// A versioned accessor is exported by the library
 S_API ISteamNetworkingUtils* SteamAPI_SteamNetworkingUtils_SteamAPI_v004();
 // Inline, unversioned accessor to get the current version.  Essentially the same as SteamNetworkingUtils_SteamAPI(), but using this ensures that you are using a matching library.
 inline ISteamNetworkingUtils* SteamAPI_SteamNetworkingUtils_SteamAPI() { return SteamAPI_SteamNetworkingUtils_SteamAPI_v004(); }
 S_API void SteamAPI_ISteamNetworkingUtils_InitRelayNetworkAccess(ISteamNetworkingUtils* self);
+
+// -- ISteamMatchmaking
+// A versioned accessor is exported by the library
+S_API ISteamMatchmaking *SteamAPI_SteamMatchmaking_v009();
+// Inline, unversioned accessor to get the current version.  Essentially the same as SteamMatchmaking(), but using this ensures that you are using a matching library.
+inline ISteamMatchmaking *SteamAPI_SteamMatchmaking() { return SteamAPI_SteamMatchmaking_v009(); }
+// S_API int SteamAPI_ISteamMatchmaking_GetFavoriteGameCount( ISteamMatchmaking* self );
+// S_API bool SteamAPI_ISteamMatchmaking_GetFavoriteGame( ISteamMatchmaking* self, int iGame, AppId_t * pnAppID, uint32 * pnIP, uint16 * pnConnPort, uint16 * pnQueryPort, uint32 * punFlags, uint32 * pRTime32LastPlayedOnServer );
+// S_API int SteamAPI_ISteamMatchmaking_AddFavoriteGame( ISteamMatchmaking* self, AppId_t nAppID, uint32 nIP, uint16 nConnPort, uint16 nQueryPort, uint32 unFlags, uint32 rTime32LastPlayedOnServer );
+// S_API bool SteamAPI_ISteamMatchmaking_RemoveFavoriteGame( ISteamMatchmaking* self, AppId_t nAppID, uint32 nIP, uint16 nConnPort, uint16 nQueryPort, uint32 unFlags );
+// S_API SteamAPICall_t SteamAPI_ISteamMatchmaking_RequestLobbyList( ISteamMatchmaking* self );
+// S_API void SteamAPI_ISteamMatchmaking_AddRequestLobbyListStringFilter( ISteamMatchmaking* self, const char * pchKeyToMatch, const char * pchValueToMatch, ELobbyComparison eComparisonType );
+// S_API void SteamAPI_ISteamMatchmaking_AddRequestLobbyListNumericalFilter( ISteamMatchmaking* self, const char * pchKeyToMatch, int nValueToMatch, ELobbyComparison eComparisonType );
+// S_API void SteamAPI_ISteamMatchmaking_AddRequestLobbyListNearValueFilter( ISteamMatchmaking* self, const char * pchKeyToMatch, int nValueToBeCloseTo );
+// S_API void SteamAPI_ISteamMatchmaking_AddRequestLobbyListFilterSlotsAvailable( ISteamMatchmaking* self, int nSlotsAvailable );
+// S_API void SteamAPI_ISteamMatchmaking_AddRequestLobbyListDistanceFilter( ISteamMatchmaking* self, ELobbyDistanceFilter eLobbyDistanceFilter );
+// S_API void SteamAPI_ISteamMatchmaking_AddRequestLobbyListResultCountFilter( ISteamMatchmaking* self, int cMaxResults );
+// S_API void SteamAPI_ISteamMatchmaking_AddRequestLobbyListCompatibleMembersFilter( ISteamMatchmaking* self, uint64_steamid steamIDLobby );
+// S_API uint64_steamid SteamAPI_ISteamMatchmaking_GetLobbyByIndex( ISteamMatchmaking* self, int iLobby );
+S_API SteamAPICall_t SteamAPI_ISteamMatchmaking_CreateLobby( ISteamMatchmaking* self, ELobbyType eLobbyType, int cMaxMembers );
+S_API SteamAPICall_t SteamAPI_ISteamMatchmaking_JoinLobby( ISteamMatchmaking* self, uint64_steamid steamIDLobby );
+S_API void SteamAPI_ISteamMatchmaking_LeaveLobby( ISteamMatchmaking* self, uint64_steamid steamIDLobby );
+// S_API bool SteamAPI_ISteamMatchmaking_InviteUserToLobby( ISteamMatchmaking* self, uint64_steamid steamIDLobby, uint64_steamid steamIDInvitee );
+S_API int SteamAPI_ISteamMatchmaking_GetNumLobbyMembers( ISteamMatchmaking* self, uint64_steamid steamIDLobby );
+S_API uint64_steamid SteamAPI_ISteamMatchmaking_GetLobbyMemberByIndex( ISteamMatchmaking* self, uint64_steamid steamIDLobby, int iMember );
+// S_API const char * SteamAPI_ISteamMatchmaking_GetLobbyData( ISteamMatchmaking* self, uint64_steamid steamIDLobby, const char * pchKey );
+// S_API bool SteamAPI_ISteamMatchmaking_SetLobbyData( ISteamMatchmaking* self, uint64_steamid steamIDLobby, const char * pchKey, const char * pchValue );
+// S_API int SteamAPI_ISteamMatchmaking_GetLobbyDataCount( ISteamMatchmaking* self, uint64_steamid steamIDLobby );
+// S_API bool SteamAPI_ISteamMatchmaking_GetLobbyDataByIndex( ISteamMatchmaking* self, uint64_steamid steamIDLobby, int iLobbyData, char * pchKey, int cchKeyBufferSize, char * pchValue, int cchValueBufferSize );
+// S_API bool SteamAPI_ISteamMatchmaking_DeleteLobbyData( ISteamMatchmaking* self, uint64_steamid steamIDLobby, const char * pchKey );
+// S_API const char * SteamAPI_ISteamMatchmaking_GetLobbyMemberData( ISteamMatchmaking* self, uint64_steamid steamIDLobby, uint64_steamid steamIDUser, const char * pchKey );
+// S_API void SteamAPI_ISteamMatchmaking_SetLobbyMemberData( ISteamMatchmaking* self, uint64_steamid steamIDLobby, const char * pchKey, const char * pchValue );
+// S_API bool SteamAPI_ISteamMatchmaking_SendLobbyChatMsg( ISteamMatchmaking* self, uint64_steamid steamIDLobby, const void * pvMsgBody, int cubMsgBody );
+// S_API int SteamAPI_ISteamMatchmaking_GetLobbyChatEntry( ISteamMatchmaking* self, uint64_steamid steamIDLobby, int iChatID, CSteamID * pSteamIDUser, void * pvData, int cubData, EChatEntryType * peChatEntryType );
+// S_API bool SteamAPI_ISteamMatchmaking_RequestLobbyData( ISteamMatchmaking* self, uint64_steamid steamIDLobby );
+// S_API void SteamAPI_ISteamMatchmaking_SetLobbyGameServer( ISteamMatchmaking* self, uint64_steamid steamIDLobby, uint32 unGameServerIP, uint16 unGameServerPort, uint64_steamid steamIDGameServer );
+// S_API bool SteamAPI_ISteamMatchmaking_GetLobbyGameServer( ISteamMatchmaking* self, uint64_steamid steamIDLobby, uint32 * punGameServerIP, uint16 * punGameServerPort, CSteamID * psteamIDGameServer );
+// S_API bool SteamAPI_ISteamMatchmaking_SetLobbyMemberLimit( ISteamMatchmaking* self, uint64_steamid steamIDLobby, int cMaxMembers );
+// S_API int SteamAPI_ISteamMatchmaking_GetLobbyMemberLimit( ISteamMatchmaking* self, uint64_steamid steamIDLobby );
+// S_API bool SteamAPI_ISteamMatchmaking_SetLobbyType( ISteamMatchmaking* self, uint64_steamid steamIDLobby, ELobbyType eLobbyType );
+// S_API bool SteamAPI_ISteamMatchmaking_SetLobbyJoinable( ISteamMatchmaking* self, uint64_steamid steamIDLobby, bool bLobbyJoinable );
+// S_API uint64_steamid SteamAPI_ISteamMatchmaking_GetLobbyOwner( ISteamMatchmaking* self, uint64_steamid steamIDLobby );
+// S_API bool SteamAPI_ISteamMatchmaking_SetLobbyOwner( ISteamMatchmaking* self, uint64_steamid steamIDLobby, uint64_steamid steamIDNewOwner );
+// S_API bool SteamAPI_ISteamMatchmaking_SetLinkedLobby( ISteamMatchmaking* self, uint64_steamid steamIDLobby, uint64_steamid steamIDLobbyDependent );
 
 #endif
