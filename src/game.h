@@ -3,6 +3,7 @@
 struct AssetLibrary;
 struct Renderer;
 struct Inputs;
+typedef uint64_t SteamAPICall_t;
 
 enum GameState
 {
@@ -20,6 +21,10 @@ struct Game
 	struct AssetLibrary *assets;
 	struct Renderer *renderer;
 	struct Inputs *inputs;
+
+	// steam
+	SteamAPICall_t lobby_join_request;
+	uint64_t lobby_id;
 };
 
 struct GameUpdateContext
@@ -45,6 +50,7 @@ struct GameUpdateResult
 typedef void (*StateInitFn)(void **state_data, struct Game const *game);
 typedef void (*StateTermFn)(void **state_data);
 typedef struct GameUpdateResult (*StateUpdateFn)(void **state_data, struct GameUpdateContext const *ctx);
+typedef void (*StateCallbackFn)(void **state_data, struct GameUpdateContext const *ctx, int callback_type, void *callback_data, int callback_datasize);
 typedef void (*StateRenderFn)(void **state_data);
 
 void mainmenu_init(void **state_data, struct Game const *game);
@@ -60,6 +66,7 @@ void local_battle_render(void **state_data);
 void network_battle_init(void **state_data, struct Game const *game);
 void network_battle_term(void **state_data);
 struct GameUpdateResult network_battle_update(void **state_data, struct GameUpdateContext const *ctx);
+void network_battle_steam_callback(void **state_data, struct GameUpdateContext const *ctx, int callback_type, void *callback_data, int callback_datasize);
 void network_battle_render(void **state_data);
 
 StateInitFn const STATE_INIT_FUNCTIONS[GAME_STATE_COUNT] = {
@@ -78,6 +85,12 @@ StateUpdateFn const STATE_UPDATE_FUNCTIONS[GAME_STATE_COUNT] = {
 	mainmenu_update,
 	local_battle_update,
 	network_battle_update,
+};
+
+StateCallbackFn const STATE_STEAM_CALLBACK_FUNCTIONS[GAME_STATE_COUNT] = {
+	0,
+	0,
+	network_battle_steam_callback,
 };
 
 StateRenderFn const STATE_RENDER_FUNCTIONS[GAME_STATE_COUNT] = {

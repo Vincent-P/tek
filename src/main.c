@@ -128,7 +128,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 	SDL_InitSubSystem(SDL_INIT_GAMEPAD);
 	TracyCZoneEnd(sdli);
 	TracyCZoneN(sdlcw, "SDL_CreateWindow", true);
-	application->window = SDL_CreateWindow("tek", 1920, 1080, SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
+	application->window = SDL_CreateWindow("tek", 1280, 800, SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
 	TracyCZoneEnd(sdlcw);
 
 	load_assets(&application->assets, application->renderer);
@@ -463,6 +463,8 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 	}
 	ImGui_NewFrame();
 
+	bool demo_opened = true;
+	ImGui_ShowDemoWindow(&demo_opened);
 	drawer2d_reset_frame(application->drawer);
 	ui_new_frame();
 

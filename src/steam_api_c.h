@@ -26,6 +26,7 @@ typedef struct ISteamUser ISteamUser;
 typedef uint64_t uint64_steamid;
 typedef int32_t HSteamUser;
 typedef int32_t HSteamPipe;
+typedef uint64_t CSteamID;
 #ifndef bool
 #define bool  _Bool
 #define false 0
@@ -38,10 +39,17 @@ enum { k_cchMaxSteamErrMsg = 1024 };
 typedef char SteamErrMsg[ k_cchMaxSteamErrMsg ];
 enum SteamCallbacksConstants
 {
+	k_iSteamFriendsCallbacks = 300,
+	k_iSteamFriendsGameLobbyJoinRequestedCallback = k_iSteamFriendsCallbacks + 33,
+
 	k_iSteamMatchmakingCallbacks = 500,
 	k_iSteamMatchmakingLobbyInviteCallback = k_iSteamMatchmakingCallbacks + 3,
 	k_iSteamMatchmakingLobbyEnterCallback = k_iSteamMatchmakingCallbacks + 4,
+	k_iSteamMatchmakingLobbyDataUpdateCallback = k_iSteamMatchmakingCallbacks + 5,
 	k_iSteamMatchmakingLobbyCreatedCallback = k_iSteamMatchmakingCallbacks + 13,
+
+	k_iSteamUtilsCallbacks = 700,
+	k_iSteamUtilsSteamAPICallCompletedCallback = k_iSteamUtilsCallbacks + 3,
 
 	k_iSteamNetworkingMessagesCallbacks = 1250,
 	k_iSteamNetworkingMessagesSessionRequestCallback = k_iSteamNetworkingMessagesCallbacks + 1,
@@ -252,7 +260,36 @@ enum ELobbyType
 };
 typedef enum ELobbyType ELobbyType;
 
+enum EChatRoomEnterResponse
+{
+	k_EChatRoomEnterResponseSuccess = 1,		// Success
+	k_EChatRoomEnterResponseDoesntExist = 2,	// Chat doesn't exist (probably closed)
+	k_EChatRoomEnterResponseNotAllowed = 3,		// General Denied - You don't have the permissions needed to join the chat
+	k_EChatRoomEnterResponseFull = 4,			// Chat room has reached its maximum size
+	k_EChatRoomEnterResponseError = 5,			// Unexpected Error
+	k_EChatRoomEnterResponseBanned = 6,			// You are banned from this chat room and may not join
+	k_EChatRoomEnterResponseLimited = 7,		// Joining this chat is not allowed because you are a limited user (no value on account)
+	k_EChatRoomEnterResponseClanDisabled = 8,	// Attempt to join a clan chat when the clan is locked or disabled
+	k_EChatRoomEnterResponseCommunityBan = 9,	// Attempt to join a chat when the user has a community lock on their account
+	k_EChatRoomEnterResponseMemberBlockedYou = 10, // Join failed - some member in the chat has blocked you from joining
+	k_EChatRoomEnterResponseYouBlockedMember = 11, // Join failed - you have blocked some member already in the chat
+	// k_EChatRoomEnterResponseNoRankingDataLobby = 12,  // No longer used
+	// k_EChatRoomEnterResponseNoRankingDataUser = 13,  //  No longer used
+	// k_EChatRoomEnterResponseRankOutOfRange = 14, //  No longer used
+	k_EChatRoomEnterResponseRatelimitExceeded = 15, // Join failed - to many join attempts in a very short period of time
+};
+typedef enum EChatRoomEnterResponse EChatRoomEnterResponse;
+
+
 // -- structs
+
+struct SteamAPICallCompleted_t
+{
+	SteamAPICall_t m_hAsyncCall;
+	int m_iCallback;
+	uint32_t m_cubParam;
+};
+typedef struct SteamAPICallCompleted_t SteamAPICallCompleted_t;
 
 #pragma pack(push,1)
 
@@ -424,6 +461,21 @@ struct LobbyEnter_t
 	uint32_t m_EChatRoomEnterResponse;	// EChatRoomEnterResponse
 };
 typedef struct LobbyEnter_t LobbyEnter_t;
+
+//-----------------------------------------------------------------------------
+// Purpose: The lobby metadata has changed
+//			if m_ulSteamIDMember is the steamID of a lobby member, use GetLobbyMemberData() to access per-user details
+//			if m_ulSteamIDMember == m_ulSteamIDLobby, use GetLobbyData() to access lobby metadata
+//-----------------------------------------------------------------------------
+struct LobbyDataUpdate_t
+{
+	uint64_t m_ulSteamIDLobby;		// steamID of the Lobby
+	uint64_t m_ulSteamIDMember;		// steamID of the member whose data changed, or the room itself
+	uint8_t m_bSuccess;				// true if we lobby data was successfully changed;
+									// will only be false if RequestLobbyData() was called on a lobby that no longer exists
+};
+typedef struct LobbyDataUpdate_t LobbyDataUpdate_t;
+
 struct LobbyCreated_t
 {
 	EResult m_eResult;		// k_EResultOK - the lobby was successfully created
@@ -439,6 +491,17 @@ typedef struct LobbyCreated_t LobbyCreated_t;
 
 // ISteamFriends
 typedef struct ISteamFriends ISteamFriends;
+//-----------------------------------------------------------------------------
+// Purpose: called when the user tries to join a lobby from their friends list
+//			game client should attempt to connect to specified lobby when this is received
+//-----------------------------------------------------------------------------
+struct GameLobbyJoinRequested_t
+{
+	CSteamID m_steamIDLobby;
+	// The friend they did the join via (will be invalid if not directly via a friend)
+	CSteamID m_steamIDFriend;
+};
+typedef struct GameLobbyJoinRequested_t GameLobbyJoinRequested_t;
 
 
 // -- SteamAPI
@@ -516,7 +579,7 @@ S_API void SteamAPI_ISteamMatchmaking_LeaveLobby( ISteamMatchmaking* self, uint6
 S_API int SteamAPI_ISteamMatchmaking_GetNumLobbyMembers( ISteamMatchmaking* self, uint64_steamid steamIDLobby );
 S_API uint64_steamid SteamAPI_ISteamMatchmaking_GetLobbyMemberByIndex( ISteamMatchmaking* self, uint64_steamid steamIDLobby, int iMember );
 // S_API const char * SteamAPI_ISteamMatchmaking_GetLobbyData( ISteamMatchmaking* self, uint64_steamid steamIDLobby, const char * pchKey );
-// S_API bool SteamAPI_ISteamMatchmaking_SetLobbyData( ISteamMatchmaking* self, uint64_steamid steamIDLobby, const char * pchKey, const char * pchValue );
+S_API bool SteamAPI_ISteamMatchmaking_SetLobbyData( ISteamMatchmaking* self, uint64_steamid steamIDLobby, const char * pchKey, const char * pchValue );
 // S_API int SteamAPI_ISteamMatchmaking_GetLobbyDataCount( ISteamMatchmaking* self, uint64_steamid steamIDLobby );
 // S_API bool SteamAPI_ISteamMatchmaking_GetLobbyDataByIndex( ISteamMatchmaking* self, uint64_steamid steamIDLobby, int iLobbyData, char * pchKey, int cchKeyBufferSize, char * pchValue, int cchValueBufferSize );
 // S_API bool SteamAPI_ISteamMatchmaking_DeleteLobbyData( ISteamMatchmaking* self, uint64_steamid steamIDLobby, const char * pchKey );

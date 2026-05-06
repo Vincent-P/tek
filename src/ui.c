@@ -10,7 +10,8 @@ void ui_new_frame()
 static void ui_handle_button_interaction(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData) {
 	bool *pressed = (bool *)userData;
 	// Pointer state allows you to detect mouse down / hold / release
-	if (pressed != NULL && pointerInfo.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
+	bool button_clicked = pointerInfo.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME || pointerInfo.state == CLAY_POINTER_DATA_RELEASED_THIS_FRAME;;
+	if (pressed != NULL && button_clicked) {
 		*pressed = true;
 	}
 }

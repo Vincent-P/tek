@@ -1,4 +1,5 @@
 #include <ggponet.h>
+#include "steam_api_c.h"
 
 #define TEK_NETWORK_HOST_PORT 35584
 #define TEK_NETWORK_PEER_PORT 35585
@@ -6,7 +7,8 @@
 enum NetworkBattleState
 {
 	NETWORK_BATTLE_STATE_MAIN_MENU, // Display Host/Join menu
-	NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_PLAYERS, // Once player clicks "Host", a steam lobby is created, wait for someone to join
+	NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_CREATION, // Once player clicks "Host", a steam lobby is created, wait for async op to completed
+	NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_PLAYERS, // when a steam lobby is created, wait for someone to join
 	NETWORK_BATTLE_STATE_HOSTING, // Once someone joined, we create a GGPO session and start updating battle state
 	NETWORK_BATTLE_STATE_CONNECTING_TO_LOBBY, // Once a player clicks "Join", we try to join a steam lobby
 	NETWORK_BATTLE_STATE_JOINING, // When we connect to a steam lobby successfully, we create a GGPO session and start updating battle state
@@ -19,6 +21,10 @@ struct NetworkBattleData
 	// But to support rollback easily, inputs are converted and passed explicitly to the simulation.
 	struct Inputs *inputs;
 	struct Game const *game;
+
+	// Steam data
+	SteamAPICall_t lobby_create_call;
+	uint64_t lobby_id;
 
 	// Battle data
 	GGPOSession *ggpo_session;
@@ -171,6 +177,55 @@ bool tek_on_event(GGPOEvent *info)
 
 
 // --
+void network_battle_steam_callback(void **state_data, struct GameUpdateContext const *ctx, int callback_type, void *callback_data, int callback_datasize)
+{
+	struct NetworkBattleData *data = *state_data;
+
+	if (callback_type == k_iSteamUtilsSteamAPICallCompletedCallback) {
+		SteamAPICallCompleted_t* pCallCompleted = (SteamAPICallCompleted_t*)callback_data;
+
+		if (data->state == NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_CREATION) {
+			// we are waiting for a lobby to be created
+			if (pCallCompleted->m_hAsyncCall == data->lobby_create_call) {
+				LobbyCreated_t lobby_created_result = {0};
+				bool bFailed = false;
+				if (SteamAPI_ManualDispatch_GetAPICallResult(SteamAPI_GetHSteamPipe(),
+									     pCallCompleted->m_hAsyncCall,
+									     &lobby_created_result,
+									     pCallCompleted->m_cubParam,
+									     pCallCompleted->m_iCallback,
+									     &bFailed)) {
+					// Lobby was created
+					int bob = 0;
+					data->lobby_id = lobby_created_result.m_ulSteamIDLobby;
+					if (data->lobby_id != 0) {
+						fprintf(stdout, "[steam] created lobby %llu.\n", data->lobby_id);
+
+						int num_players = SteamAPI_ISteamMatchmaking_GetNumLobbyMembers(SteamAPI_SteamMatchmaking(), data->lobby_id);
+						if (num_players == 2) {
+							uint64_t p0_id = SteamAPI_ISteamMatchmaking_GetLobbyMemberByIndex(SteamAPI_SteamMatchmaking(), data->lobby_id, 0);
+							uint64_t p1_id = SteamAPI_ISteamMatchmaking_GetLobbyMemberByIndex(SteamAPI_SteamMatchmaking(), data->lobby_id, 1);
+						}
+
+						SteamAPI_ISteamMatchmaking_SetLobbyData(SteamAPI_SteamMatchmaking(), data->lobby_id, "name", "tek");
+
+						data->state = NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_PLAYERS;
+					} else {
+						data->state = NETWORK_BATTLE_STATE_MAIN_MENU;
+					}
+				}
+			}
+		} else if (data->state == NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_PLAYERS) {
+			int bob = 0;
+		}
+	}
+}
+
+void network_battle_state_create_lobby(struct NetworkBattleData *data)
+{
+	data->state = NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_CREATION;
+	data->lobby_create_call = SteamAPI_ISteamMatchmaking_CreateLobby(SteamAPI_SteamMatchmaking(), k_ELobbyTypeFriendsOnly, 2);
+}
 
 void network_battle_state_host(struct NetworkBattleData *data)
 {
@@ -219,9 +274,18 @@ void network_battle_state_host_term(struct NetworkBattleData *data)
 	ggpo_tek_global_state = NULL;
 }
 
-void network_battle_state_join(struct NetworkBattleData *data)
+void network_battle_state_join(struct NetworkBattleData *data, uint64_steamid lobby_id)
 {
 	data->state = NETWORK_BATTLE_STATE_JOINING;
+
+	fprintf(stdout, "[steam] joined lobby %llu.\n", lobby_id);
+	int num_players = SteamAPI_ISteamMatchmaking_GetNumLobbyMembers(SteamAPI_SteamMatchmaking(), lobby_id);
+	if (num_players == 2) {
+		uint64_t p0_id = SteamAPI_ISteamMatchmaking_GetLobbyMemberByIndex(SteamAPI_SteamMatchmaking(), lobby_id, 0);
+		uint64_t p1_id = SteamAPI_ISteamMatchmaking_GetLobbyMemberByIndex(SteamAPI_SteamMatchmaking(), lobby_id, 1);
+		fprintf(stdout, "[steam] P0 %llu P1 %llu\n", p0_id, p1_id);
+	}
+
 
 	ggpo_tek_global_state = data;
 	data->ggpo_players[0].size = sizeof(GGPOPlayer);
@@ -313,11 +377,11 @@ struct GameUpdateResult network_battle_update(void **state_data, struct GameUpda
 	case NETWORK_BATTLE_STATE_MAIN_MENU: {
 
 		if (data->host_pressed) {
-			network_battle_state_host(data);
+			network_battle_state_create_lobby(data);
 			data->host_pressed = false;
 		}
 		if (data->join_pressed) {
-			network_battle_state_join(data);
+			// network_battle_state_join(data);
 			data->join_pressed = false;
 		}
 		break;
@@ -425,7 +489,80 @@ void network_battle_render(void **state_data)
 			.backgroundColor = {0,0,0,0}
 		}) {
 
-		if (data->state == NETWORK_BATTLE_STATE_HOSTING || data->state == NETWORK_BATTLE_STATE_JOINING) {
+
+
+		if (data->state == NETWORK_BATTLE_STATE_MAIN_MENU) {
+			CLAY({.id = CLAY_ID("MAIN_MENU_FRAME"), .floating = { .attachTo = CLAY_ATTACH_TO_PARENT }, .layout = {.sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0)}}, .backgroundColor = {0, 0, 0, 128}} ) {
+				CLAY({
+						.id = CLAY_ID("Floating"),
+						.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = { .width = CLAY_SIZING_FIT(300), .height = CLAY_SIZING_FIT(0) }, .padding = CLAY_PADDING_ALL(16), .childGap = 16 },
+						.floating = { .offset = {0, 16}, .attachTo = CLAY_ATTACH_TO_PARENT, .attachPoints = { .element = CLAY_ATTACH_POINT_CENTER_BOTTOM, .parent = CLAY_ATTACH_POINT_CENTER_CENTER } },
+						.backgroundColor = {0, 0, 0, 128}
+					}) {
+					ui_button("Host", &data->host_pressed);
+					ui_button("Join", &data->join_pressed);
+				}
+			}
+		} else if (data->state == NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_CREATION) {
+			CLAY({.id = CLAY_ID("MAIN_MENU_FRAME"), .floating = { .attachTo = CLAY_ATTACH_TO_PARENT }, .layout = {.sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0)}}, .backgroundColor = {0, 0, 0, 128}} ) {
+				CLAY({
+						.id = CLAY_ID("Floating"),
+						.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = { .width = CLAY_SIZING_FIT(300), .height = CLAY_SIZING_FIT(0) }, .padding = CLAY_PADDING_ALL(16), .childGap = 16 },
+						.floating = { .offset = {0, 16}, .attachTo = CLAY_ATTACH_TO_PARENT, .attachPoints = { .element = CLAY_ATTACH_POINT_CENTER_BOTTOM, .parent = CLAY_ATTACH_POINT_CENTER_CENTER } },
+						.backgroundColor = {0, 0, 0, 128}
+					}) {
+					CLAY_TEXT(CLAY_STRING("Waiting for lobby creation"), CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {255, 255, 255, 255}}));
+				}
+			}
+		} else if (data->state == NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_PLAYERS) {
+			CLAY({.id = CLAY_ID("MAIN_MENU_FRAME"), .floating = { .attachTo = CLAY_ATTACH_TO_PARENT }, .layout = {.sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0)}}, .backgroundColor = {0, 0, 0, 128}} ) {
+				CLAY({
+						.id = CLAY_ID("Floating"),
+						.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = { .width = CLAY_SIZING_FIT(300), .height = CLAY_SIZING_FIT(0) }, .padding = CLAY_PADDING_ALL(16), .childGap = 16 },
+						.floating = { .offset = {0, 16}, .attachTo = CLAY_ATTACH_TO_PARENT, .attachPoints = { .element = CLAY_ATTACH_POINT_CENTER_BOTTOM, .parent = CLAY_ATTACH_POINT_CENTER_CENTER } },
+						.backgroundColor = {0, 0, 0, 128}
+					}) {
+					CLAY_TEXT(CLAY_STRING("Waiting for players..."), CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {255, 255, 255, 255}}));
+
+
+
+					// 64 bits total
+					union SteamID_t
+					{
+						struct SteamIDComponent_t
+						{
+#ifdef VALVE_BIG_ENDIAN
+							uint64_t			m_EUniverse : 8;	// universe this account belongs to
+							uint64_t		m_EAccountType : 4;			// type of account - can't show as EAccountType, due to signed / unsigned difference
+							uint64_t		m_unAccountInstance : 20;	// dynamic instance ID
+							uint64_t				m_unAccountID : 32;			// unique account identifier
+#else
+							uint64_t				m_unAccountID : 32;			// unique account identifier
+							uint64_t		m_unAccountInstance : 20;	// dynamic instance ID
+							uint64_t		m_EAccountType : 4;			// type of account - can't show as EAccountType, due to signed / unsigned difference
+							uint64_t			m_EUniverse : 8;	// universe this account belongs to
+#endif
+						} m_comp;
+
+						uint64_t m_unAll64Bits;
+					};
+
+					union SteamID_t lobby_id = {0};
+					lobby_id.m_unAll64Bits = data->lobby_id;
+
+					static char buf[256] = {0};
+					Clay_String s = {0};
+					s.length = snprintf(buf, sizeof(buf), "%lld", lobby_id.m_comp.m_unAccountID);
+					s.chars = buf;
+					CLAY_TEXT(s, CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {255, 255, 255, 255}}));
+
+					static char buf2[256] = {0};
+					s.length = snprintf(buf2, sizeof(buf2), "%llu", lobby_id.m_comp.m_unAccountID);
+					s.chars = buf2;
+					CLAY_TEXT(s, CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {255, 255, 255, 255}}));
+				}
+			}
+		} else if (data->state == NETWORK_BATTLE_STATE_HOSTING || data->state == NETWORK_BATTLE_STATE_JOINING) {
 			CLAY({.id = CLAY_ID("HeaderBar"), .layout = { .sizing = {.width = CLAY_SIZING_GROW(0)}, .childGap = 16}}) {
 
 				CLAY({
@@ -571,21 +708,6 @@ void network_battle_render(void **state_data)
 				}
 			}
 
-		}
-
-
-		if (data->state == NETWORK_BATTLE_STATE_MAIN_MENU) {
-			CLAY({.id = CLAY_ID("MAIN_MENU_FRAME"), .floating = { .attachTo = CLAY_ATTACH_TO_PARENT }, .layout = {.sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0)}}, .backgroundColor = {0, 0, 0, 128}} ) {
-				CLAY({
-						.id = CLAY_ID("Floating"),
-						.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = { .width = CLAY_SIZING_FIT(300), .height = CLAY_SIZING_FIT(0) }, .padding = CLAY_PADDING_ALL(16), .childGap = 16 },
-						.floating = { .offset = {0, 16}, .attachTo = CLAY_ATTACH_TO_PARENT, .attachPoints = { .element = CLAY_ATTACH_POINT_CENTER_BOTTOM, .parent = CLAY_ATTACH_POINT_CENTER_CENTER } },
-						.backgroundColor = {0, 0, 0, 128}
-					}) {
-					ui_button("Host", &data->host_pressed);
-					ui_button("Join", &data->join_pressed);
-				}
-			}
 		}
 
 

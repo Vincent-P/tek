@@ -45,7 +45,7 @@ void drawer2d_init(struct Drawer2D *drawer, struct Renderer *renderer)
 	drawer->glyph_cache->atlas = (struct Atlas2D*)calloc(1, atlas_size);
 	atlas2d_init(drawer->glyph_cache->atlas, GLYPH_CACHE_ATLAS_SIZE, atlas_min_size);
 
-	fread(drawer->glyph_cache->ttf_buffer, 1, 1<<20, fopen("c:/windows/fonts/CascadiaMono.ttf", "rb"));
+	fread(drawer->glyph_cache->ttf_buffer, 1, 1<<20, fopen("IBMPlexSans.ttf", "rb"));
 	stbtt_InitFont(&drawer->glyph_cache->main_font, drawer->glyph_cache->ttf_buffer, stbtt_GetFontOffsetForIndex(drawer->glyph_cache->ttf_buffer, 0));
 
 	drawer->glyph_cache->atlas_texture = 10;
