@@ -5,50 +5,40 @@
 
 enum LocalBattleState
 {
-	LOCAL_BATTLE_STATE_PLAYING, // LocalBattlePlayingState
-	LOCAL_BATTLE_STATE_WATCHING, // ReplayWatcherState
-	LOCAL_BATTLE_STATE_PAUSE, // Pause menu
-	LOCAL_BATTLE_STATE_END, // End of round
+	LOCAL_BATTLE_STATE_PLAY,
+	LOCAL_BATTLE_STATE_REPLAY,
+	LOCAL_BATTLE_STATE_PAUSE,
+	LOCAL_BATTLE_STATE_END,
 };
 
-enum LocalBattlePlayingState
+enum LocalBattlePlayState
 {
-	LOCAL_BATTLE_PLAYING_STATE_PLAYING, //
-	LOCAL_BATTLE_PLAYING_STATE_RECORDING, // ReplayRecorderState
+	LOCAL_BATTLE_PLAY_STATE_PLAYING,
+	LOCAL_BATTLE_PLAY_STATE_RECORDING,
 };
 
-enum ReplayRecorderState
-{
-	REPLAY_RECORDER_STATE_INACTIVE, // is playing? can we collapse states to simplify?
-	REPLAY_RECORDER_STATE_START_RECORD,
-	REPLAY_RECORDER_STATE_ACTIVE,
-	REPLAY_RECORDER_STATE_STOP_RECORD,
-};
 
-enum ReplayWatcherState
+enum LocalBattleReplayState
 {
-	REPLAY_WATCHER_STATE_START_PLAY,
-	REPLAY_WATCHER_STATE_PLAYING,
-	REPLAY_WATCHER_STATE_PAUSED,
-	REPLAY_WATCHER_STATE_EXIT,
+	LOCAL_BATTLE_REPLAY_STATE_WATCHING,
+	LOCAL_BATTLE_REPLAY_STATE_PAUSED,
 };
 
 
 struct LocalBattle
 {
-	// Replay data
+
+	// States
+	enum LocalBattleState state;
+	enum LocalBattlePlayState play_state;
+	enum LocalBattleReplayState replay_state;
+
+	// play recording state
 	struct BattleContext replay_initial_context;
 	struct BattleInputs replay_inputs[60*60*60];
 	uint32_t replay_current_input;
 	uint32_t replay_length;
-
-	// State data
-	enum LocalBattleState state;
-	// playing state
-	enum LocalBattlePlayingState playing_state;
-	enum ReplayRecorderState replay_recorder_state;
-	// watching state
-	enum ReplayWatcherState replay_watcher_state;
+	// replay watching state
 	uint32_t watching_frame;
 	// pause state
 	enum LocalBattleState pause_previous_state;

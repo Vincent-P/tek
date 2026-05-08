@@ -1,28 +1,11 @@
 #include "game_local_battle.h"
 #include "game_battle.h"
 
-
-/**
-States:
-(- Side select)
-(- Map select)
-(- Character select)
-- Round
-  - Playing
-    - Playing
-    - Recording replay
-  - Watching replay
-    - Playback
-    - Paused
-  - Pause menu
-- Match end
- **/
-
 void local_battle_new_match(struct Game *game)
 {
 	struct LocalBattle *data = &game->local_battle;
 	struct Simulation *simulation = &game->simulation;
-	data->state = LOCAL_BATTLE_STATE_PLAYING;
+	data->state = LOCAL_BATTLE_STATE_PLAY;
 
 	memset(&simulation->battle_context, 0, sizeof(simulation->battle_context));
 	simulation->battle_context.assets = game->assets;
@@ -126,49 +109,46 @@ bool local_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
 	}
 
 	switch(data->state) {
-	case LOCAL_BATTLE_STATE_PLAYING: {
+	case LOCAL_BATTLE_STATE_PLAY: {
 		if (ImGui_Begin("Local Battle", NULL, 0)) {
 
 			ImGui_Text("Replay:");
 			ImGui_SameLine();
 
-			switch (data->replay_recorder_state) {
-			case REPLAY_RECORDER_STATE_INACTIVE: {
+			if (data->play_state == LOCAL_BATTLE_PLAY_STATE_PLAYING) {
 				if (ImGui_Button("Record")) {
-					data->playing_state = LOCAL_BATTLE_PLAYING_STATE_RECORDING;
-					data->replay_recorder_state = REPLAY_RECORDER_STATE_START_RECORD;
+					data->play_state = LOCAL_BATTLE_PLAY_STATE_RECORDING;
+					// copy context
+					memcpy(&data->replay_initial_context, &simulation->battle_context, sizeof(struct BattleContext));
+					// record inputs
+					data->replay_current_input = 0;
 				}
 				ImGui_SameLine();
-				break;
-			}
-			case REPLAY_RECORDER_STATE_START_RECORD: {
-				break;
-			}
-			case REPLAY_RECORDER_STATE_ACTIVE: {
+
+				if (data->replay_length > 0) {
+					if (ImGui_Button("Watch replay")) {
+						data->state = LOCAL_BATTLE_STATE_REPLAY;
+						data->replay_state = LOCAL_BATTLE_REPLAY_STATE_WATCHING;
+						local_battle_watch_set_frame(game, 0);
+					}
+					ImGui_SameLine();
+				}
+
+			} else if (data->play_state == LOCAL_BATTLE_PLAY_STATE_RECORDING) {
 				if (ImGui_Button("Stop")) {
-					data->replay_recorder_state = REPLAY_RECORDER_STATE_STOP_RECORD;
+					// stop replay
+					data->play_state = LOCAL_BATTLE_PLAY_STATE_PLAYING;
+					data->replay_length = data->replay_current_input;
 				}
 				ImGui_SameLine();
-				break;
-			}
-			case REPLAY_RECORDER_STATE_STOP_RECORD: {
-				break;
-			}
 			}
 
-			if (data->replay_length > 0) {
-				if (ImGui_Button("Watch replay")) {
-					data->state = LOCAL_BATTLE_STATE_WATCHING;
-					data->replay_watcher_state = REPLAY_WATCHER_STATE_START_PLAY;
-				}
-				ImGui_SameLine();
-			}
 		}
 		ImGui_End();
 		break;
 	}
 
-	case LOCAL_BATTLE_STATE_WATCHING: {
+	case LOCAL_BATTLE_STATE_REPLAY: {
 		if (ImGui_Begin("Local Battle", NULL, 0)) {
 			ImGui_SameLine();
 			ImGui_Text("Replay:");
@@ -176,7 +156,8 @@ bool local_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
 			ImGui_Text("%u/%u", data->watching_frame, data->replay_length);
 			ImGui_SameLine();
 			if (ImGui_Button("Exit replay")) {
-				data->replay_watcher_state = REPLAY_WATCHER_STATE_EXIT;
+				// Go back to playing state
+				data->state = LOCAL_BATTLE_STATE_PLAY;
 			}
 			ImGui_SameLine();
 
@@ -194,13 +175,13 @@ bool local_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
 				advance = -1;
 			}
 			ImGui_SameLine();
-			if (data->replay_watcher_state == REPLAY_WATCHER_STATE_PLAYING) {
+			if (data->replay_state == LOCAL_BATTLE_REPLAY_STATE_WATCHING) {
 				if (ImGui_ButtonEx("pause", (ImVec2){button_width, 0})) {
-					data->replay_watcher_state = REPLAY_WATCHER_STATE_PAUSED;
+					data->replay_state = LOCAL_BATTLE_REPLAY_STATE_PAUSED;
 				}
-			} else if (data->replay_watcher_state == REPLAY_WATCHER_STATE_PAUSED) {
+			} else if (data->replay_state == LOCAL_BATTLE_REPLAY_STATE_PAUSED) {
 				if (ImGui_ButtonEx("play", (ImVec2){button_width, 0})) {
-					data->replay_watcher_state = REPLAY_WATCHER_STATE_START_PLAY;
+					data->replay_state = LOCAL_BATTLE_REPLAY_STATE_WATCHING;
 				}
 			}
 			ImGui_SameLine();
@@ -241,35 +222,7 @@ bool local_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
 	}
 
 	switch (data->state) {
-	case LOCAL_BATTLE_STATE_PLAYING: {
-
-		if (data->playing_state == LOCAL_BATTLE_PLAYING_STATE_RECORDING) {
-			switch (data->replay_recorder_state) {
-			case REPLAY_RECORDER_STATE_INACTIVE: {
-				break;
-			}
-			case REPLAY_RECORDER_STATE_START_RECORD: {
-				data->replay_recorder_state = REPLAY_RECORDER_STATE_ACTIVE;
-				// copy context
-				memcpy(&data->replay_initial_context, &simulation->battle_context, sizeof(struct BattleContext));
-				// record inputs
-				data->replay_current_input = 0;
-				break;
-
-			}
-			case REPLAY_RECORDER_STATE_ACTIVE: {
-				break;
-			}
-			case REPLAY_RECORDER_STATE_STOP_RECORD: {
-				data->playing_state = LOCAL_BATTLE_PLAYING_STATE_PLAYING;
-				data->replay_recorder_state = REPLAY_RECORDER_STATE_INACTIVE;
-
-				data->replay_length = data->replay_current_input;
-				break;
-			}
-			}
-		}
-
+	case LOCAL_BATTLE_STATE_PLAY: {
 
 		// Playing. Read inputs and simulate battle.
 		simulation->accumulator += ctx->previous_frame_time;
@@ -283,11 +236,12 @@ bool local_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
 			TracyCZoneEnd(f);
 
 			// save inputs to replay
-			bool is_recording = data->playing_state == LOCAL_BATTLE_PLAYING_STATE_RECORDING && data->replay_recorder_state == REPLAY_RECORDER_STATE_ACTIVE;
-			if (is_recording) {
+			if (data->play_state == LOCAL_BATTLE_PLAY_STATE_RECORDING) {
 				data->replay_inputs[data->replay_current_input] = battle_inputs;
 				if (data->replay_current_input + 1 >= ARRAY_LENGTH(data->replay_inputs)) {
-					data->replay_recorder_state = REPLAY_RECORDER_STATE_STOP_RECORD;
+					// stop replay
+					data->play_state = LOCAL_BATTLE_PLAY_STATE_PLAYING;
+					data->replay_length = data->replay_current_input;
 				} else {
 					data->replay_current_input += 1;
 				}
@@ -306,16 +260,9 @@ bool local_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
 		break;
 	}
 
-	case LOCAL_BATTLE_STATE_WATCHING: {
-		switch (data->replay_watcher_state) {
-		case REPLAY_WATCHER_STATE_START_PLAY: {
-			// Start playing
-			data->replay_watcher_state = REPLAY_WATCHER_STATE_PLAYING;
-			local_battle_watch_set_frame(game, 0);
-			break;
-		}
-
-		case REPLAY_WATCHER_STATE_PLAYING: {
+	case LOCAL_BATTLE_STATE_REPLAY: {
+		switch (data->replay_state) {
+		case LOCAL_BATTLE_REPLAY_STATE_WATCHING: {
 			// Watching replay. Read inputs from buffer and simulate battle.
 			simulation->accumulator += ctx->previous_frame_time;
 			const uint64_t dt = 16;
@@ -336,15 +283,8 @@ bool local_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
 			break;
 		}
 
-		case REPLAY_WATCHER_STATE_PAUSED: {
+		case LOCAL_BATTLE_REPLAY_STATE_PAUSED: {
 			// Paused.
-			break;
-		}
-
-		case REPLAY_WATCHER_STATE_EXIT: {
-			// Go back to playing state
-			data->replay_watcher_state = REPLAY_WATCHER_STATE_PAUSED;
-			data->state = LOCAL_BATTLE_STATE_PLAYING;
 			break;
 		}
 		}
@@ -365,11 +305,11 @@ bool local_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
 
 	bool result = false;
 	switch (data->state) {
-	case LOCAL_BATTLE_STATE_PLAYING: {
+	case LOCAL_BATTLE_STATE_PLAY: {
 		break;
 	}
 
-	case LOCAL_BATTLE_STATE_WATCHING: {
+	case LOCAL_BATTLE_STATE_REPLAY: {
 		break;
 	}
 
@@ -427,7 +367,7 @@ void local_battle_render(struct Game *game)
 			.backgroundColor = {0,0,0,0}
 		}) {
 
-		if (data->state == LOCAL_BATTLE_STATE_PLAYING || data->state == LOCAL_BATTLE_STATE_WATCHING) {
+		if (data->state == LOCAL_BATTLE_STATE_PLAY || data->state == LOCAL_BATTLE_STATE_REPLAY) {
 			CLAY({.id = CLAY_ID("HeaderBar"), .layout = { .sizing = {.width = CLAY_SIZING_GROW(0)}, .childGap = 16}}) {
 
 				CLAY({
