@@ -7,7 +7,7 @@
 
 
 // -- ggpo callbacks
-struct NetworkBattle *ggpo_tek_global_state = NULL;
+struct Game *ggpo_game_global_state = NULL;
 
 
 void tek_check_error(GGPOErrorCode err)
@@ -34,7 +34,7 @@ bool tek_save_game_state(unsigned char **out_buffer, int *out_len, int *out_chec
 {
 	int length = sizeof(struct BattleState);
 	void *gs_copy = malloc(length);
-	memcpy(gs_copy, &ggpo_tek_global_state->battle_context.battle_state, length);
+	memcpy(gs_copy, &ggpo_game_global_state->simulation.battle_context.battle_state, length);
 
 	*out_buffer = gs_copy;
 	*out_len = length;
@@ -54,7 +54,7 @@ bool tek_load_game_state(unsigned char *buffer, int len)
 {
 	int length = sizeof(struct BattleState);
 	if (len == length) {
-		memcpy(&ggpo_tek_global_state->battle_context.battle_state, buffer, length);
+		memcpy(&ggpo_game_global_state->simulation.battle_context.battle_state, buffer, length);
 		return true;
 	}
 	return false;
@@ -70,7 +70,7 @@ bool tek_log_game_state(char *filename, unsigned char *buffer, int len)
 	int length = sizeof(struct BattleState);
 	if (len == length) {
 		struct BattleState *gs = (struct BattleState *)buffer;
-		ggpo_log(ggpo_tek_global_state->ggpo_session, "tek frame: %u", gs->frame_number);
+		ggpo_log(ggpo_game_global_state->network_battle.ggpo_session, "tek frame: %u", gs->frame_number);
 		return true;
 	}
 	return false;
@@ -96,8 +96,8 @@ void tek_free_buffer(void *buffer)
  */
 bool tek_advance_frame(int flags)
 {
-	GGPOSession* session = ggpo_tek_global_state->ggpo_session;
-	struct BattleContext *battle_ctx = &ggpo_tek_global_state->battle_context;
+	GGPOSession* session = ggpo_game_global_state->network_battle.ggpo_session;
+	struct BattleContext *battle_ctx = &ggpo_game_global_state->simulation.battle_context;
 
 	struct BattleInputs network_inputs = {0};
 	int disconnect_flags = 0;
@@ -141,9 +141,9 @@ bool tek_on_event(GGPOEvent *info)
 
 
 // --
-void network_battle_steam_callback(struct NetworkBattle *network_battle, struct GameUpdateContext const *ctx, int callback_type, void *callback_data, int callback_datasize)
+void network_battle_steam_callback(struct Game *game, struct GameUpdateContext const *ctx, int callback_type, void *callback_data, int callback_datasize)
 {
-	struct NetworkBattle *data = network_battle;
+	struct NetworkBattle *data = &game->network_battle;
 
 	if (callback_type == k_iSteamUtilsSteamAPICallCompletedCallback) {
 		SteamAPICallCompleted_t* pCallCompleted = (SteamAPICallCompleted_t*)callback_data;
@@ -191,11 +191,13 @@ void network_battle_state_create_lobby(struct NetworkBattle *data)
 	data->lobby_create_call = SteamAPI_ISteamMatchmaking_CreateLobby(SteamAPI_SteamMatchmaking(), k_ELobbyTypeFriendsOnly, 2);
 }
 
-void network_battle_state_host(struct NetworkBattle *data)
+void network_battle_state_host(struct Game *game)
 {
+	struct Simulation *simulation = &game->simulation;
+	struct NetworkBattle *data = &game->network_battle;
 	data->state = NETWORK_BATTLE_STATE_HOSTING;
 
-	ggpo_tek_global_state = data;
+	ggpo_game_global_state = game;
 	data->ggpo_players[0].size = sizeof(GGPOPlayer);
 	data->ggpo_players[0].type = GGPO_PLAYERTYPE_LOCAL;
 	data->ggpo_players[0].player_num = 1;
@@ -221,25 +223,30 @@ void network_battle_state_host(struct NetworkBattle *data)
 	tek_check_error(err);
 
 	// Init battle
-	memset(&data->battle_context, 0, sizeof(data->battle_context));
-	data->battle_context.assets = data->game->assets;
-	data->battle_context.renderer = data->game->renderer;
-	data->battle_context.battle_non_state.rounds_first_to = 3;
-	battle_state_init(&data->battle_context);
+	memset(&simulation->battle_context, 0, sizeof(simulation->battle_context));
+	simulation->battle_context.assets = game->assets;
+	simulation->battle_context.renderer = game->renderer;
+	simulation->battle_context.battle_non_state.rounds_first_to = 3;
+	battle_state_init(&simulation->battle_context);
 }
 
-void network_battle_state_host_term(struct NetworkBattle *data)
+void network_battle_state_host_term(struct Game *game)
 {
-	battle_state_term(&data->battle_context);
+	struct NetworkBattle *data = &game->network_battle;
+	struct Simulation *simulation = &game->simulation;
+	battle_state_term(&simulation->battle_context);
 
 	GGPOErrorCode err = ggpo_close_session(data->ggpo_session);
 	tek_check_error(err);
 	data->ggpo_session = NULL;
-	ggpo_tek_global_state = NULL;
+	ggpo_game_global_state = NULL;
 }
 
-void network_battle_state_join(struct NetworkBattle *data, uint64_steamid lobby_id)
+void network_battle_state_join(struct Game *game, uint64_steamid lobby_id)
 {
+	struct NetworkBattle *data = &game->network_battle;
+	struct Simulation *simulation = &game->simulation;
+
 	data->state = NETWORK_BATTLE_STATE_JOINING;
 
 	fprintf(stdout, "[steam] joined lobby %llu.\n", lobby_id);
@@ -251,7 +258,7 @@ void network_battle_state_join(struct NetworkBattle *data, uint64_steamid lobby_
 	}
 
 
-	ggpo_tek_global_state = data;
+	ggpo_game_global_state = game;
 	data->ggpo_players[0].size = sizeof(GGPOPlayer);
 	data->ggpo_players[0].type = GGPO_PLAYERTYPE_REMOTE;
 	data->ggpo_players[0].player_num = 1;
@@ -277,21 +284,24 @@ void network_battle_state_join(struct NetworkBattle *data, uint64_steamid lobby_
 	tek_check_error(err);
 
 	// Init battle
-	memset(&data->battle_context, 0, sizeof(data->battle_context));
-	data->battle_context.assets = data->game->assets;
-	data->battle_context.renderer = data->game->renderer;
-	data->battle_context.battle_non_state.rounds_first_to = 3;
-	battle_state_init(&data->battle_context);
+	memset(&simulation->battle_context, 0, sizeof(simulation->battle_context));
+	simulation->battle_context.assets = game->assets;
+	simulation->battle_context.renderer = game->renderer;
+	simulation->battle_context.battle_non_state.rounds_first_to = 3;
+	battle_state_init(&simulation->battle_context);
 }
 
-void network_battle_state_join_term(struct NetworkBattle *data)
+void network_battle_state_join_term(struct Game *game)
 {
-	battle_state_term(&data->battle_context);
+	struct NetworkBattle *data = &game->network_battle;
+	struct Simulation *simulation = &game->simulation;
+
+	battle_state_term(&simulation->battle_context);
 
 	GGPOErrorCode err = ggpo_close_session(data->ggpo_session);
 	tek_check_error(err);
 	data->ggpo_session = NULL;
-	ggpo_tek_global_state = NULL;
+	ggpo_game_global_state = NULL;
 }
 
 // --
@@ -299,19 +309,13 @@ void network_battle_state_join_term(struct NetworkBattle *data)
 void network_battle_init(struct Game *game)
 {
 	printf("NETWORK_BATTLE: Init\n");
-
-	printf("NETWORK_BATTLE: Init\n");
-
-	game->network_battle.inputs = game->inputs;
-	game->network_battle.game = game;
-
 	ggpo_log(NULL, "test");
 }
 
-void network_battle_term(struct NetworkBattle *network_battle)
+void network_battle_term(struct Game *game)
 {
 	printf("NETWORK_BATTLE: Term\n");
-	struct NetworkBattle *data = network_battle;
+	struct NetworkBattle *data = &game->network_battle;
 
 	switch (data->state) {
 	case NETWORK_BATTLE_STATE_MAIN_MENU: {
@@ -319,11 +323,11 @@ void network_battle_term(struct NetworkBattle *network_battle)
 	}
 
 	case NETWORK_BATTLE_STATE_HOSTING: {
-		network_battle_state_host_term(data);
+		network_battle_state_host_term(game);
 		break;
 	}
 	case NETWORK_BATTLE_STATE_JOINING: {
-		network_battle_state_join_term(data);
+		network_battle_state_join_term(game);
 		break;
 	}
 	}
@@ -332,6 +336,7 @@ void network_battle_term(struct NetworkBattle *network_battle)
 bool network_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
 {
 	struct NetworkBattle *data = &game->network_battle;
+	struct Simulation *simulation = &game->simulation;
 	bool result = false;
 	switch (data->state) {
 	case NETWORK_BATTLE_STATE_MAIN_MENU: {
@@ -380,11 +385,11 @@ bool network_battle_update(struct Game *game, struct GameUpdateContext const *ct
 		ImGui_End();
 
 		// Playing. Read inputs and simulate battle.
-		data->accumulator += ctx->previous_frame_time;
+		simulation->accumulator += ctx->previous_frame_time;
 		const uint64_t dt = 16;
-		while (data->accumulator >= dt) {
+		while (simulation->accumulator >= dt) {
 			TracyCZoneN(f, "Battle Frame", true);
-			struct BattleInputs battle_inputs = battle_read_input(data->inputs);
+			struct BattleInputs battle_inputs = battle_read_input(game->inputs);
 			if (data->state == NETWORK_BATTLE_STATE_HOSTING) {
 				// Send player1 inputs to network
 				err = ggpo_add_local_input(data->ggpo_session, data->ggpo_player_handles[0], &battle_inputs.player1, sizeof(struct BattleInput));
@@ -400,7 +405,7 @@ bool network_battle_update(struct Game *game, struct GameUpdateContext const *ct
 				err = ggpo_synchronize_input(data->ggpo_session, &network_inputs, sizeof(network_inputs), &disconnect_flags);
 				if (GGPO_SUCCEEDED(err)) {
 					tek_check_error(err);
-					enum BattleFrameResult battle_result = battle_simulate_frame(&data->battle_context, network_inputs);
+					enum BattleFrameResult battle_result = battle_simulate_frame(&simulation->battle_context, network_inputs);
 					TracyCZoneEnd(f);
 
 					err = ggpo_advance_frame(data->ggpo_session);
@@ -409,9 +414,9 @@ bool network_battle_update(struct Game *game, struct GameUpdateContext const *ct
 					if (battle_result != BATTLE_FRAME_RESULT_CONTINUE || disconnect_flags != 0) {
 
 						if (data->state == NETWORK_BATTLE_STATE_HOSTING) {
-							network_battle_state_host_term(data);
+							network_battle_state_host_term(game);
 						} else if (data->state == NETWORK_BATTLE_STATE_JOINING) {
-							network_battle_state_join_term(data);
+							network_battle_state_join_term(game);
 						}
 						data->state = NETWORK_BATTLE_STATE_MAIN_MENU;
 						break;
@@ -419,8 +424,8 @@ bool network_battle_update(struct Game *game, struct GameUpdateContext const *ct
 				}
 			}
 
-			data->t += dt;
-			data->accumulator -= dt;
+			simulation->t += dt;
+			simulation->accumulator -= dt;
 		}
 		break;
 	}
@@ -429,19 +434,20 @@ bool network_battle_update(struct Game *game, struct GameUpdateContext const *ct
 	return result;
 }
 
-void network_battle_render(struct NetworkBattle *network_battle)
+void network_battle_render(struct Game *game)
 {
-	struct NetworkBattle *data = network_battle;
+	struct NetworkBattle *data = &game->network_battle;
+	struct Simulation *simulation = &game->simulation;
 
 	if (data->state == NETWORK_BATTLE_STATE_HOSTING || data->state == NETWORK_BATTLE_STATE_JOINING) {
-		battle_render(&data->battle_context);
+		battle_render(&simulation->battle_context);
 	}
 
-	float p1_hp_filled = data->battle_context.battle_state.p1_entity.tek.hp * 0.01f;
-	float p2_hp_filled = data->battle_context.battle_state.p2_entity.tek.hp * 0.01f;
-	int rounds_first_to = data->battle_context.battle_non_state.rounds_first_to;
-	int rounds_p1_won = data->battle_context.battle_non_state.rounds_p1_won;
-	int rounds_p2_won = data->battle_context.battle_non_state.rounds_p2_won;
+	float p1_hp_filled = simulation->battle_context.battle_state.p1_entity.tek.hp * 0.01f;
+	float p2_hp_filled = simulation->battle_context.battle_state.p2_entity.tek.hp * 0.01f;
+	int rounds_first_to = simulation->battle_context.battle_non_state.rounds_first_to;
+	int rounds_p1_won = simulation->battle_context.battle_non_state.rounds_p1_won;
+	int rounds_p2_won = simulation->battle_context.battle_non_state.rounds_p2_won;
 
 	CLAY({
 			.id = CLAY_ID("OuterContainer"),
@@ -614,7 +620,7 @@ void network_battle_render(struct NetworkBattle *network_battle)
 						.id = CLAY_IDI("PlayerInput", 1),
 						.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = {.width = CLAY_SIZING_FIT(0), .height = CLAY_SIZING_GROW(0)}, .padding = CLAY_PADDING_ALL(16), .childGap = 16 },
 					}) {
-					struct BattleState* battle_state = &data->battle_context.battle_state;
+					struct BattleState* battle_state = &simulation->battle_context.battle_state;
 					struct TekPlayerComponent const *p1 = &battle_state->p1_entity.tek;
 					#if 0
 					uint32_t input_last_frame = battle_state->frame_number;
@@ -643,7 +649,7 @@ void network_battle_render(struct NetworkBattle *network_battle)
 						.id = CLAY_IDI("PlayerInput", 2),
 						.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = {.width = CLAY_SIZING_FIT(0), .height = CLAY_SIZING_GROW(0)}, .padding = CLAY_PADDING_ALL(16), .childGap = 16, .childAlignment = {.x = CLAY_ALIGN_X_RIGHT} },
 					}) {
-					struct BattleState* battle_state = &data->battle_context.battle_state;
+					struct BattleState* battle_state = &simulation->battle_context.battle_state;
 					struct TekPlayerComponent const *p2 = &battle_state->p2_entity.tek;
 
 					#if 0

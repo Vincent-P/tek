@@ -36,17 +36,6 @@ enum ReplayWatcherState
 
 struct LocalBattle
 {
-	// External data
-	// NOTE: The battle context has direct access to assets and renderer.
-	// But to support rollback easily, inputs are converted and passed explicitly to the simulation.
-	struct Inputs *inputs;
-	struct Game const *game;
-
-	// Battle data
-	uint64_t accumulator;
-	uint64_t t;
-	struct BattleContext battle_context;
-
 	// Replay data
 	struct BattleContext replay_initial_context;
 	struct BattleInputs replay_inputs[60*60*60];
@@ -74,6 +63,6 @@ struct LocalBattle
 
 
 void local_battle_init(struct Game *game);
-void local_battle_term(struct LocalBattle *local_battle);
+void local_battle_term(struct Game *game);
 bool local_battle_update(struct Game *game, struct GameUpdateContext const *ctx);
-void local_battle_render(struct LocalBattle *local_battle);
+void local_battle_render(struct Game *game);

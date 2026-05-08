@@ -22,11 +22,20 @@ struct Game
 {
 	struct AssetLibrary *assets;
 	struct Renderer *renderer;
-	struct Inputs *inputs;
+	struct Inputs const*inputs;
 
 	// steam
 	SteamAPICall_t lobby_join_request;
 	uint64_t lobby_id;
+
+	// common state
+	struct Simulation
+	{
+		uint64_t accumulator;
+		uint64_t t;
+		struct BattleContext battle_context;
+	} simulation;
+
 	// state
 	enum GameState current_state;
 	struct MainMenu mainmenu;

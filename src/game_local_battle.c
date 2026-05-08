@@ -3,7 +3,6 @@
 
 
 /**
-
 States:
 (- Side select)
 (- Map select)
@@ -17,37 +16,33 @@ States:
     - Paused
   - Pause menu
 - Match end
-
  **/
 
-void local_battle_new_match(struct LocalBattle *data)
+void local_battle_new_match(struct Game *game)
 {
+	struct LocalBattle *data = &game->local_battle;
+	struct Simulation *simulation = &game->simulation;
 	data->state = LOCAL_BATTLE_STATE_PLAYING;
 
-	memset(&data->battle_context, 0, sizeof(data->battle_context));
-
-	data->battle_context.assets = data->game->assets;
-	data->battle_context.renderer = data->game->renderer;
-	data->battle_context.battle_non_state.rounds_first_to = 3;
-	battle_state_init(&data->battle_context);
+	memset(&simulation->battle_context, 0, sizeof(simulation->battle_context));
+	simulation->battle_context.assets = game->assets;
+	simulation->battle_context.renderer = game->renderer;
+	simulation->battle_context.battle_non_state.rounds_first_to = 3;
+	battle_state_init(&simulation->battle_context);
 }
 
 void local_battle_init(struct Game *game)
 {
 	printf("LOCAL_BATTLE: Init\n");
-
 	memset(&game->local_battle, 0, sizeof(struct LocalBattle));
-	game->local_battle.inputs = game->inputs;
-	game->local_battle.game = game;
-
-	local_battle_new_match(&game->local_battle);
+	local_battle_new_match(game);
 }
 
 static void _exit_local_battle(struct Game *game)
 {
 	printf("LOCAL_BATTLE: Exit to mainmenu\n");
 
-	battle_state_term(&game->local_battle.battle_context);
+	battle_state_term(&game->simulation.battle_context);
 
 	game->current_state = GAME_STATE_MAIN_MENU;
 	memset(&game->mainmenu, 0, sizeof(struct MainMenu));
@@ -55,8 +50,11 @@ static void _exit_local_battle(struct Game *game)
 
 // -- replay
 
-static void local_battle_watch_set_frame(struct LocalBattle *data, uint32_t frame)
+static void local_battle_watch_set_frame(struct Game *game, uint32_t frame)
 {
+	struct LocalBattle *data = &game->local_battle;
+	struct Simulation *simulation = &game->simulation;
+
 	if (frame >= data->replay_length) {
 		if (frame > data->replay_length * 2) {
 			frame = data->replay_length - 1;
@@ -66,17 +64,17 @@ static void local_battle_watch_set_frame(struct LocalBattle *data, uint32_t fram
 	}
 
 	if (frame == 0) {
-		memcpy(&data->battle_context, &data->replay_initial_context, sizeof(struct BattleContext));
+		memcpy(&simulation->battle_context, &data->replay_initial_context, sizeof(struct BattleContext));
 	}
 
 	if (frame < data->watching_frame) {
 
 		// we are going back in time, resimulate from the initial game data
-		memcpy(&data->battle_context, &data->replay_initial_context, sizeof(struct BattleContext));
+		memcpy(&simulation->battle_context, &data->replay_initial_context, sizeof(struct BattleContext));
 		for (uint32_t i = 0; i < frame; ++i) {
 			TracyCZoneN(f, "Replay Frame", true);
 			struct BattleInputs battle_inputs = data->replay_inputs[i];
-			enum BattleFrameResult battle_result = battle_simulate_frame(&data->battle_context, battle_inputs);
+			enum BattleFrameResult battle_result = battle_simulate_frame(&simulation->battle_context, battle_inputs);
 			TracyCZoneEnd(f);
 		}
 
@@ -86,7 +84,7 @@ static void local_battle_watch_set_frame(struct LocalBattle *data, uint32_t fram
 		for (uint32_t i = data->watching_frame; i < frame; ++i) {
 			TracyCZoneN(f, "Replay Frame", true);
 			struct BattleInputs battle_inputs = data->replay_inputs[i];
-			enum BattleFrameResult battle_result = battle_simulate_frame(&data->battle_context, battle_inputs);
+			enum BattleFrameResult battle_result = battle_simulate_frame(&simulation->battle_context, battle_inputs);
 			TracyCZoneEnd(f);
 		}
 
@@ -99,7 +97,9 @@ static void local_battle_watch_set_frame(struct LocalBattle *data, uint32_t fram
 
 bool local_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
 {
+	struct Inputs const* inputs = game->inputs;
 	struct LocalBattle *data = &game->local_battle;
+	struct Simulation *simulation = &game->simulation;
 
 	if (ImGui_Begin("Local Battle", NULL, 0)) {
 		if (ImGui_Button("Pause")) {
@@ -113,12 +113,14 @@ bool local_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
 	ImGui_End();
 
 	if (data->state != LOCAL_BATTLE_STATE_PAUSE) {
-		if (data->inputs->buttons_was_pressed[InputButtons_Escape] || data->inputs->gamepad_buttons_is_down[InputGamepadButtons_START]) {
+		if (inputs->buttons_was_pressed[InputButtons_Escape]
+		    || inputs->gamepad_buttons_is_down[InputGamepadButtons_START]) {
 			data->pause_previous_state = data->state;
 			data->state = LOCAL_BATTLE_STATE_PAUSE;
 		}
 	} else {
-		if (data->inputs->buttons_was_pressed[InputButtons_Escape] || data->inputs->gamepad_buttons_is_down[InputGamepadButtons_START]) {
+		if (inputs->buttons_was_pressed[InputButtons_Escape]
+		    || inputs->gamepad_buttons_is_down[InputGamepadButtons_START]) {
 			data->pause_resume_pressed = true;
 		}
 	}
@@ -216,7 +218,7 @@ bool local_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
 
 			if (advance != 0) {
 				uint32_t new_frame = data->watching_frame + advance;
-				local_battle_watch_set_frame(data, new_frame);
+				local_battle_watch_set_frame(game, new_frame);
 			}
 		}
 		ImGui_End();
@@ -230,7 +232,7 @@ bool local_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
 	case LOCAL_BATTLE_STATE_END: {
 		if (ImGui_Begin("Local Battle", NULL, 0)) {
 			if (ImGui_Button("Rematch")) {
-				local_battle_new_match(data);
+				local_battle_new_match(game);
 			}
 		}
 		ImGui_End();
@@ -249,7 +251,7 @@ bool local_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
 			case REPLAY_RECORDER_STATE_START_RECORD: {
 				data->replay_recorder_state = REPLAY_RECORDER_STATE_ACTIVE;
 				// copy context
-				memcpy(&data->replay_initial_context, &data->battle_context, sizeof(struct BattleContext));
+				memcpy(&data->replay_initial_context, &simulation->battle_context, sizeof(struct BattleContext));
 				// record inputs
 				data->replay_current_input = 0;
 				break;
@@ -270,14 +272,14 @@ bool local_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
 
 
 		// Playing. Read inputs and simulate battle.
-		data->accumulator += ctx->previous_frame_time;
+		simulation->accumulator += ctx->previous_frame_time;
 		const uint64_t dt = 16;
-		while (data->accumulator >= dt) {
+		while (simulation->accumulator >= dt) {
 			TracyCZoneN(f, "Battle Frame", true);
-			struct BattleInputs battle_inputs = battle_read_input(data->inputs);
+			struct BattleInputs battle_inputs = battle_read_input(inputs);
 			// ggpo_add_local_input
 			// ggpo_synchronize_input
-			enum BattleFrameResult battle_result = battle_simulate_frame(&data->battle_context, battle_inputs);
+			enum BattleFrameResult battle_result = battle_simulate_frame(&simulation->battle_context, battle_inputs);
 			TracyCZoneEnd(f);
 
 			// save inputs to replay
@@ -291,12 +293,12 @@ bool local_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
 				}
 			}
 
-			data->t += dt;
-			data->accumulator -= dt;
+			simulation->t += dt;
+			simulation->accumulator -= dt;
 
 			if (battle_result != BATTLE_FRAME_RESULT_CONTINUE) {
 				data->state = LOCAL_BATTLE_STATE_END;
-				battle_state_term(&data->battle_context);
+				battle_state_term(&simulation->battle_context);
 				break;
 			}
 		}
@@ -309,27 +311,27 @@ bool local_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
 		case REPLAY_WATCHER_STATE_START_PLAY: {
 			// Start playing
 			data->replay_watcher_state = REPLAY_WATCHER_STATE_PLAYING;
-			local_battle_watch_set_frame(data, 0);
+			local_battle_watch_set_frame(game, 0);
 			break;
 		}
 
 		case REPLAY_WATCHER_STATE_PLAYING: {
 			// Watching replay. Read inputs from buffer and simulate battle.
-			data->accumulator += ctx->previous_frame_time;
+			simulation->accumulator += ctx->previous_frame_time;
 			const uint64_t dt = 16;
-			while (data->accumulator >= dt) {
+			while (simulation->accumulator >= dt) {
 				TracyCZoneN(f, "Battle Frame", true);
 				struct BattleInputs battle_inputs = data->replay_inputs[data->watching_frame];
-				enum BattleFrameResult battle_result = battle_simulate_frame(&data->battle_context, battle_inputs);
+				enum BattleFrameResult battle_result = battle_simulate_frame(&simulation->battle_context, battle_inputs);
 				TracyCZoneEnd(f);
 
 				data->watching_frame += 1;
-				data->t += dt;
-				data->accumulator -= dt;
+				simulation->t += dt;
+				simulation->accumulator -= dt;
 			}
 
 			if (data->watching_frame >= data->replay_length) {
-				local_battle_watch_set_frame(data, 0);
+				local_battle_watch_set_frame(game, 0);
 			}
 			break;
 		}
@@ -389,7 +391,7 @@ bool local_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
 
 	case LOCAL_BATTLE_STATE_END: {
 		if (data->end_rematch_pressed) {
-			local_battle_new_match(data);
+			local_battle_new_match(game);
 		} else if (data->end_mainmenu_pressed) {
 			_exit_local_battle(game);
 			result = true;
@@ -404,19 +406,20 @@ bool local_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
 	return result;
 }
 
-void local_battle_render(struct LocalBattle *local_battle)
+void local_battle_render(struct Game *game)
 {
-	struct LocalBattle *data = local_battle;
+	struct LocalBattle *data = &game->local_battle;
+	struct Simulation *simulation = &game->simulation;
 	if (data->state != LOCAL_BATTLE_STATE_END) {
-		battle_render(&data->battle_context);
+		battle_render(&simulation->battle_context);
 	}
 
 
-	float p1_hp_filled = data->battle_context.battle_state.p1_entity.tek.hp * 0.01f;
-	float p2_hp_filled = data->battle_context.battle_state.p2_entity.tek.hp * 0.01f;
-	int rounds_first_to = data->battle_context.battle_non_state.rounds_first_to;
-	int rounds_p1_won = data->battle_context.battle_non_state.rounds_p1_won;
-	int rounds_p2_won = data->battle_context.battle_non_state.rounds_p2_won;
+	float p1_hp_filled = simulation->battle_context.battle_state.p1_entity.tek.hp * 0.01f;
+	float p2_hp_filled = simulation->battle_context.battle_state.p2_entity.tek.hp * 0.01f;
+	int rounds_first_to = simulation->battle_context.battle_non_state.rounds_first_to;
+	int rounds_p1_won = simulation->battle_context.battle_non_state.rounds_p1_won;
+	int rounds_p2_won = simulation->battle_context.battle_non_state.rounds_p2_won;
 
 	CLAY({
 			.id = CLAY_ID("OuterContainer"),
@@ -516,7 +519,7 @@ void local_battle_render(struct LocalBattle *local_battle)
 						.id = CLAY_IDI("PlayerInput", 1),
 						.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = {.width = CLAY_SIZING_FIT(0), .height = CLAY_SIZING_GROW(0)}, .padding = CLAY_PADDING_ALL(16), .childGap = 16 },
 					}) {
-					struct BattleState* battle_state = &data->battle_context.battle_state;
+					struct BattleState* battle_state = &simulation->battle_context.battle_state;
 					struct TekPlayerComponent const *p1 = &battle_state->p1_entity.tek;
 
 					uint32_t count = INPUT_BUFFER_SIZE;
@@ -574,7 +577,7 @@ void local_battle_render(struct LocalBattle *local_battle)
 						.id = CLAY_IDI("PlayerInput", 2),
 						.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = {.width = CLAY_SIZING_FIT(0), .height = CLAY_SIZING_GROW(0)}, .padding = CLAY_PADDING_ALL(16), .childGap = 16, .childAlignment = {.x = CLAY_ALIGN_X_RIGHT} },
 					}) {
-					struct BattleState* battle_state = &data->battle_context.battle_state;
+					struct BattleState* battle_state = &simulation->battle_context.battle_state;
 					struct TekPlayerComponent const *p2 = &battle_state->p2_entity.tek;
 					uint32_t count = INPUT_BUFFER_SIZE;
 					if (p2->input_buffer_head < count) {

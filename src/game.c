@@ -46,7 +46,7 @@ static void game_join_steam_lobby(struct Game *game, uint64_t lobby_id)
 	game->lobby_join_request = 0;
 
 	game->current_state = GAME_STATE_NETWORK_BATTLE;
-	network_battle_state_join(&game->network_battle, lobby_id);
+	network_battle_state_join(game, lobby_id);
 }
 
 static void game_steam_callback(struct Game *game, int callback_type, void *callback_data, int callback_datasize)
@@ -120,7 +120,7 @@ static void game_steam_callback(struct Game *game, int callback_type, void *call
 			break;
 		}
 		case GAME_STATE_NETWORK_BATTLE: {
-			network_battle_steam_callback(&game->network_battle, NULL, callback_type, callback_data, callback_datasize);
+			network_battle_steam_callback(game, NULL, callback_type, callback_data, callback_datasize);
 			break;
 		}
 		}
@@ -173,11 +173,11 @@ void game_render(struct Game *game)
 		break;
 	}
 	case GAME_STATE_LOCAL_BATTLE: {
-		local_battle_render(&game->local_battle);
+		local_battle_render(game);
 		break;
 	}
 	case GAME_STATE_NETWORK_BATTLE: {
-		network_battle_render(&game->network_battle);
+		network_battle_render(game);
 		break;
 	}
 	}
