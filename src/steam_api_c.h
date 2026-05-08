@@ -3,7 +3,6 @@
 
 #define S_API __declspec( dllimport )
 #define S_CALLTYPE __cdecl
-
 #if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__)
 // The 32-bit version of gcc has the alignment requirement for uint64 and double set to
 // 4 meaning that even with #pragma pack(8) these types will only be four-byte aligned.
@@ -15,8 +14,8 @@
 #define VALVE_CALLBACK_PACK_LARGE
 #endif
 
+
 // -- Basic typedefs and constants
-
 typedef uint32_t HSteamNetConnection;
 typedef uint32_t HSteamListenSocket;
 typedef int64_t SteamNetworkingMicroseconds;
@@ -280,8 +279,8 @@ enum EChatRoomEnterResponse
 };
 typedef enum EChatRoomEnterResponse EChatRoomEnterResponse;
 
-
-// -- structs
+
+// Structs
 
 struct SteamAPICallCompleted_t
 {
@@ -503,6 +502,9 @@ struct GameLobbyJoinRequested_t
 };
 typedef struct GameLobbyJoinRequested_t GameLobbyJoinRequested_t;
 
+
+
+// Functions
 
 // -- SteamAPI
 S_API ESteamAPIInitResult S_CALLTYPE SteamAPI_InitFlat(SteamErrMsg* pOutErrMsg);

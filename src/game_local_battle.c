@@ -1,6 +1,6 @@
+#include "game_local_battle.h"
 #include "game_battle.h"
 
-#define REPLAY_LENGTH_IN_FRAMES (60*60*60) // 1 hour
 
 /**
 
@@ -20,75 +20,7 @@ States:
 
  **/
 
-enum LocalBattleState
-{
-	LOCAL_BATTLE_STATE_PLAYING, // LocalBattlePlayingState
-	LOCAL_BATTLE_STATE_WATCHING, // ReplayWatcherState
-	LOCAL_BATTLE_STATE_PAUSE, // Pause menu
-	LOCAL_BATTLE_STATE_END, // End of round
-};
-
-enum LocalBattlePlayingState
-{
-	LOCAL_BATTLE_PLAYING_STATE_PLAYING, //
-	LOCAL_BATTLE_PLAYING_STATE_RECORDING, // ReplayRecorderState
-};
-
-enum ReplayRecorderState
-{
-	REPLAY_RECORDER_STATE_INACTIVE, // is playing? can we collapse states to simplify?
-	REPLAY_RECORDER_STATE_START_RECORD,
-	REPLAY_RECORDER_STATE_ACTIVE,
-	REPLAY_RECORDER_STATE_STOP_RECORD,
-};
-
-enum ReplayWatcherState
-{
-	REPLAY_WATCHER_STATE_START_PLAY,
-	REPLAY_WATCHER_STATE_PLAYING,
-	REPLAY_WATCHER_STATE_PAUSED,
-	REPLAY_WATCHER_STATE_EXIT,
-};
-
-struct LocalBattleData
-{
-	// External data
-	// NOTE: The battle context has direct access to assets and renderer.
-	// But to support rollback easily, inputs are converted and passed explicitly to the simulation.
-	struct Inputs *inputs;
-	struct Game const *game;
-
-	// Battle data
-	uint64_t accumulator;
-	uint64_t t;
-	struct BattleContext battle_context;
-
-	// Replay data
-	struct BattleContext replay_initial_context;
-	struct BattleInputs replay_inputs[60*60*60];
-	uint32_t replay_current_input;
-	uint32_t replay_length;
-
-	// State data
-	enum LocalBattleState state;
-	// playing state
-	enum LocalBattlePlayingState playing_state;
-	enum ReplayRecorderState replay_recorder_state;
-	// watching state
-	enum ReplayWatcherState replay_watcher_state;
-	uint32_t watching_frame;
-	// pause state
-	enum LocalBattleState pause_previous_state;
-
-	// UI data
-	bool pause_resume_pressed;
-	bool pause_options_pressed;
-	bool pause_mainmenu_pressed;
-	bool end_rematch_pressed;
-	bool end_mainmenu_pressed;
-};
-
-void local_battle_new_match(struct LocalBattleData *data)
+void local_battle_new_match(struct LocalBattle *data)
 {
 	data->state = LOCAL_BATTLE_STATE_PLAYING;
 
@@ -100,30 +32,30 @@ void local_battle_new_match(struct LocalBattleData *data)
 	battle_state_init(&data->battle_context);
 }
 
-void local_battle_init(void **state_data, struct Game const *game)
+void local_battle_init(struct Game *game)
 {
 	printf("LOCAL_BATTLE: Init\n");
-	*state_data = calloc(1, sizeof(struct LocalBattleData));
-	struct LocalBattleData *data = *state_data;
-	data->inputs = game->inputs;
-	data->game = game;
 
-	local_battle_new_match(data);
+	memset(&game->local_battle, 0, sizeof(struct LocalBattle));
+	game->local_battle.inputs = game->inputs;
+	game->local_battle.game = game;
+
+	local_battle_new_match(&game->local_battle);
 }
 
-void local_battle_term(void** state_data)
+static void _exit_local_battle(struct Game *game)
 {
-	printf("LOCAL_BATTLE: Term\n");
-	struct LocalBattleData *data = *state_data;
-	battle_state_term(&data->battle_context);
+	printf("LOCAL_BATTLE: Exit to mainmenu\n");
 
-	free(*state_data);
-	*state_data = NULL;
+	battle_state_term(&game->local_battle.battle_context);
+
+	game->current_state = GAME_STATE_MAIN_MENU;
+	memset(&game->mainmenu, 0, sizeof(struct MainMenu));
 }
 
 // -- replay
 
-static void local_battle_watch_set_frame(struct LocalBattleData *data, uint32_t frame)
+static void local_battle_watch_set_frame(struct LocalBattle *data, uint32_t frame)
 {
 	if (frame >= data->replay_length) {
 		if (frame > data->replay_length * 2) {
@@ -165,9 +97,9 @@ static void local_battle_watch_set_frame(struct LocalBattleData *data, uint32_t 
 
 // --
 
-struct GameUpdateResult local_battle_update(void** data_data, struct GameUpdateContext const *ctx)
+bool local_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
 {
-	struct LocalBattleData *data = *data_data;
+	struct LocalBattle *data = &game->local_battle;
 
 	if (ImGui_Begin("Local Battle", NULL, 0)) {
 		if (ImGui_Button("Pause")) {
@@ -429,7 +361,7 @@ struct GameUpdateResult local_battle_update(void** data_data, struct GameUpdateC
 	}
 
 
-	struct GameUpdateResult result = {0};
+	bool result = false;
 	switch (data->state) {
 	case LOCAL_BATTLE_STATE_PLAYING: {
 		break;
@@ -445,8 +377,8 @@ struct GameUpdateResult local_battle_update(void** data_data, struct GameUpdateC
 			assert(data->state != LOCAL_BATTLE_STATE_PAUSE);
 		} else if (data->pause_options_pressed) {
 		} else if (data->pause_mainmenu_pressed) {
-			result.action = GAME_UPDATE_ACTION_TRANSITION;
-			result.transition_state = GAME_STATE_MAIN_MENU;
+			_exit_local_battle(game);
+			result = true;
 		}
 
 		data->pause_resume_pressed = false;
@@ -459,8 +391,8 @@ struct GameUpdateResult local_battle_update(void** data_data, struct GameUpdateC
 		if (data->end_rematch_pressed) {
 			local_battle_new_match(data);
 		} else if (data->end_mainmenu_pressed) {
-			result.action = GAME_UPDATE_ACTION_TRANSITION;
-			result.transition_state = GAME_STATE_MAIN_MENU;
+			_exit_local_battle(game);
+			result = true;
 		}
 
 		data->end_rematch_pressed = false;
@@ -472,9 +404,9 @@ struct GameUpdateResult local_battle_update(void** data_data, struct GameUpdateC
 	return result;
 }
 
-void local_battle_render(void **data_data)
+void local_battle_render(struct LocalBattle *local_battle)
 {
-	struct LocalBattleData *data = *data_data;
+	struct LocalBattle *data = local_battle;
 	if (data->state != LOCAL_BATTLE_STATE_END) {
 		battle_render(&data->battle_context);
 	}

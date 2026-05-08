@@ -1,49 +1,13 @@
-#include <ggponet.h>
+#include "game_network_battle.h"
+
 #include "steam_api_c.h"
 
 #define TEK_NETWORK_HOST_PORT 35584
 #define TEK_NETWORK_PEER_PORT 35585
 
-enum NetworkBattleState
-{
-	NETWORK_BATTLE_STATE_MAIN_MENU, // Display Host/Join menu
-	NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_CREATION, // Once player clicks "Host", a steam lobby is created, wait for async op to completed
-	NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_PLAYERS, // when a steam lobby is created, wait for someone to join
-	NETWORK_BATTLE_STATE_HOSTING, // Once someone joined, we create a GGPO session and start updating battle state
-	NETWORK_BATTLE_STATE_CONNECTING_TO_LOBBY, // Once a player clicks "Join", we try to join a steam lobby
-	NETWORK_BATTLE_STATE_JOINING, // When we connect to a steam lobby successfully, we create a GGPO session and start updating battle state
-};
-
-struct NetworkBattleData
-{
-	// External data
-	// NOTE: The battle context has direct access to assets and renderer.
-	// But to support rollback easily, inputs are converted and passed explicitly to the simulation.
-	struct Inputs *inputs;
-	struct Game const *game;
-
-	// Steam data
-	SteamAPICall_t lobby_create_call;
-	uint64_t lobby_id;
-
-	// Battle data
-	GGPOSession *ggpo_session;
-	GGPOPlayer ggpo_players[2];
-	GGPOPlayerHandle ggpo_player_handles[2];
-	uint64_t accumulator;
-	uint64_t t;
-	struct BattleContext battle_context;
-
-	// State data
-	enum NetworkBattleState state;
-
-	// UI data
-	bool host_pressed;
-	bool join_pressed;
-};
 
 // -- ggpo callbacks
-struct NetworkBattleData *ggpo_tek_global_state = NULL;
+struct NetworkBattle *ggpo_tek_global_state = NULL;
 
 
 void tek_check_error(GGPOErrorCode err)
@@ -177,9 +141,9 @@ bool tek_on_event(GGPOEvent *info)
 
 
 // --
-void network_battle_steam_callback(void **state_data, struct GameUpdateContext const *ctx, int callback_type, void *callback_data, int callback_datasize)
+void network_battle_steam_callback(struct NetworkBattle *network_battle, struct GameUpdateContext const *ctx, int callback_type, void *callback_data, int callback_datasize)
 {
-	struct NetworkBattleData *data = *state_data;
+	struct NetworkBattle *data = network_battle;
 
 	if (callback_type == k_iSteamUtilsSteamAPICallCompletedCallback) {
 		SteamAPICallCompleted_t* pCallCompleted = (SteamAPICallCompleted_t*)callback_data;
@@ -221,13 +185,13 @@ void network_battle_steam_callback(void **state_data, struct GameUpdateContext c
 	}
 }
 
-void network_battle_state_create_lobby(struct NetworkBattleData *data)
+void network_battle_state_create_lobby(struct NetworkBattle *data)
 {
 	data->state = NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_CREATION;
 	data->lobby_create_call = SteamAPI_ISteamMatchmaking_CreateLobby(SteamAPI_SteamMatchmaking(), k_ELobbyTypeFriendsOnly, 2);
 }
 
-void network_battle_state_host(struct NetworkBattleData *data)
+void network_battle_state_host(struct NetworkBattle *data)
 {
 	data->state = NETWORK_BATTLE_STATE_HOSTING;
 
@@ -264,7 +228,7 @@ void network_battle_state_host(struct NetworkBattleData *data)
 	battle_state_init(&data->battle_context);
 }
 
-void network_battle_state_host_term(struct NetworkBattleData *data)
+void network_battle_state_host_term(struct NetworkBattle *data)
 {
 	battle_state_term(&data->battle_context);
 
@@ -274,7 +238,7 @@ void network_battle_state_host_term(struct NetworkBattleData *data)
 	ggpo_tek_global_state = NULL;
 }
 
-void network_battle_state_join(struct NetworkBattleData *data, uint64_steamid lobby_id)
+void network_battle_state_join(struct NetworkBattle *data, uint64_steamid lobby_id)
 {
 	data->state = NETWORK_BATTLE_STATE_JOINING;
 
@@ -320,7 +284,7 @@ void network_battle_state_join(struct NetworkBattleData *data, uint64_steamid lo
 	battle_state_init(&data->battle_context);
 }
 
-void network_battle_state_join_term(struct NetworkBattleData *data)
+void network_battle_state_join_term(struct NetworkBattle *data)
 {
 	battle_state_term(&data->battle_context);
 
@@ -332,23 +296,22 @@ void network_battle_state_join_term(struct NetworkBattleData *data)
 
 // --
 
-void network_battle_init(void **state_data, struct Game const *game)
+void network_battle_init(struct Game *game)
 {
 	printf("NETWORK_BATTLE: Init\n");
 
 	printf("NETWORK_BATTLE: Init\n");
-	*state_data = calloc(1, sizeof(struct NetworkBattleData));
-	struct NetworkBattleData *data = *state_data;
-	data->inputs = game->inputs;
-	data->game = game;
+
+	game->network_battle.inputs = game->inputs;
+	game->network_battle.game = game;
 
 	ggpo_log(NULL, "test");
 }
 
-void network_battle_term(void **state_data)
+void network_battle_term(struct NetworkBattle *network_battle)
 {
 	printf("NETWORK_BATTLE: Term\n");
-	struct NetworkBattleData *data = *state_data;
+	struct NetworkBattle *data = network_battle;
 
 	switch (data->state) {
 	case NETWORK_BATTLE_STATE_MAIN_MENU: {
@@ -364,15 +327,12 @@ void network_battle_term(void **state_data)
 		break;
 	}
 	}
-
-	free(*state_data);
-	*state_data = NULL;
 }
 
-struct GameUpdateResult network_battle_update(void **state_data, struct GameUpdateContext const *ctx)
+bool network_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
 {
-	struct NetworkBattleData *data = *state_data;
-	struct GameUpdateResult result = {0};
+	struct NetworkBattle *data = &game->network_battle;
+	bool result = false;
 	switch (data->state) {
 	case NETWORK_BATTLE_STATE_MAIN_MENU: {
 
@@ -469,9 +429,9 @@ struct GameUpdateResult network_battle_update(void **state_data, struct GameUpda
 	return result;
 }
 
-void network_battle_render(void **state_data)
+void network_battle_render(struct NetworkBattle *network_battle)
 {
-	struct NetworkBattleData *data = *state_data;
+	struct NetworkBattle *data = network_battle;
 
 	if (data->state == NETWORK_BATTLE_STATE_HOSTING || data->state == NETWORK_BATTLE_STATE_JOINING) {
 		battle_render(&data->battle_context);

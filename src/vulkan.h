@@ -1,5 +1,6 @@
 #pragma once
 
+
 typedef struct VulkanDevice VulkanDevice;
 typedef struct VulkanFrame VulkanFrame;
 typedef struct VulkanRenderPass VulkanRenderPass;
@@ -112,6 +113,7 @@ struct VulkanBufferTextureCopy
 	uint32_t y_offset;
 };
 
+
 // resources
 uint32_t vulkan_get_device_size(void);
 void vulkan_create_device(VulkanDevice *device, void *hwnd);
