@@ -447,10 +447,10 @@ static uint32_t tek_create_hit_reactions_move(struct tek_Character *character,
 	memcpy(new_move, base_move, sizeof(struct tek_Move));
 	assert(new_move->cancels_length == 1);
 	new_move->cancels[0].starting_frame = stun;
-	uint32_t imove = base_move - character->moves;
+	uint32_t imove = (uint32_t)(base_move - character->moves);
 	struct tek_DebugName *base_name = character->move_names + imove;
 	struct tek_DebugName *name = character->move_names + character->moves_length;
-	int name_length = snprintf(name->string, sizeof(name->string), fmt, base_name->string, ireactions);
+	int name_length = snprintf(name->string, sizeof(name->string), fmt, base_name->string, (uint32_t)ireactions);
 	new_move->id = string_to_id(name->string, name_length);
 	character->moves_length += 1;
 	return new_move->id;

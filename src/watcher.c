@@ -40,7 +40,7 @@ bool watcher_tick()
 			char ascii_path[512] = {0};
 			
 			FILE_NOTIFY_INFORMATION* fni = (FILE_NOTIFY_INFORMATION*)buffer;
-			wchar_t const* wide_chars = fni->FileName;
+			(void)fni->FileName;
 			uint32_t wide_chars_length = fni->FileNameLength / sizeof(wchar_t);
 
 			int path_length = WideCharToMultiByte (CP_UTF8,
@@ -52,6 +52,7 @@ bool watcher_tick()
 							       NULL,
 							       NULL);
 			fprintf(stderr, "change: %s\n", ascii_path);
+			(void)path_length;
 			atleast_one_change = true;
 			if (!fni->NextEntryOffset)
 				break;

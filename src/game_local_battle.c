@@ -57,7 +57,7 @@ static void local_battle_watch_set_frame(struct Game *game, uint32_t frame)
 		for (uint32_t i = 0; i < frame; ++i) {
 			TracyCZoneN(f, "Replay Frame", true);
 			struct BattleInputs battle_inputs = data->replay_inputs[i];
-			enum BattleFrameResult battle_result = battle_simulate_frame(&simulation->battle_context, battle_inputs);
+			(void)battle_simulate_frame(&simulation->battle_context, battle_inputs);
 			TracyCZoneEnd(f);
 		}
 
@@ -67,7 +67,7 @@ static void local_battle_watch_set_frame(struct Game *game, uint32_t frame)
 		for (uint32_t i = data->watching_frame; i < frame; ++i) {
 			TracyCZoneN(f, "Replay Frame", true);
 			struct BattleInputs battle_inputs = data->replay_inputs[i];
-			enum BattleFrameResult battle_result = battle_simulate_frame(&simulation->battle_context, battle_inputs);
+			(void)battle_simulate_frame(&simulation->battle_context, battle_inputs);
 			TracyCZoneEnd(f);
 		}
 
@@ -267,10 +267,10 @@ bool local_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
 			simulation->accumulator += ctx->previous_frame_time;
 			const uint64_t dt = 16;
 			while (simulation->accumulator >= dt) {
-				TracyCZoneN(f, "Battle Frame", true);
-				struct BattleInputs battle_inputs = data->replay_inputs[data->watching_frame];
-				enum BattleFrameResult battle_result = battle_simulate_frame(&simulation->battle_context, battle_inputs);
-				TracyCZoneEnd(f);
+			TracyCZoneN(f, "Battle Frame", true);
+			struct BattleInputs battle_inputs = data->replay_inputs[data->watching_frame];
+			(void)battle_simulate_frame(&simulation->battle_context, battle_inputs);
+			TracyCZoneEnd(f);
 
 				data->watching_frame += 1;
 				simulation->t += dt;
@@ -464,21 +464,21 @@ void local_battle_render(struct Game *game)
 
 					uint32_t count = INPUT_BUFFER_SIZE;
 					if (p1->input_buffer_head < count) {
-						count = p1->input_buffer_head;
+						count = (uint32_t)p1->input_buffer_head;
 					}
 
-					uint32_t it = p1->input_buffer_head-1;
-					uint32_t input_index = it % INPUT_BUFFER_SIZE;
-					struct BattleInput input = p1->input_buffer[input_index];
+					uint32_t it = (uint32_t)p1->input_buffer_head-1;
+					uint32_t p1_cur_input_index = it % INPUT_BUFFER_SIZE;
+					struct BattleInput input = p1->input_buffer[p1_cur_input_index];
 					uint32_t frame = battle_state->frame_number;
 					for (uint32_t i = 0; i < count; i++, it--) {
-						uint32_t input_index = it % INPUT_BUFFER_SIZE;
-						if (p1->input_buffer[input_index].motion == input.motion
-						    && p1->input_buffer[input_index].actions == input.actions) {
+						uint32_t cur_input_index = it % INPUT_BUFFER_SIZE;
+						if (p1->input_buffer[cur_input_index].motion == input.motion
+						    && p1->input_buffer[cur_input_index].actions == input.actions) {
 							// Input is the same from the previous one
 						} else {
 							// Input is different, display
-							struct BattleInput next_input = p1->input_buffer[input_index];
+							struct BattleInput next_input = p1->input_buffer[cur_input_index];
 							uint32_t next_frame = battle_state->frame_number - i;
 
 							uint32_t duration = frame - next_frame;
@@ -521,21 +521,21 @@ void local_battle_render(struct Game *game)
 					struct TekPlayerComponent const *p2 = &battle_state->p2_entity.tek;
 					uint32_t count = INPUT_BUFFER_SIZE;
 					if (p2->input_buffer_head < count) {
-						count = p2->input_buffer_head;
+						count = (uint32_t)p2->input_buffer_head;
 					}
 
-					uint32_t it = p2->input_buffer_head-1;
-					uint32_t input_index = it % INPUT_BUFFER_SIZE;
-					struct BattleInput input = p2->input_buffer[input_index];
+					uint32_t it = (uint32_t)p2->input_buffer_head-1;
+					uint32_t p2_cur_input_index = it % INPUT_BUFFER_SIZE;
+					struct BattleInput input = p2->input_buffer[p2_cur_input_index];
 					uint32_t frame = battle_state->frame_number;
 					for (uint32_t i = 0; i < count; i++, it--) {
-						uint32_t input_index = it % INPUT_BUFFER_SIZE;
-						if (p2->input_buffer[input_index].motion == input.motion
-						    && p2->input_buffer[input_index].actions == input.actions) {
+						uint32_t cur_input_index = it % INPUT_BUFFER_SIZE;
+						if (p2->input_buffer[cur_input_index].motion == input.motion
+						    && p2->input_buffer[cur_input_index].actions == input.actions) {
 							// Input is the same from the previous one
 						} else {
 							// Input is different, display
-							struct BattleInput next_input = p2->input_buffer[input_index];
+							struct BattleInput next_input = p2->input_buffer[cur_input_index];
 							uint32_t next_frame = battle_state->frame_number - i;
 
 							uint32_t duration = frame - next_frame;

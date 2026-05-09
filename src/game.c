@@ -114,10 +114,8 @@ static void game_steam_callback(struct Game *game, int callback_type, void *call
 
 	} else if (callback_type == k_iSteamMatchmakingLobbyChatUpdateCallback) {
 		fprintf(stdout, "[steam]  lobby chat update.\n");
-		int bob = 0;
 	} else if (callback_type == k_iSteamMatchmakingLobbyEnterCallback) {
 		fprintf(stdout, "[steam]  lobby enter.\n");
-		int bob = 0;
 	}
 
 	if (!handled) {

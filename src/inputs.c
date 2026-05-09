@@ -19,7 +19,7 @@ const char* InputButtons_str[InputButtons_Count] =
 
 void inputs_init(struct Inputs *inputs)
 {
-
+	(void)inputs;
 }
 
 bool inputs_process_event(SDL_Event *event, struct Inputs *inputs)
@@ -85,7 +85,6 @@ bool inputs_process_event(SDL_Event *event, struct Inputs *inputs)
 	bool is_gamepad_up = event->type == SDL_EVENT_GAMEPAD_BUTTON_UP;
 	if (is_gamepad_down || is_gamepad_up) {
 		assert((SDL_GamepadButton)InputGamepadButtons_COUNT == SDL_GAMEPAD_BUTTON_COUNT);
-		SDL_JoystickID which = event->gbutton.which;
 		inputs->gamepad_buttons_is_down[event->gbutton.button] = is_gamepad_down;
 	}
 

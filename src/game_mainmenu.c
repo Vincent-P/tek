@@ -9,11 +9,13 @@ void mainmenu_init(struct MainMenu *mainmenu)
 
 void mainmenu_term(struct MainMenu *mainmenu)
 {
+	(void)mainmenu;
 	printf("MAINMENU: Term\n");
 }
 
 bool mainmenu_update(struct Game *game, struct GameUpdateContext const* ctx)
 {
+	(void)ctx;
 	struct MainMenu *mainmenu = &game->mainmenu;
 
 	if (mainmenu->local_pressed) {

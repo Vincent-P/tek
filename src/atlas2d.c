@@ -22,7 +22,7 @@ struct Atlas2D
 uint32_t atlas2d_tzcnt(uint32_t n)
 {
 	unsigned long first_found_bit = 0;
-	unsigned char not_zero = _BitScanForward(&first_found_bit, n);
+	_BitScanForward(&first_found_bit, n);
 	return n == 0 ? 0 : first_found_bit;
 }
 
@@ -102,11 +102,11 @@ void atlas2d_init(struct Atlas2D *atlas, uint32_t size, uint32_t min_alloc_size)
 			uint32_t y = itile / tiles_count_per_level_row;
 
 			atlas->tiles[tile_index] = (struct atlas2d_Tile){0};
-			atlas->tiles[tile_index].x = x * (size >> ilevel);
-			atlas->tiles[tile_index].y = y * (size >> ilevel);
-			atlas->tiles[tile_index].w = (size >> ilevel);
-			atlas->tiles[tile_index].h = (size >> ilevel);
-			atlas->tiles[tile_index].level = ilevel;
+			atlas->tiles[tile_index].x = (uint16_t)(x * (size >> ilevel));
+			atlas->tiles[tile_index].y = (uint16_t)(y * (size >> ilevel));
+			atlas->tiles[tile_index].w = (uint16_t)(size >> ilevel);
+			atlas->tiles[tile_index].h = (uint16_t)(size >> ilevel);
+			atlas->tiles[tile_index].level = (uint8_t)ilevel;
 			atlas->tiles[tile_index].min_level = 0;
 		}
 		
@@ -140,8 +140,8 @@ uint32_t atlas2d_find_tile(struct Atlas2D *atlas, uint32_t parent_level, uint32_
 
 		// valid tile found
 		if (level == child_tile.level) {
-			atlas->tiles[parent_tile_index].min_level = level;
-			atlas->tiles[child_tile_index].min_level = atlas->levels_count;
+			atlas->tiles[parent_tile_index].min_level = (uint8_t)level;
+			atlas->tiles[child_tile_index].min_level = (uint8_t)atlas->levels_count;
 			return child_tile_index;
 		}
 
@@ -172,8 +172,8 @@ bool atlas2d_allocate(struct Atlas2D *atlas, uint32_t size, struct atlas2d_Alloc
 		return false;
 	}
 
-	atlas->tiles[found_tile_index].w = size;
-	atlas->tiles[found_tile_index].h = size;
+	atlas->tiles[found_tile_index].w = (uint16_t)size;
+	atlas->tiles[found_tile_index].h = (uint16_t)size;
 
 	alloc->x = atlas->tiles[found_tile_index].x;
 	alloc->y = atlas->tiles[found_tile_index].y;

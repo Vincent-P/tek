@@ -40,7 +40,7 @@ void clay_integration_init(struct Drawer2D *drawer, int display_width, int displ
 	uint64_t totalMemorySize = Clay_MinMemorySize();
 	Clay_Arena arena = Clay_CreateArenaWithCapacityAndMemory(totalMemorySize, malloc(totalMemorySize));
 	// Note: screenWidth and screenHeight will need to come from your environment, Clay doesn't handle window related tasks
-	Clay_Initialize(arena, (Clay_Dimensions) { display_width, display_height }, (Clay_ErrorHandler) { clay_integration_error_callback });
+	Clay_Initialize(arena, (Clay_Dimensions) { (float)display_width, (float)display_height }, (Clay_ErrorHandler) { clay_integration_error_callback });
 	Clay_SetMeasureTextFunction(clay_integration_measure_text, drawer);
 
 	Clay_SetDebugModeEnabled(false);
@@ -48,7 +48,9 @@ void clay_integration_init(struct Drawer2D *drawer, int display_width, int displ
 
 bool clay_integration_process_event(struct Application *application, SDL_Event* event)
 {
+	(void)application;
 	ImGuiIO* io = ImGui_GetIO();
+	(void)io;
 	switch (event->type) {
         case SDL_EVENT_MOUSE_MOTION:
 		Clay_SetPointerState((Clay_Vector2) { event->motion.x, event->motion.y }, event->motion.state & SDL_BUTTON_LMASK);
@@ -77,7 +79,7 @@ static uint32_t clay_color_to_u32(Clay_Color color)
 void clay_integration_render(struct Drawer2D *drawer, Clay_RenderCommandArray *commands)
 {
 	for (size_t i = 0; i < commands->length; i++) {
-		Clay_RenderCommand *rcmd = Clay_RenderCommandArray_Get(commands, i);
+		Clay_RenderCommand *rcmd = Clay_RenderCommandArray_Get(commands, (int32_t)i);
 		const Clay_BoundingBox bounding_box = rcmd->boundingBox;
 
 		switch (rcmd->commandType) {
@@ -163,7 +165,7 @@ void clay_integration_render(struct Drawer2D *drawer, Clay_RenderCommandArray *c
 			break;
 		}
 		case CLAY_RENDER_COMMAND_TYPE_IMAGE: {
-			Clay_RectangleRenderData *config = &rcmd->renderData.rectangle;
+			(void)rcmd->renderData.image;
 
 			uint32_t color = 0xFF0000FF;
 			drawer2d_draw_rect(drawer, bounding_box.y, bounding_box.x, bounding_box.width, bounding_box.height, color);
@@ -174,7 +176,7 @@ void clay_integration_render(struct Drawer2D *drawer, Clay_RenderCommandArray *c
 			break;
 		}
 		default:
-			SDL_Log("Unknown render command type: %d", rcmd->commandType);
+			fprintf(stderr, "Unknown render command type: %d\n", rcmd->commandType);
 		}
 	}
 }

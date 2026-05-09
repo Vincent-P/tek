@@ -444,8 +444,8 @@ void renderer_upload_texture(Renderer* renderer, struct RendererTextureUpload up
 {
 	char *upload_begin = buffer_get_mapped_pointer(renderer->device, renderer->upload_buffer);
 	char *upload_end = upload_begin + RENDERER_UPLOAD_BUFFER_SIZE;
-	assert(upload_begin <= upload.temp_data && upload.temp_data < upload_end);
-	uint32_t buffer_offset = (uint32_t)((uint64_t)((char*)upload.temp_data - upload_begin));
+	assert((char*)upload.temp_data >= upload_begin && (char*)upload.temp_data < upload_end);
+	uint32_t buffer_offset = (uint32_t)((char*)upload.temp_data - upload_begin);
 
 	assert(upload.width > 0);
 	assert(upload.height > 0);
@@ -464,6 +464,7 @@ void renderer_upload_texture(Renderer* renderer, struct RendererTextureUpload up
 
 static void renderer_debug_draw_pass(Renderer *renderer, VulkanFrame *frame, VulkanRenderPass *pass)
 {
+	(void)frame;
 	uint32_t vertex_size = g_dd.points_length * 6 * sizeof(struct DdVert); //  6 vertices
 	uint32_t index_size = g_dd.points_length * 8 * 3 * sizeof(uint32_t); // 2 faces
 
@@ -572,6 +573,7 @@ static void renderer_debug_draw_pass(Renderer *renderer, VulkanFrame *frame, Vul
 
 static void renderer_drawer2d_pass(Renderer *renderer, VulkanFrame *frame, VulkanRenderPass *pass)
 {
+	(void)frame;
 	struct Drawer2D *drawer = renderer->drawer;
 	float display_width = drawer->viewport_width;
 	float display_height = drawer->viewport_height;
@@ -610,8 +612,8 @@ static void renderer_drawer2d_pass(Renderer *renderer, VulkanFrame *frame, Vulka
 	struct VulkanScissor scissor = {};
 	scissor.x = 0;
 	scissor.y = 0;
-	scissor.w = display_width;
-	scissor.h = display_height;
+	scissor.w = (uint32_t)display_width;
+	scissor.h = (uint32_t)display_height;
 	vulkan_set_scissor(renderer->device, pass, scissor);
 
 	struct VulkanDraw draw = {drawer->current_indices_length, 1, 0, 0, 0};
@@ -620,6 +622,7 @@ static void renderer_drawer2d_pass(Renderer *renderer, VulkanFrame *frame, Vulka
 
 static void renderer_imgui_pass(Renderer *renderer, VulkanFrame *frame, VulkanRenderPass *pass)
 {
+	(void)frame;
 	ImGui_Render();
 	ImDrawData *draw_data = ImGui_GetDrawData();
 
@@ -929,7 +932,7 @@ void renderer_render(Renderer *renderer)
 	constants.invproj = renderer->invproj;
 	constants.view = renderer->view;
 	constants.invview = renderer->invview;
-	constants.resolution = (Float3){swapchain_width, swapchain_height, 1};
+	constants.resolution = (Float3){(float)swapchain_width, (float)swapchain_height, 1};
 	constants.time = renderer->time;
 	constants.ibl_buffer = buffer_get_gpu_address(renderer->device, renderer->diffuse_ibl_buffer);
 	vulkan_insert_debug_label(renderer->device, pass.frame, "background");
@@ -985,11 +988,11 @@ void renderer_render(Renderer *renderer)
 		struct CompositingConstants
 		{
 			int is_hdr;
-		} constants;
-		constants.is_hdr = renderer->is_hdr;
+		} compositing_constants;
+		compositing_constants.is_hdr = renderer->is_hdr;
 		vulkan_insert_debug_label(renderer->device, &frame, "compositing");
 		vulkan_bind_compute_pso(renderer->device, &frame, renderer->compositing_pso);
-		vulkan_push_constants(renderer->device, &frame, &constants, sizeof(constants));
+		vulkan_push_constants(renderer->device, &frame, &compositing_constants, sizeof(compositing_constants));
 		uint32_t x = (swapchain_width + 15) / 16;
 		uint32_t y = (swapchain_height + 15) / 16;
 		vulkan_dispatch(renderer->device, &frame, x, y, 1);

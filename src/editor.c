@@ -9,6 +9,7 @@ void _display_spatial_component(struct SpatialComponent *spatial)
 }
 void _display_skeleton_component(struct SkeletonComponent *skeleton)
 {
+	(void)skeleton;
 }
 void _display_animation_component(struct AnimationComponent *animation)
 {
@@ -17,6 +18,7 @@ void _display_animation_component(struct AnimationComponent *animation)
 }
 void _display_skeletal_mesh_component(struct SkeletalMeshComponent *mesh)
 {
+	(void)mesh;
 }
 void _display_tek_component(struct TekPlayerComponent *player)
 {

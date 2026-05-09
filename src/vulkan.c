@@ -1363,14 +1363,14 @@ void end_render_pass(VulkanDevice *device, VulkanRenderPass *pass)
 		set_image_layout(frame->cmd, pass->color_rts[icolor]->image,
 				 VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
 				 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-				 VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT);
+				 (VkPipelineStageFlags)VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT);
 	}
 	if (pass->depth_rt != NULL) {
 		set_image_layout(frame->cmd, pass->depth_rt->image,
 				 VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
 				 VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
 				 VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-				 VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT);
+				 (VkPipelineStageFlags)VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT);
 	}
 
 	*pass = (VulkanRenderPass){0}; // allow the user to reuse the same struct for the next pass

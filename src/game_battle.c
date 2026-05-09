@@ -15,7 +15,6 @@ struct CancelContext
 // -- Battle Inputs
 static const char* _get_motion_label(struct BattleInput input)
 {
-	uint8_t MOTION_MASK = 0x0f;
 	const char *MOTIONS_LABELS[] = {
 		" ",
 		"db",
@@ -396,7 +395,7 @@ static void _evaluate_hit_conditions(struct PlayerEntity *p1, struct PlayerEntit
 					float x_dist = hit_center.x - hurt_center.x;
 					float y_dist = hit_center.y - hurt_center.y;
 					float hor_distance = sqrtf(x_dist*x_dist + y_dist*y_dist);
-					float vert_distance = fabs(hit_center.z - hurt_center.z);
+					float vert_distance = (float)fabs(hit_center.z - hurt_center.z);
 
 					bool is_valid = hurt_radius > 0.0f;
 					bool inside_vert = vert_distance <= ((hit_height + hurt_height) / 2.0f);
@@ -444,8 +443,8 @@ static void _evaluate_hit_conditions(struct PlayerEntity *p1, struct PlayerEntit
 							p2->tek.pushback_remaining_frames = 3;
 							p2->tek.pushback_strength = 0.1f;
 
-							p2->tek.status = CHARACTER_STATUS_BLOCKSTUN;
-							p2->tek.status_remaining = stun_duration;
+						p2->tek.status = CHARACTER_STATUS_BLOCKSTUN;
+						p2->tek.status_remaining = (uint8_t)stun_duration;
 						} else {
 							p2->tek.hp -= hit_condition.damage;
 
@@ -457,13 +456,13 @@ static void _evaluate_hit_conditions(struct PlayerEntity *p1, struct PlayerEntit
 								p2->tek.requested_move_id = hit_reaction->standing_move;
 								stun_duration = hit_reaction->standing_stun;
 							}
-							p2->tek.status = CHARACTER_STATUS_HITSTUN;
-							p2->tek.status_remaining = stun_duration;
+						p2->tek.status = CHARACTER_STATUS_HITSTUN;
+						p2->tek.status_remaining = (uint8_t)stun_duration;
 						}
 
-						if (p2->tek.hp <= 0) {
-							p2->tek.requested_move_id = TEK_MOVE_DEATH_ID;
-						}
+					if (p2->tek.hp <= 0) {
+						p2->tek.requested_move_id = (uint32_t)TEK_MOVE_DEATH_ID;
+					}
 					}
 					// Set attacker to recovery
 					p1->tek.status = CHARACTER_STATUS_RECOVERY;
@@ -531,6 +530,7 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 		if (requested_move_id != 0) {
 			struct tek_Move *request_move = tek_character_find_move(characters[iplayer], requested_move_id);
 			struct Animation const *animation = asset_library_get_animation(ctx->assets, request_move->animation_id);
+			(void)animation;
 
 			players[iplayer]->animation.animation_id = request_move->animation_id;
 			players[iplayer]->animation.frame = 0;
@@ -618,7 +618,8 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 			struct tek_Move *request_move = tek_character_find_move(characters[iplayer], request_move_id);
 			// if found, perform the cancel
 			if (request_move != NULL) {
-				struct Animation const *animation = asset_library_get_animation(ctx->assets, request_move->animation_id);
+		struct Animation const *anim = asset_library_get_animation(ctx->assets, request_move->animation_id);
+		(void)anim;
 				players[iplayer]->animation.animation_id = request_move->animation_id;
 				if (cancel->type == TEK_CANCEL_TYPE_SINGLE_LOOP || cancel->type == TEK_CANCEL_TYPE_SINGLE_CONTINUE) {
 					players[iplayer]->animation.frame = players[iplayer]->animation.frame % cancel_ctx.animation_length;
@@ -641,13 +642,13 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 		target_pos.y *= 0.5f;
 		target_pos.z *= 0.5f;
 		Float3 camera_pos = nonstate->camera.position;
+		(void)camera_pos;
 		float target_distance = float3_distance(target_pos, camera_pos);
+		(void)target_distance;
 
 		float ratio = 9.0f / 16.0f;
 		float fov_rad = nonstate->camera.vertical_fov * 2.0f * 3.14f / 360.0f;
 		float width_from_dist = ratio * 2.0f * tanf(fov_rad / 2.0f);
-
-		float target_width = width_from_dist * target_distance;
 
 		float const CAMERA_HACK_TWEAK = 0.35f;
 		float ideal_width = float3_distance(p1_root->world_transform.cols[3], p2_root->world_transform.cols[3]) * CAMERA_HACK_TWEAK;
@@ -688,6 +689,8 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 			// apply root motion
 			Float3 root_translation = float3x4_transform_direction(players[iplayer]->spatial.world_transform, nonplayers[iplayer]->pose.root_motion_delta_translation);
 
+		(void)animation;
+
 			struct tek_Move *current_move = tek_character_find_move(characters[iplayer], players[iplayer]->tek.current_move_id);
 			if (current_move) {
 				root_translation = float3_mul_scalar(root_translation, current_move->animation_root_motion_scale);
@@ -704,7 +707,7 @@ enum BattleFrameResult battle_state_update(struct BattleContext *ctx, struct Bat
 	// Make players track each other
 	for (uint32_t iplayer = 0; iplayer < 2; ++iplayer) {
 		uint32_t iother = 1 - iplayer;
-		uint8_t cur = players[iplayer]->animation.frame;
+		uint8_t cur = (uint8_t)players[iplayer]->animation.frame;
 		struct tek_Move *current_move = tek_character_find_move(characters[iplayer], players[iplayer]->tek.current_move_id);
 
 		// If the current move can track
@@ -828,6 +831,7 @@ void battle_render(struct BattleContext *ctx)
 		for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
 			struct AnimSkeleton const *anim_skeleton = asset_library_get_anim_skeleton(ctx->assets, players[iplayer]->anim_skeleton.anim_skeleton_id);
 			struct Animation const *animation = asset_library_get_animation(ctx->assets, players[iplayer]->animation.animation_id);
+			(void)animation;
 			// Debug draw animated pose
 			for (uint32_t ibone = 0; ibone < anim_skeleton->bones_length; ibone++) {
 				Float3 p;
@@ -874,10 +878,10 @@ void battle_render(struct BattleContext *ctx)
 
 	if (nonstate->draw_colisions) {
 		for (uint32_t iplayer = 0; iplayer < ARRAY_LENGTH(players); ++iplayer) {
-			float radius = characters[iplayer]->colision_radius;
+			float radius = (float)characters[iplayer]->colision_radius;
 			Float3 center = players[iplayer]->spatial.world_transform.cols[3];
 			float height = 2.0;
-			center.z += height * 0.5;
+			center.z += height * 0.5f;
 			debug_draw_cylinder(center, radius, height, DD_GREEN);
 		}
 	}
@@ -923,13 +927,13 @@ void battle_render(struct BattleContext *ctx)
 
 	// interpolate camera for smooth movement
 	float coef = 0.05f;
-	nonstate->camera_display.position.x = (nonstate->camera_display.position.x)*(1.0-coef) + (nonstate->camera.position.x)*(coef);
-	nonstate->camera_display.position.y = (nonstate->camera_display.position.y)*(1.0-coef) + (nonstate->camera.position.y)*(coef);
-	nonstate->camera_display.position.z = (nonstate->camera_display.position.z)*(1.0-coef) + (nonstate->camera.position.z)*(coef);
-	nonstate->camera_display.lookat.x = (nonstate->camera_display.lookat.x)*(1.0-coef) + (nonstate->camera.lookat.x)*(coef);
-	nonstate->camera_display.lookat.y = (nonstate->camera_display.lookat.y)*(1.0-coef) + (nonstate->camera.lookat.y)*(coef);
-	nonstate->camera_display.lookat.z = (nonstate->camera_display.lookat.z)*(1.0-coef) + (nonstate->camera.lookat.z)*(coef);
-	nonstate->camera_display.vertical_fov = (nonstate->camera_display.vertical_fov)*(1.0-coef) + (nonstate->camera.vertical_fov)*(coef);
+	nonstate->camera_display.position.x = nonstate->camera_display.position.x*(1.0f-coef) + nonstate->camera.position.x*coef;
+	nonstate->camera_display.position.y = nonstate->camera_display.position.y*(1.0f-coef) + nonstate->camera.position.y*coef;
+	nonstate->camera_display.position.z = nonstate->camera_display.position.z*(1.0f-coef) + nonstate->camera.position.z*coef;
+	nonstate->camera_display.lookat.x = nonstate->camera_display.lookat.x*(1.0f-coef) + nonstate->camera.lookat.x*coef;
+	nonstate->camera_display.lookat.y = nonstate->camera_display.lookat.y*(1.0f-coef) + nonstate->camera.lookat.y*coef;
+	nonstate->camera_display.lookat.z = nonstate->camera_display.lookat.z*(1.0f-coef) + nonstate->camera.lookat.z*coef;
+	nonstate->camera_display.vertical_fov = nonstate->camera_display.vertical_fov*(1.0f-coef) + nonstate->camera.vertical_fov*coef;
 	renderer_set_main_camera(ctx->renderer, nonstate->camera_display);
 
 	TracyCZoneEnd(f);

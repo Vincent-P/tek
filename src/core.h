@@ -29,7 +29,8 @@ typedef struct Arena {
 
 void *arena_alloc(Arena *a, ptrdiff_t size, ptrdiff_t align, ptrdiff_t count)
 {
-    ptrdiff_t padding = -(uintptr_t)a->beg & (align - 1);
+    ptrdiff_t ptr = (ptrdiff_t)(uintptr_t)a->beg;
+    ptrdiff_t padding = (-ptr) & (align - 1);
     ptrdiff_t available = a->end - a->beg - padding;
     if (available < 0 || count > available/size) {
         abort();  // one possible out-of-memory policy

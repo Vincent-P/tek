@@ -518,6 +518,7 @@ S_API HSteamPipe S_CALLTYPE SteamAPI_GetHSteamPipe();
 S_API void S_CALLTYPE SteamAPI_ManualDispatch_RunFrame(HSteamPipe hSteamPipe);
 S_API bool S_CALLTYPE SteamAPI_ManualDispatch_GetNextCallback(HSteamPipe hSteamPipe, CallbackMsg_t* pCallbackMsg);
 S_API void S_CALLTYPE SteamAPI_ManualDispatch_FreeLastCallback(HSteamPipe hSteamPipe);
+S_API bool S_CALLTYPE SteamAPI_ManualDispatch_GetAPICallResult(HSteamPipe hSteamPipe, SteamAPICall_t hCall, void* pCallback, int cubCallback, int iExpectedCallbackID, bool* pbFailed);
 
 
 // -- SteamUser

@@ -86,6 +86,7 @@ void drawer2d_set_clip_rect(struct Drawer2D *drawer, float x, float y, float w, 
 
 static void _drawer2d_draw_rect(struct Drawer2D *drawer, float top, float left, float width, float height, uint32_t color, uint32_t texture, float u0, float u1, float v0, float v1)
 {
+	(void)texture;
 	assert(drawer->current_vertices_length + 4 < DRAWER_2D_VERTEX_CAPACITY);
 	assert(drawer->current_indices_length + 6 < DRAWER_2D_INDEX_CAPACITY);
 
@@ -192,10 +193,10 @@ bool glyph_cache_get_rasterized_glyph(struct GlyphCache *glyph_cache, int32_t co
 		.u1 = ((float)atlas_alloc.x + (float)bitmap_width) / (float)GLYPH_CACHE_ATLAS_SIZE,
 		.v0 = (float)atlas_alloc.y / (float)GLYPH_CACHE_ATLAS_SIZE,
 		.v1 = ((float)atlas_alloc.y + (float)bitmap_height) / (float)GLYPH_CACHE_ATLAS_SIZE,
-		.x = bitmap_left,
-		.y = bitmap_top,
-		.w = bitmap_width,
-		.h = bitmap_height,
+		.x = (float)bitmap_left,
+		.y = (float)bitmap_top,
+		.w = (float)bitmap_width,
+		.h = (float)bitmap_height,
 		.advance_w = advance_width * scale,
 	};
 	assert(glyph_cache->rasterized_glyphs_length + 1 <= GLYPH_CACHE_RASTERIZED_GLYPH_CAPACITY);
@@ -212,7 +213,7 @@ void drawer2d_text_bounds(struct Drawer2D *drawer, const char* text, uint32_t te
 	struct GlyphCache *glyph_cache = drawer->glyph_cache;
 
 	int32_t codepoint = 0;
-	uint32_t codepoint_length  = utf8nlen(text, text_length);
+	uint32_t codepoint_length  = (uint32_t)utf8nlen(text, text_length);
 	void *text_codepoint_it = utf8codepoint(text, &codepoint);
 
 	float bounds_x = 0.0f;
@@ -236,10 +237,11 @@ void drawer2d_text_bounds(struct Drawer2D *drawer, const char* text, uint32_t te
 
 void drawer2d_draw_text(struct Drawer2D *drawer, const char* text, uint32_t text_length, float top, float left, float width, float height, struct DrawerTextInfo options)
 {
+	(void)height;
 	struct GlyphCache *glyph_cache = drawer->glyph_cache;
 
 	int32_t codepoint = 0;
-	uint32_t codepoint_length  = utf8nlen(text, text_length);
+	uint32_t codepoint_length  = (uint32_t)utf8nlen(text, text_length);
 	void *text_codepoint_it = utf8codepoint(text, &codepoint);
 
 	float cursor = 0.0f;

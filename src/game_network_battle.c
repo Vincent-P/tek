@@ -18,6 +18,7 @@ void tek_check_error(GGPOErrorCode err)
  */
 bool tek_begin_game(const char *game)
 {
+	(void)game;
 	return true;
 }
 
@@ -29,6 +30,7 @@ bool tek_begin_game(const char *game)
  */
 bool tek_save_game_state(unsigned char **out_buffer, int *out_len, int *out_checksum, int frame)
 {
+	(void)frame;
 	int length = sizeof(struct BattleState);
 	void *gs_copy = malloc(length);
 	memcpy(gs_copy, &ggpo_game_global_state->simulation.battle_context.battle_state, length);
@@ -64,6 +66,7 @@ bool tek_load_game_state(unsigned char *buffer, int len)
  */
 bool tek_log_game_state(char *filename, unsigned char *buffer, int len)
 {
+	(void)filename;
 	int length = sizeof(struct BattleState);
 	if (len == length) {
 		struct BattleState *gs = (struct BattleState *)buffer;
@@ -93,6 +96,7 @@ void tek_free_buffer(void *buffer)
  */
 bool tek_advance_frame(int flags)
 {
+	(void)flags;
 	GGPOSession* session = ggpo_game_global_state->network_battle.ggpo_session;
 	struct BattleContext *battle_ctx = &ggpo_game_global_state->simulation.battle_context;
 
@@ -101,7 +105,7 @@ bool tek_advance_frame(int flags)
 	GGPOErrorCode err;
 	err = ggpo_synchronize_input(session, &network_inputs, sizeof(network_inputs), &disconnect_flags);
 	tek_check_error(err);
-	enum BattleFrameResult battle_result = battle_simulate_frame(battle_ctx, network_inputs);
+	(void)battle_simulate_frame(battle_ctx, network_inputs);
 	err = ggpo_advance_frame(session);
 	tek_check_error(err);
 
@@ -141,6 +145,8 @@ bool tek_on_event(GGPOEvent *info)
 void network_battle_state_host(struct Game *game);
 void network_battle_steam_callback(struct Game *game, struct GameUpdateContext const *ctx, int callback_type, void *callback_data, int callback_datasize)
 {
+	(void)ctx;
+	(void)callback_datasize;
 	struct NetworkBattle *data = &game->network_battle;
 
 	if (callback_type == k_iSteamUtilsSteamAPICallCompletedCallback) {
@@ -164,8 +170,8 @@ void network_battle_steam_callback(struct Game *game, struct GameUpdateContext c
 
 						int num_players = SteamAPI_ISteamMatchmaking_GetNumLobbyMembers(SteamAPI_SteamMatchmaking(), data->lobby_id);
 						if (num_players == 2) {
-							uint64_t p0_id = SteamAPI_ISteamMatchmaking_GetLobbyMemberByIndex(SteamAPI_SteamMatchmaking(), data->lobby_id, 0);
-							uint64_t p1_id = SteamAPI_ISteamMatchmaking_GetLobbyMemberByIndex(SteamAPI_SteamMatchmaking(), data->lobby_id, 1);
+							(void)SteamAPI_ISteamMatchmaking_GetLobbyMemberByIndex(SteamAPI_SteamMatchmaking(), data->lobby_id, 0);
+							(void)SteamAPI_ISteamMatchmaking_GetLobbyMemberByIndex(SteamAPI_SteamMatchmaking(), data->lobby_id, 1);
 						}
 
 						SteamAPI_ISteamMatchmaking_SetLobbyData(SteamAPI_SteamMatchmaking(), data->lobby_id, "name", "tek");
@@ -294,6 +300,7 @@ void network_battle_on_lobby_joined(struct Game *game, uint64_t lobby_id)
 
 void network_battle_init(struct Game *game)
 {
+	(void)game;
 	printf("NETWORK_BATTLE: Init\n");
 	ggpo_log(NULL, "test");
 }
@@ -598,6 +605,7 @@ void network_battle_render(struct Game *game)
 					}) {
 					struct BattleState* battle_state = &simulation->battle_context.battle_state;
 					struct TekPlayerComponent const *p1 = &battle_state->p1_entity.tek;
+					(void)p1;
 					#if 0
 					uint32_t input_last_frame = battle_state->frame_number;
 					for (uint32_t i = 0; i < INPUT_BUFFER_SIZE; i++) {
@@ -627,6 +635,7 @@ void network_battle_render(struct Game *game)
 					}) {
 					struct BattleState* battle_state = &simulation->battle_context.battle_state;
 					struct TekPlayerComponent const *p2 = &battle_state->p2_entity.tek;
+					(void)p2;
 
 					#if 0
 					uint32_t input_last_frame = battle_state->frame_number;
