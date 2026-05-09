@@ -1,4 +1,6 @@
 #pragma once
+struct Drawer2D;
+struct Application;
 
 void clay_integration_init(struct Drawer2D *drawer, int display_width, int display_height);
 bool clay_integration_process_event(struct Application *application, SDL_Event* event);

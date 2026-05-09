@@ -42,7 +42,7 @@ struct Application
 };
 
 
-static void load_assets_materials(struct AssetLibrary *assets, struct Renderer *renderer)
+static void load_assets_materials(struct AssetLibrary *assets)
 {
 	Serializer s = {0};
 
@@ -78,7 +78,7 @@ static void load_assets_materials(struct AssetLibrary *assets, struct Renderer *
 	}
 }
 
-static void load_assets(struct AssetLibrary *assets, struct Renderer *renderer)
+static void load_assets(struct AssetLibrary *assets)
 {
 	Serializer s = {0};
 
@@ -87,13 +87,13 @@ static void load_assets(struct AssetLibrary *assets, struct Renderer *renderer)
 	Serialize_SkeletalMeshWithAnimationsAsset(&s, &skeletal_mesh_with_animations);
 	serialize_end_read_file(&s);
 
-	AssetId anim_skeleton_id = asset_library_add_anim_skeleton(assets, skeletal_mesh_with_animations.anim_skeleton);
+	/*AssetId skel_id =*/ asset_library_add_anim_skeleton(assets, skeletal_mesh_with_animations.anim_skeleton);
 	asset_library_add_skeletal_mesh(assets, skeletal_mesh_with_animations.skeletal_mesh);
 	for (uint32_t ianim = 0; ianim < skeletal_mesh_with_animations.animations_length; ++ianim) {
 		asset_library_add_animation(assets, skeletal_mesh_with_animations.animations[ianim]);
 	}
 
-	load_assets_materials(assets, renderer);
+	load_assets_materials(assets);
 
 	// tek
 	tek_read_character_json();
@@ -114,6 +114,8 @@ static void postload_assets(struct AssetLibrary *assets, struct Renderer *render
 static void ImGui_ImplSDL3_PlatformSetImeData(ImGuiContext*, ImGuiViewport* viewport, ImGuiPlatformImeData* data);
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
+	(void)argc;
+	(void)argv;
 	TracyCZoneN(f, "AppInit", true);
 
 	adjust_init();
@@ -123,7 +125,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 
 	game_first_init(&application->game);
 
-	inputs_init(&application->inputs);
 	TracyCZoneN(sdli, "SDL_Init", true);
 	SDL_InitSubSystem(SDL_INIT_GAMEPAD);
 	TracyCZoneEnd(sdli);
@@ -131,7 +132,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 	application->window = SDL_CreateWindow("tek", 1280, 800, SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
 	TracyCZoneEnd(sdlcw);
 
-	load_assets(&application->assets, application->renderer);
+	inputs_init(&application->inputs);
+	load_assets(&application->assets);
 
 	ImGui_CreateContext(NULL);
 	ImGuiPlatformIO* platform_io = ImGui_GetPlatformIO();
@@ -169,7 +171,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 
 void SDL_AppQuit(void *appstate, SDL_AppResult result)
 {
-	struct Application *application = appstate;
+	// struct Application *application = appstate;
+	(void)appstate;
+	(void)result;
 	adjust_cleanup();
 }
 
@@ -335,6 +339,7 @@ static void ImGui_ImplSDL3_UpdateKeyModifiers(SDL_Keymod sdl_key_mods)
 
 static void ImGui_ImplSDL3_PlatformSetImeData(ImGuiContext* ctx, ImGuiViewport* viewport, ImGuiPlatformImeData* data)
 {
+	(void)ctx;
 	// platform_io->Renderer_RenderState = application;
 	ImGuiIO* io = ImGui_GetIO();
 	SDL_WindowID window_id = (SDL_WindowID)(intptr_t)viewport->PlatformHandle;
@@ -355,7 +360,7 @@ static void ImGui_ImplSDL3_PlatformSetImeData(ImGuiContext* ctx, ImGuiViewport* 
 		SDL_StartTextInput(window);
 }
 
-bool imgui_process_event(struct Application *application, SDL_Event* event)
+bool imgui_process_event(SDL_Event* event)
 {
 	ImGuiIO* io = ImGui_GetIO();
 
@@ -422,7 +427,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 		return SDL_APP_SUCCESS;
 	}
 
-	imgui_process_event(application, event);
+	imgui_process_event(event);
 	inputs_process_event(event, &application->inputs);
 	clay_integration_process_event(application, event);
 
@@ -441,7 +446,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 	// hot-reload materials
 	bool atleast_one_change = watcher_tick();
 	if (atleast_one_change) {
-		load_assets_materials(&application->assets, application->renderer);
+		load_assets_materials(&application->assets);
 		renderer_init_materials(application->renderer, &application->assets);
 	}
 
@@ -470,7 +475,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
 	// Setup clay size
         // Optional: Update internal layout dimensions to support resizing
-        Clay_SetLayoutDimensions((Clay_Dimensions) { display_w, display_h });
+        Clay_SetLayoutDimensions((Clay_Dimensions) { (float)display_w, (float)display_h });
         // All clay layouts are declared between Clay_BeginLayout and Clay_EndLayout
         Clay_BeginLayout();
 
@@ -491,8 +496,8 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
         Clay_RenderCommandArray clay_render_commands = Clay_EndLayout();
 	clay_integration_render(application->drawer, &clay_render_commands);
-	application->drawer->viewport_width = display_w;
-	application->drawer->viewport_height = display_h;
+	application->drawer->viewport_width = (float)display_w;
+	application->drawer->viewport_height = (float)display_h;
 	renderer_set_drawer2d(application->renderer, application->drawer);
 
 	renderer_set_time(application->renderer, ((float)application->current_time) / 1000.0f);

@@ -174,17 +174,17 @@ Quat quat_slerp(Quat a, Quat b, float coef)
 		dot = -dot;
 		b.x = -b.x; b.y = -b.y; b.z = -b.z; b.w = -b.w;
 	}
-	float omega = acosf(fmin(fmax(dot, 0.0), 1.0));
+	float omega = acosf(fmin(fmax(dot, 0.0f), 1.0f));
 	if (omega <= 1.175494351e-38f) return a;
-	float rcp_so = 1.0 / sinf(omega);
-	float af = sinf((1.0 - coef) * omega) * rcp_so;
+	float rcp_so = 1.0f / sinf(omega);
+	float af = sinf((1.0f - coef) * omega) * rcp_so;
 	float bf = sinf(coef * omega) * rcp_so;
 
 	float x = af*a.x + bf*b.x;
 	float y = af*a.y + bf*b.y;
 	float z = af*a.z + bf*b.z;
 	float w = af*a.w + bf*b.w;
-	float rcp_len = 1.0 / sqrtf(x*x + y*y + z*z + w*w);
+	float rcp_len = 1.0f / sqrtf(x*x + y*y + z*z + w*w);
 
 	Quat ret;
 	ret.x = x * rcp_len;
@@ -439,27 +439,27 @@ void transform_from_float3x4(Float3x4 mat, Float3 *translation, Quat *rotation, 
 	Float3 z = float3_mul_scalar(mat.cols[2], scale->z > 0.0f ? sign_z / scale->z : 0.0f);
 	float trace = x.x + y.y + z.z;
 	if (trace > 0.0f) {
-		float a = sqrtf(fmax(0.0, trace + 1.0)), b = (a != 0.0f) ? 0.5f / a : 0.0f;
+		float a = sqrtf(fmax(0.0f, trace + 1.0f)), b = (a != 0.0f) ? 0.5f / a : 0.0f;
 		rotation->x = (y.z - z.y) * b;
 		rotation->y = (z.x - x.z) * b;
 		rotation->z = (x.y - y.x) * b;
 		rotation->w = 0.5f * a;
 	} else if (x.x > y.y && x.x > z.z) {
-		float a = sqrtf(fmax(0.0, 1.0 + x.x - y.y - z.z)), b = (a != 0.0f) ? 0.5f / a : 0.0f;
+		float a = sqrtf(fmax(0.0f, 1.0f + x.x - y.y - z.z)), b = (a != 0.0f) ? 0.5f / a : 0.0f;
 		rotation->x = 0.5f * a;
 		rotation->y = (y.x + x.y) * b;
 		rotation->z = (z.x + x.z) * b;
 		rotation->w = (y.z - z.y) * b;
 	}
 	else if (y.y > z.z) {
-		float a = sqrtf(fmax(0.0, 1.0 - x.x + y.y - z.z)), b = (a != 0.0f) ? 0.5f / a : 0.0f;
+		float a = sqrtf(fmax(0.0f, 1.0f - x.x + y.y - z.z)), b = (a != 0.0f) ? 0.5f / a : 0.0f;
 		rotation->x = (y.x + x.y) * b;
 		rotation->y = 0.5f * a;
 		rotation->z = (z.y + y.z) * b;
 		rotation->w = (z.x - x.z) * b;
 	}
 	else {
-		float a = sqrtf(fmax(0.0, 1.0 - x.x - y.y + z.z)), b = (a != 0.0f) ? 0.5f / a : 0.0f;
+		float a = sqrtf(fmax(0.0f, 1.0f - x.x - y.y + z.z)), b = (a != 0.0f) ? 0.5f / a : 0.0f;
 		rotation->x = (z.x + x.z) * b;
 		rotation->y = (z.y + y.z) * b;
 		rotation->z = 0.5f * a;

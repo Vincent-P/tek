@@ -1,4 +1,6 @@
 #pragma once
+struct Game;
+struct GameUpdateContext;
 
 
 struct MainMenu

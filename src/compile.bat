@@ -9,7 +9,7 @@
 
 
 call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" x64
-set common_flags=/std:c17 /external:W0 /external:I src\libs /Zi /MDd
+set common_flags=/std:c17 /W4 /external:W0 /external:I src\libs /Zi /MDd /fsanitize=address
 set sdl_link_flags=SDL3.lib
 set vulkan_flags=/external:I %VULKAN_SDK%/include
 set vulkan_link_flags=/LIBPATH:%VULKAN_SDK%/lib vulkan-1.lib user32.lib

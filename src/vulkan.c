@@ -12,7 +12,7 @@
 
 // -- Device
 #define FRAME_COUNT 2
-//#define ENABLE_VALIDATION
+#define ENABLE_VALIDATION
 #define MAIN_MEMORY_SIZE (128 << 20)
 #define RT_MEMORY_SIZE (1 << 30)
 #define MEMORY_ALIGNMENT (256 << 10) // 64K not enough for depth rt ?? -> 256K needed for MSAA
@@ -22,6 +22,7 @@
 #define VK_RT_CAPACITY 16
 #define VK_TEXTURE_CAPACITY 16
 #define VK_BUFFER_TEXTURE_COPY_CAPACITY 64
+#define DEFAULT_TIMEOUT (10000000000llu) // 10sec in nanoseconds
 
 typedef struct VulkanGraphicsProgram
 {
@@ -148,6 +149,9 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverity
 						     const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
 						     void *user_data)
 {
+	(void)user_data;
+	(void)message_type;
+	(void)message_severity;
 	fprintf(stderr, "[vulkan] %s\n", pCallbackData->pMessage);
 	__debugbreak();
 	return VK_FALSE;
@@ -306,8 +310,8 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	// -- Prepare device memory
 	VkPhysicalDeviceMemoryProperties mem_props = {0};
 	vkGetPhysicalDeviceMemoryProperties(device->physical_device, &mem_props);
-	uint32_t main_memory_type_index = -1;
-	uint32_t rt_type_index = -1;
+	uint32_t main_memory_type_index = ~0u;
+	uint32_t rt_type_index = ~0u;
 	uint32_t MEMORY_MASK = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 	for (uint32_t i = 0; i < mem_props.memoryTypeCount; ++i) {
 		VkMemoryPropertyFlags flags = mem_props.memoryTypes[i].propertyFlags;
@@ -838,7 +842,7 @@ void new_render_target(VulkanDevice *device, const char* name, uint32_t handle, 
 	assert(((mem_requirements.memoryRequirements.memoryTypeBits >> device->rt_type_index) & 1) != 0); // check that our memory supports this render_target
 	assert(mem_requirements.memoryRequirements.alignment <= MEMORY_ALIGNMENT);
 	oa_allocation_t allocation = {0};
-	uint32_t rounded_up_size = (mem_requirements.memoryRequirements.size + MEMORY_ALIGNMENT - 1) / MEMORY_ALIGNMENT;
+	uint32_t rounded_up_size = (uint32_t)((mem_requirements.memoryRequirements.size + MEMORY_ALIGNMENT - 1) / MEMORY_ALIGNMENT);
 	int alloc_res = oa_allocate(&device->rt_memory_allocator, rounded_up_size, &allocation);
 	assert(alloc_res == 0);
 	uint32_t real_offset = allocation.offset * MEMORY_ALIGNMENT;
@@ -932,7 +936,7 @@ void new_texture(VulkanDevice *device, const char* name, uint32_t handle, uint32
 	assert(((mem_requirements.memoryRequirements.memoryTypeBits >> device->rt_type_index) & 1) != 0); // check that our memory supports this render_target
 	assert(mem_requirements.memoryRequirements.alignment <= MEMORY_ALIGNMENT);
 	oa_allocation_t allocation = {0};
-	uint32_t rounded_up_size = (mem_requirements.memoryRequirements.size + MEMORY_ALIGNMENT - 1) / MEMORY_ALIGNMENT;
+	uint32_t rounded_up_size = (uint32_t)((mem_requirements.memoryRequirements.size + MEMORY_ALIGNMENT - 1) / MEMORY_ALIGNMENT);
 	int alloc_res = oa_allocate(&device->rt_memory_allocator, rounded_up_size, &allocation);
 	assert(alloc_res == 0);
 	uint32_t real_offset = allocation.offset * MEMORY_ALIGNMENT;
@@ -1066,7 +1070,7 @@ void begin_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t *out_swapcha
 	VkResult res = VK_SUCCESS;
 	// -- wait for command buffer to finish
 	TracyCZoneN(wait, "wait for GPU", true);
-	res = vkWaitForFences(device->device, 1, &device->command_fence[frame->iframe], VK_TRUE, -1);
+	res = vkWaitForFences(device->device, 1, &device->command_fence[frame->iframe], VK_TRUE, DEFAULT_TIMEOUT);
 	assert(res == VK_SUCCESS);
 	res = vkResetFences(device->device, 1, &device->command_fence[frame->iframe]);
 	assert(res == VK_SUCCESS);
@@ -1150,7 +1154,7 @@ void end_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t output_rt_hand
 	uint32_t ibackbuffer = 0;
 	VkResult res = vkAcquireNextImageKHR(device->device,
 				    device->swapchain,
-				    -1,
+				    DEFAULT_TIMEOUT,
 				    device->swapchain_acquire_semaphore[frame->iframe],
 				    VK_NULL_HANDLE,
 				    &ibackbuffer);
@@ -1327,7 +1331,7 @@ static void begin_render_pass_internal(VulkanDevice *device, VulkanFrame *frame,
 	render_info.pDepthAttachment = has_depth ? &depth_info : NULL;
 	vkCmdBeginRendering(frame->cmd, &render_info);
 
-	VkViewport viewport = {.width = render_width, .height = render_height, .maxDepth = 1.0f};
+	VkViewport viewport = {.width = (float)render_width, .height = (float)render_height, .maxDepth = 1.0f};
 	vkCmdSetViewport(frame->cmd, 0, 1, &viewport);
 
 	VkRect2D scissor = {.extent = {.width = render_width, .height = render_height}};
@@ -1351,6 +1355,7 @@ void begin_render_pass_discard(VulkanDevice *device, VulkanFrame *frame, VulkanR
 
 void end_render_pass(VulkanDevice *device, VulkanRenderPass *pass)
 {
+	(void)device;
 	VulkanFrame *frame = pass->frame;
 
 	vkCmdEndRendering(frame->cmd);
@@ -1373,6 +1378,7 @@ void end_render_pass(VulkanDevice *device, VulkanRenderPass *pass)
 
 void vulkan_clear(VulkanDevice *device, VulkanRenderPass *pass, union VulkanClearColor const* colors, uint32_t colors_length, float depth)
 {
+	(void)device;
 	VulkanFrame *frame = pass->frame;
 
 	VkClearAttachment attachments[9] = {0};
@@ -1410,6 +1416,7 @@ void vulkan_clear(VulkanDevice *device, VulkanRenderPass *pass, union VulkanClea
 
 void vulkan_set_scissor(VulkanDevice *device, VulkanRenderPass *pass, struct VulkanScissor scissor)
 {
+	(void)device;
 	VulkanFrame *frame = pass->frame;
 	VkRect2D s = {0};
 	s.offset.x = scissor.x;
@@ -1448,6 +1455,7 @@ void vulkan_bind_index_buffer(VulkanDevice *device, VulkanRenderPass *pass, uint
 
 void vulkan_draw(VulkanDevice *device, VulkanRenderPass *pass, struct VulkanDraw draw)
 {
+	(void)device;
 	VulkanFrame *frame = pass->frame;
 	vkCmdDrawIndexed(frame->cmd,
 			 draw.index_count,
@@ -1459,6 +1467,7 @@ void vulkan_draw(VulkanDevice *device, VulkanRenderPass *pass, struct VulkanDraw
 
 void vulkan_draw_not_indexed(VulkanDevice *device, VulkanRenderPass *pass, uint32_t vertex_count)
 {
+	(void)device;
 	VulkanFrame *frame = pass->frame;
 	vkCmdDraw(frame->cmd,
 			 vertex_count,
@@ -1489,6 +1498,7 @@ void vulkan_bind_compute_pso(VulkanDevice *device, VulkanFrame *frame, uint32_t 
 
 void vulkan_dispatch(VulkanDevice *device, VulkanFrame *frame, uint32_t x, uint32_t y, uint32_t z)
 {
+	(void)device;
 	vkCmdDispatch(frame->cmd, x, y, z);
 }
 

@@ -4,6 +4,7 @@ typedef struct Renderer Renderer;
 typedef struct Camera Camera;
 struct SkeletalMeshInstance;
 struct AssetLibrary;
+struct Drawer2D;
 
 struct Camera
 {
