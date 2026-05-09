@@ -8,53 +8,55 @@
 #ifndef _RING_BUFFER_H
 #define _RING_BUFFER_H
 
-#include <types.h>
+#include "types.h"
 
-template<class T, int N> class RingBuffer
+struct RingBuffer
 {
-public:
-   RingBuffer<T, N>() : 
-      _head(0),
-      _tail(0),
-      _size(0) {
-  } 
-
-   T &front() {
-      ASSERT(_size != N);
-      return _elements[_tail];
-   }
-   
-   T &item(int i) {
-      ASSERT(i < _size);
-      return _elements[(_tail + i) % N];
-   }
-
-   void pop() {
-      ASSERT(_size != N);
-      _tail = (_tail + 1) % N;
-      _size--;
-   }
-
-   void push(const T &t) {
-      ASSERT(_size != (N-1));
-      _elements[_head] = t;
-      _head = (_head + 1) % N;
-      _size++;
-   }
-
-   int size() {
-      return _size;
-   }
-
-   bool empty() {
-      return _size == 0;
-   }
-
-protected:
-   T        _elements[N];
    int      _head;
    int      _tail;
    int      _size;
+   int _N;
 };
+typedef struct RingBuffer RingBuffer;
+
+inline void ring_ctor(RingBuffer* ring, int N)
+{
+    ring->_head = 0;
+    ring->_tail = 0;
+    ring->_size = 0;
+    ring->_N = N;
+}
+
+inline int ring_front(RingBuffer* ring) {
+	ASSERT(ring->_size != ring->_N);
+	return ring->_tail;
+}
+
+inline int  ring_item(RingBuffer* ring, int i) {
+	ASSERT(i < ring->_size);
+	return (ring->_tail + i) % ring->_N;
+}
+
+inline void  ring_pop(RingBuffer* ring) {
+	ASSERT(ring->_size != ring->_N);
+	ring->_tail = (ring->_tail + 1) % ring->_N;
+	ring->_size--;
+}
+
+inline int  ring_push(RingBuffer* ring) {
+	ASSERT(ring->_size != (ring->_N - 1));
+	int result = ring->_head;
+	ring->_head = (ring->_head + 1) % ring->_N;
+	ring->_size++;
+    return result;
+}
+
+inline int  ring_size(RingBuffer* ring) {
+	return ring->_size;
+}
+
+inline bool  ring_empty(RingBuffer* ring) {
+	return ring->_size == 0;
+}
 
 #endif

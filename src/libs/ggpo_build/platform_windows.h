@@ -14,16 +14,13 @@
 #include <stdio.h>
 #include "types.h"
 
-class Platform {
-public:  // types
-   typedef DWORD ProcessID;
 
-public:  // functions
-   static ProcessID GetProcessID() { return GetCurrentProcessId(); }
-   static void AssertFailed(char *msg) { MessageBoxA(NULL, msg, "GGPO Assertion Failed", MB_OK | MB_ICONEXCLAMATION); }
-   static uint32 GetCurrentTimeMS() { return timeGetTime(); }
-   static int GetConfigInt(const char* name);
-   static bool GetConfigBool(const char* name);
-};
+typedef uint64 ProcessID;
+
+inline ProcessID Platform_GetProcessID() { return (ProcessID)GetCurrentProcessId(); }
+   inline void Platform_AssertFailed(char *msg) { MessageBoxA(NULL, msg, "GGPO Assertion Failed", MB_OK | MB_ICONEXCLAMATION); }
+   inline uint32 Platform_GetCurrentTimeMS() { return timeGetTime(); }
+   int Platform_GetConfigInt(const char* name);
+   bool Platform_GetConfigBool(const char* name);
 
 #endif

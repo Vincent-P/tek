@@ -1,0 +1,17 @@
+#define GGPO_STEAM
+
+#include "bitvector.c"
+#include "game_input.c"
+#include "input_queue.c"
+#include "log.c"
+#include "main.c"
+#include "platform_windows.c"
+#include "sync.c"
+#include "timesync.c"
+#include "backends/p2p.c"
+#include "backends/spectator.c"
+#include "backends/synctest.c"
+//#include "network/connection.c"
+#include "network/connection_steam.c"
+#include "network/udp.c"
+#include "network/udp_proto.c"

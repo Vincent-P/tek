@@ -13,24 +13,26 @@
 
 #pragma pack(push, 1)
 
-struct UdpMsg
-{
-   enum MsgType {
-      Invalid       = 0,
-      SyncRequest   = 1,
-      SyncReply     = 2,
-      Input         = 3,
-      QualityReport = 4,
-      QualityReply  = 5,
-      KeepAlive     = 6,
-      InputAck      = 7,
-   };
+enum udp_msg_MsgType {
+      UdpMsg_Invalid       = 0,
+      UdpMsg_SyncRequest   = 1,
+      UdpMsg_SyncReply     = 2,
+      UdpMsg_Input         = 3,
+      UdpMsg_QualityReport = 4,
+      UdpMsg_QualityReply  = 5,
+      UdpMsg_KeepAlive     = 6,
+      UdpMsg_InputAck      = 7,
+};
+typedef enum udp_msg_MsgType udp_msg_MsgType;
 
-   struct connect_status {
+struct UdpMsg_connect_status {
       unsigned int   disconnected:1;
       int            last_frame:31;
-   };
+};
+typedef struct UdpMsg_connect_status UdpMsg_connect_status;
 
+struct UdpMsg
+{
    struct {
       uint16         magic;
       uint16         sequence_number;
@@ -57,7 +59,7 @@ struct UdpMsg
       } quality_reply;
 
       struct {
-         connect_status    peer_connect_status[UDP_MSG_MAX_PLAYERS];
+         UdpMsg_connect_status    peer_connect_status[UDP_MSG_MAX_PLAYERS];
 
          uint32            start_frame;
 
@@ -72,35 +74,37 @@ struct UdpMsg
       struct {
          int               ack_frame:31;
       } input_ack;
-
    } u;
-
-public:
-   int PacketSize() {
-      return sizeof(hdr) + PayloadSize();
-   }
-
-   int PayloadSize() {
-      int size;
-
-      switch (hdr.type) {
-      case SyncRequest:   return sizeof(u.sync_request);
-      case SyncReply:     return sizeof(u.sync_reply);
-      case QualityReport: return sizeof(u.quality_report);
-      case QualityReply:  return sizeof(u.quality_reply);
-      case InputAck:      return sizeof(u.input_ack);
-      case KeepAlive:     return 0;
-      case Input:
-         size = (int)((char *)&u.input.bits - (char *)&u.input);
-         size += (u.input.num_bits + 7) / 8;
-         return size;
-      }
-      ASSERT(false);
-      return 0;
-   }
-
-   UdpMsg(MsgType t) { hdr.type = (uint8)t; }
 };
+typedef struct UdpMsg UdpMsg;
+
+inline void udp_msg_ctor(UdpMsg* msg, udp_msg_MsgType t) { memset(msg, 0, sizeof(UdpMsg)); msg->hdr.type = (uint8)t; }
+
+
+inline int udp_msg_PayloadSize(UdpMsg* msg)
+{
+    int size;
+
+    switch (msg->hdr.type) {
+    case UdpMsg_SyncRequest:   return sizeof(msg->u.sync_request);
+    case UdpMsg_SyncReply:     return sizeof(msg->u.sync_reply);
+    case UdpMsg_QualityReport: return sizeof(msg->u.quality_report);
+    case UdpMsg_QualityReply:  return sizeof(msg->u.quality_reply);
+    case UdpMsg_InputAck:      return sizeof(msg->u.input_ack);
+    case UdpMsg_KeepAlive:     return 0;
+    case UdpMsg_Input:
+        size = (int)((char *)&msg->u.input.bits - (char *)&msg->u.input);
+        size += (msg->u.input.num_bits + 7) / 8;
+        return size;
+    }
+    ASSERT(false);
+    return 0;
+}
+
+inline int udp_msg_PacketSize(UdpMsg* msg)
+{
+    return sizeof(msg->hdr) + udp_msg_PayloadSize(msg);
+}
 
 #pragma pack(pop)
 

@@ -20,7 +20,9 @@
  *   4389 - '!=' : signed/unsigned mismatch
  *   4800 - 'int' : forcing value to bool 'true' or 'false' (performance warning)
  */
+#if defined(_WINDOWS)
 #pragma warning(disable: 4018 4100 4127 4201 4389 4800)
+#endif
 
 /*
  * Simple types
@@ -28,10 +30,23 @@
 typedef unsigned char uint8;
 typedef unsigned short uint16;
 typedef unsigned int uint32;
+typedef unsigned long long uint64;
 typedef unsigned char byte;
 typedef char int8;
 typedef short int16;
 typedef int int32;
+typedef long long int64;
+#ifndef bool
+#define bool  _Bool
+#endif
+#ifndef false
+#define false 0
+#endif
+#ifndef true
+#define true  1
+#endif
+
+#define _CRT_SECURE_NO_WARNINGS
 
 /*
  * Additional headers
@@ -44,6 +59,8 @@ typedef int int32;
 #  error Unsupported platform
 #endif
 
+typedef uintptr_t uptr;
+
 #include "log.h"
 
 
@@ -55,12 +72,12 @@ typedef int int32;
    do {                                                     \
       if (!(x)) {                                           \
          char assert_buf[1024];                             \
-         snprintf(assert_buf, sizeof(assert_buf) - 1, "Assertion: %s @ %s:%d (pid:%d)", #x, __FILE__, __LINE__, Platform::GetProcessID()); \
+         snprintf(assert_buf, sizeof(assert_buf) - 1, "Assertion: %s @ %s:%d (pid:%llu)", #x, __FILE__, __LINE__, Platform_GetProcessID()); \
          Log("%s\n", assert_buf);                           \
          Log("\n");                                         \
          Log("\n");                                         \
          Log("\n");                                         \
-         Platform::AssertFailed(assert_buf);                \
+         Platform_AssertFailed(assert_buf);                \
          exit(0);                                           \
       }                                                     \
    } while (false)

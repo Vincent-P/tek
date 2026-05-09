@@ -5,23 +5,30 @@
  * in the LICENSE file.
  */
 
+#if defined(_WINDOWS)
+
 #include "platform_windows.h"
 
+#pragma comment(lib, "ws2_32")
+#pragma comment(lib, "Winmm")
+
 int
-Platform::GetConfigInt(const char* name)
+Platform_GetConfigInt(const char* name)
 {
    char buf[1024];
-   if (GetEnvironmentVariable(name, buf, ARRAY_SIZE(buf)) == 0) {
+   if (GetEnvironmentVariableA(name, buf, ARRAY_SIZE(buf)) == 0) {
       return 0;
    }
    return atoi(buf);
 }
 
-bool Platform::GetConfigBool(const char* name)
+bool Platform_GetConfigBool(const char* name)
 {
    char buf[1024];
-   if (GetEnvironmentVariable(name, buf, ARRAY_SIZE(buf)) == 0) {
+   if (GetEnvironmentVariableA(name, buf, ARRAY_SIZE(buf)) == 0) {
       return false;
    }
    return atoi(buf) != 0 || _stricmp(buf, "true") == 0;
 }
+
+#endif

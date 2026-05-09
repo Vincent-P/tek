@@ -1,3 +1,19 @@
+/**
+ * Copyright (C) 2025 Vincent Parizet
+ * This program is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public License
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this program. If not, see
+ * <https://www.gnu.org/licenses/>.
+**/
 /* -----------------------------------------------------------------------
  * GGPO.net (http://ggpo.net)  -  Copyright 2009 GroundStorm Studios, LLC.
  *
@@ -9,7 +25,6 @@
 #define _SPECTATOR_H
 
 #include "types.h"
-#include "poll.h"
 #include "sync.h"
 #include "backend.h"
 #include "timesync.h"
@@ -17,36 +32,9 @@
 
 #define SPECTATOR_FRAME_BUFFER_SIZE    64
 
-class SpectatorBackend : public IQuarkBackend, IPollSink, Udp::Callbacks {
-public:
-   SpectatorBackend(GGPOSessionCallbacks *cb, const char *gamename, uint16 localport, int num_players, int input_size, char *hostip, u_short hostport);
-   virtual ~SpectatorBackend();
+struct SpectatorBackend  {
+	GGPOSessionHeader _header;
 
-
-public:
-   virtual GGPOErrorCode DoPoll(int timeout);
-   virtual GGPOErrorCode AddPlayer(GGPOPlayer *player, GGPOPlayerHandle *handle) { return GGPO_ERRORCODE_UNSUPPORTED; }
-   virtual GGPOErrorCode AddLocalInput(GGPOPlayerHandle player, void *values, int size) { return GGPO_OK; }
-   virtual GGPOErrorCode SyncInput(void *values, int size, int *disconnect_flags);
-   virtual GGPOErrorCode IncrementFrame(void);
-   virtual GGPOErrorCode DisconnectPlayer(GGPOPlayerHandle handle) { return GGPO_ERRORCODE_UNSUPPORTED; }
-   virtual GGPOErrorCode GetNetworkStats(GGPONetworkStats *stats, GGPOPlayerHandle handle) { return GGPO_ERRORCODE_UNSUPPORTED; }
-   virtual GGPOErrorCode SetFrameDelay(GGPOPlayerHandle player, int delay) { return GGPO_ERRORCODE_UNSUPPORTED; }
-   virtual GGPOErrorCode SetDisconnectTimeout(int timeout) { return GGPO_ERRORCODE_UNSUPPORTED; }
-   virtual GGPOErrorCode SetDisconnectNotifyStart(int timeout) { return GGPO_ERRORCODE_UNSUPPORTED; }
-
-public:
-   virtual void OnMsg(sockaddr_in &from, UdpMsg *msg, int len);
-
-protected:
-   void PollUdpProtocolEvents(void);
-   void CheckInitialSync(void);
-
-   void OnUdpProtocolEvent(UdpProtocol::Event &e);
-
-protected:
-   GGPOSessionCallbacks  _callbacks;
-   Poll                  _poll;
    Udp                   _udp;
    UdpProtocol           _host;
    bool                  _synchronizing;
@@ -55,5 +43,30 @@ protected:
    int                   _next_input_to_send;
    GameInput             _inputs[SPECTATOR_FRAME_BUFFER_SIZE];
 };
+
+typedef struct SpectatorBackend SpectatorBackend;
+
+#if defined(GGPO_STEAM)
+   void spec_ctor_steam(SpectatorBackend *spec, GGPOSessionCallbacks *cb, const char *gamename, int local_channel, int num_players, int input_size, uint64 host_steam_id);
+#else
+   void spec_ctor(SpectatorBackend *spec, GGPOSessionCallbacks *cb, const char *gamename, uint16 localport, int num_players, int input_size, char *hostip, uint16 hostport);
+#endif
+   void spec_dtor(SpectatorBackend *spec);
+
+   GGPOErrorCode spec_DoPoll(SpectatorBackend *spec, int timeout);
+   inline GGPOErrorCode spec_AddPlayer(SpectatorBackend *spec, GGPOPlayer *player, GGPOPlayerHandle *handle) { return GGPO_ERRORCODE_UNSUPPORTED; }
+   inline GGPOErrorCode spec_AddLocalInput(SpectatorBackend *spec, GGPOPlayerHandle player, void *values, int size) { return GGPO_OK; }
+   GGPOErrorCode spec_SyncInput(SpectatorBackend *spec, void *values, int size, int *disconnect_flags);
+   GGPOErrorCode spec_IncrementFrame(SpectatorBackend *spec);
+   inline GGPOErrorCode spec_DisconnectPlayer(SpectatorBackend *spec, GGPOPlayerHandle handle) { return GGPO_ERRORCODE_UNSUPPORTED; }
+   inline GGPOErrorCode spec_GetNetworkStats(SpectatorBackend *spec, GGPONetworkStats *stats, GGPOPlayerHandle handle) { return GGPO_ERRORCODE_UNSUPPORTED; }
+   inline GGPOErrorCode spec_SetFrameDelay(SpectatorBackend *spec, GGPOPlayerHandle player, int delay) { return GGPO_ERRORCODE_UNSUPPORTED; }
+   inline GGPOErrorCode spec_SetDisconnectTimeout(SpectatorBackend *spec, int timeout) { return GGPO_ERRORCODE_UNSUPPORTED; }
+   inline GGPOErrorCode spec_SetDisconnectNotifyStart(SpectatorBackend *spec, int timeout) { return GGPO_ERRORCODE_UNSUPPORTED; }
+
+   void spec_PollUdpProtocolEvents(SpectatorBackend *spec);
+   void spec_CheckInitialSync(SpectatorBackend *spec);
+
+   void spec_OnUdpProtocolEvent(SpectatorBackend *spec, udp_protocol_Event *e);
 
 #endif
