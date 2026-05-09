@@ -8,12 +8,15 @@ typedef uint64_t SteamAPICall_t;
 
 enum NetworkBattleState
 {
-	NETWORK_BATTLE_STATE_MAIN_MENU, // Display Host/Join menu
-	NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_CREATION, // Once player clicks "Host", a steam lobby is created, wait for async op to completed
-	NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_PLAYERS, // when a steam lobby is created, wait for someone to join
-	NETWORK_BATTLE_STATE_HOSTING, // Once someone joined, we create a GGPO session and start updating battle state
-	NETWORK_BATTLE_STATE_CONNECTING_TO_LOBBY, // Once a player clicks "Join", we try to join a steam lobby
-	NETWORK_BATTLE_STATE_JOINING, // When we connect to a steam lobby successfully, we create a GGPO session and start updating battle state
+	NETWORK_BATTLE_STATE_MAIN_MENU,
+	// Host
+	NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_CREATION,
+	NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_PLAYERS,
+	// Join
+	NETWORK_BATTLE_STATE_CONNECTING_TO_LOBBY,
+	// Common
+	NETWORK_BATTLE_STATE_PLAY,
+	NETWORK_BATTLE_STATE_END,
 };
 
 
@@ -24,6 +27,7 @@ struct NetworkBattle
 	uint64_t lobby_id;
 
 	// Battle data
+	uint64_t player_steam_ids[2];
 	GGPOSession *ggpo_session;
 	GGPOPlayer ggpo_players[2];
 	GGPOPlayerHandle ggpo_player_handles[2];
@@ -37,10 +41,9 @@ struct NetworkBattle
 };
 
 
-// clicked Host on the menu
 void network_battle_init(struct Game *game);
 // joined through Steam overlay
-void network_battle_state_join(struct Game *game, uint64_t lobby_id);
+void network_battle_on_lobby_joined(struct Game *game, uint64_t lobby_id);
 
 void network_battle_term(struct Game *game);
 bool network_battle_update(struct Game *game, struct GameUpdateContext const *ctx);

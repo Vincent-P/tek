@@ -45,6 +45,7 @@ enum SteamCallbacksConstants
 	k_iSteamMatchmakingLobbyInviteCallback = k_iSteamMatchmakingCallbacks + 3,
 	k_iSteamMatchmakingLobbyEnterCallback = k_iSteamMatchmakingCallbacks + 4,
 	k_iSteamMatchmakingLobbyDataUpdateCallback = k_iSteamMatchmakingCallbacks + 5,
+	k_iSteamMatchmakingLobbyChatUpdateCallback = k_iSteamMatchmakingCallbacks + 6,
 	k_iSteamMatchmakingLobbyCreatedCallback = k_iSteamMatchmakingCallbacks + 13,
 
 	k_iSteamUtilsCallbacks = 700,
@@ -279,6 +280,17 @@ enum EChatRoomEnterResponse
 };
 typedef enum EChatRoomEnterResponse EChatRoomEnterResponse;
 
+enum EChatMemberStateChange
+{
+	// Specific to joining / leaving the chatroom
+	k_EChatMemberStateChangeEntered			= 0x0001,		// This user has joined or is joining the chat room
+	k_EChatMemberStateChangeLeft			= 0x0002,		// This user has left or is leaving the chat room
+	k_EChatMemberStateChangeDisconnected	= 0x0004,		// User disconnected without leaving the chat first
+	k_EChatMemberStateChangeKicked			= 0x0008,		// User kicked
+	k_EChatMemberStateChangeBanned			= 0x0010,		// User kicked and banned
+};
+typedef enum EChatMemberStateChange EChatMemberStateChange;
+
 
 // Structs
 
@@ -402,7 +414,7 @@ typedef struct SteamNetConnectionInfo_t SteamNetConnectionInfo_t;
 
 struct SteamNetworkingMessagesSessionRequest_t
 {
-	SteamNetworkingIdentity m_identityRemote;			// user who wants to talk to us
+	SteamNetworkingIdentity m_identityRemote;
 };
 typedef struct SteamNetworkingMessagesSessionRequest_t SteamNetworkingMessagesSessionRequest_t;
 
@@ -430,13 +442,12 @@ typedef void (*FnSteamNetworkingMessagesSessionFailed)(SteamNetworkingMessagesSe
 #error steam_api_common.h should define VALVE_CALLBACK_PACK_xxx
 #endif
 
-/// Internal structure used in manual callback dispatch
 struct CallbackMsg_t
 {
-	HSteamUser m_hSteamUser; // Specific user to whom this callback applies.
-	int m_iCallback; // Callback identifier.  (Corresponds to the k_iCallback enum in the callback structure.)
-	uint8_t* m_pubParam; // Points to the callback structure
-	int m_cubParam; // Size of the data pointed to by m_pubParam
+	HSteamUser m_hSteamUser;
+	int m_iCallback;
+	uint8_t* m_pubParam;
+	int m_cubParam;
 };
 typedef struct CallbackMsg_t CallbackMsg_t;
 #pragma pack( pop )
@@ -446,58 +457,52 @@ typedef struct ISteamMatchmaking ISteamMatchmaking;
 
 struct LobbyInvite_t
 {
-	uint64_t m_ulSteamIDUser;		// Steam ID of the person making the invite
-	uint64_t m_ulSteamIDLobby;	// Steam ID of the Lobby
-	uint64_t m_ulGameID;			// GameID of the Lobby
+	uint64_t m_ulSteamIDUser;
+	uint64_t m_ulSteamIDLobby;
+	uint64_t m_ulGameID;
 };
 typedef struct LobbyInvite_t LobbyInvite_t;
 
 struct LobbyEnter_t
 {
-	uint64_t m_ulSteamIDLobby;							// SteamID of the Lobby you have entered
-	uint32_t m_rgfChatPermissions;						// Permissions of the current user
-	bool m_bLocked;										// If true, then only invited users may join
-	uint32_t m_EChatRoomEnterResponse;	// EChatRoomEnterResponse
+	uint64_t m_ulSteamIDLobby;
+	uint32_t m_rgfChatPermissions;
+	bool m_bLocked;
+	uint32_t m_EChatRoomEnterResponse;
 };
 typedef struct LobbyEnter_t LobbyEnter_t;
 
-//-----------------------------------------------------------------------------
-// Purpose: The lobby metadata has changed
-//			if m_ulSteamIDMember is the steamID of a lobby member, use GetLobbyMemberData() to access per-user details
-//			if m_ulSteamIDMember == m_ulSteamIDLobby, use GetLobbyData() to access lobby metadata
-//-----------------------------------------------------------------------------
 struct LobbyDataUpdate_t
 {
-	uint64_t m_ulSteamIDLobby;		// steamID of the Lobby
-	uint64_t m_ulSteamIDMember;		// steamID of the member whose data changed, or the room itself
-	uint8_t m_bSuccess;				// true if we lobby data was successfully changed;
-									// will only be false if RequestLobbyData() was called on a lobby that no longer exists
+	uint64_t m_ulSteamIDLobby;
+	uint64_t m_ulSteamIDMember;
+	uint8_t m_bSuccess;
 };
 typedef struct LobbyDataUpdate_t LobbyDataUpdate_t;
 
+struct LobbyChatUpdate_t
+{
+	uint64_t m_ulSteamIDLobby;
+	uint64_t m_ulSteamIDUserChanged;
+	uint64_t m_ulSteamIDMakingChange;
+	uint32_t m_rgfChatMemberStateChange;
+};
+typedef struct LobbyChatUpdate_t LobbyChatUpdate_t;
+
 struct LobbyCreated_t
 {
-	EResult m_eResult;		// k_EResultOK - the lobby was successfully created
-							// k_EResultNoConnection - your Steam client doesn't have a connection to the back-end
-							// k_EResultTimeout - you the message to the Steam servers, but it didn't respond
-							// k_EResultFail - the server responded, but with an unknown internal error
-							// k_EResultAccessDenied - your game isn't set to allow lobbies, or your client does haven't rights to play the game
-							// k_EResultLimitExceeded - your game client has created too many lobbies
-
-	uint64_t m_ulSteamIDLobby;		// chat room, zero if failed
+	EResult m_eResult;
+	uint64_t m_ulSteamIDLobby;
 };
 typedef struct LobbyCreated_t LobbyCreated_t;
 
+
 // ISteamFriends
 typedef struct ISteamFriends ISteamFriends;
-//-----------------------------------------------------------------------------
-// Purpose: called when the user tries to join a lobby from their friends list
-//			game client should attempt to connect to specified lobby when this is received
-//-----------------------------------------------------------------------------
+
 struct GameLobbyJoinRequested_t
 {
 	CSteamID m_steamIDLobby;
-	// The friend they did the join via (will be invalid if not directly via a friend)
 	CSteamID m_steamIDFriend;
 };
 typedef struct GameLobbyJoinRequested_t GameLobbyJoinRequested_t;

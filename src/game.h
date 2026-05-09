@@ -27,6 +27,7 @@ struct Game
 	// steam
 	SteamAPICall_t lobby_join_request;
 	uint64_t lobby_id;
+	uint64_t user_id;
 
 	// common state
 	struct Simulation

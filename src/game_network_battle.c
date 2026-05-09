@@ -2,11 +2,8 @@
 
 #include "steam_api_c.h"
 
-#define TEK_NETWORK_HOST_PORT 35584
-#define TEK_NETWORK_PEER_PORT 35585
-
-
-// -- ggpo callbacks
+
+// ggpo callbacks
 struct Game *ggpo_game_global_state = NULL;
 
 
@@ -139,8 +136,9 @@ bool tek_on_event(GGPOEvent *info)
 }
 
 
-
-// --
+
+// steam callback
+void network_battle_state_host(struct Game *game);
 void network_battle_steam_callback(struct Game *game, struct GameUpdateContext const *ctx, int callback_type, void *callback_data, int callback_datasize)
 {
 	struct NetworkBattle *data = &game->network_battle;
@@ -160,7 +158,6 @@ void network_battle_steam_callback(struct Game *game, struct GameUpdateContext c
 									     pCallCompleted->m_iCallback,
 									     &bFailed)) {
 					// Lobby was created
-					int bob = 0;
 					data->lobby_id = lobby_created_result.m_ulSteamIDLobby;
 					if (data->lobby_id != 0) {
 						fprintf(stdout, "[steam] created lobby %llu.\n", data->lobby_id);
@@ -176,37 +173,49 @@ void network_battle_steam_callback(struct Game *game, struct GameUpdateContext c
 						data->state = NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_PLAYERS;
 					} else {
 						data->state = NETWORK_BATTLE_STATE_MAIN_MENU;
+						data->lobby_create_call = 0;
 					}
 				}
 			}
-		} else if (data->state == NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_PLAYERS) {
-			int bob = 0;
+		}
+	} else if (callback_type == k_iSteamMatchmakingLobbyChatUpdateCallback) {
+		if (data->state == NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_PLAYERS) {
+
+			bool const is_host = data->lobby_create_call != 0;
+			if (is_host) {
+				// LobbyChatUpdate update is called when a user joins or leaves a lobby.
+				LobbyChatUpdate_t *update = (LobbyChatUpdate_t*)callback_data;
+				if (update->m_ulSteamIDLobby == data->lobby_id && update->m_rgfChatMemberStateChange == k_EChatMemberStateChangeEntered) {
+					if (update->m_ulSteamIDUserChanged != game->user_id) {
+						data->player_steam_ids[0] = game->user_id;
+						data->player_steam_ids[1] = update->m_ulSteamIDUserChanged;
+
+						data->state = NETWORK_BATTLE_STATE_PLAY;
+						network_battle_state_host(game);
+					}
+				}
+			}
 		}
 	}
 }
 
-void network_battle_state_create_lobby(struct NetworkBattle *data)
-{
-	data->state = NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_CREATION;
-	data->lobby_create_call = SteamAPI_ISteamMatchmaking_CreateLobby(SteamAPI_SteamMatchmaking(), k_ELobbyTypeFriendsOnly, 2);
-}
-
+
+// state logic
 void network_battle_state_host(struct Game *game)
 {
 	struct Simulation *simulation = &game->simulation;
 	struct NetworkBattle *data = &game->network_battle;
-	data->state = NETWORK_BATTLE_STATE_HOSTING;
+	data->state = NETWORK_BATTLE_STATE_PLAY;
 
 	ggpo_game_global_state = game;
+	memset(data->ggpo_players, 0, ARRAY_LENGTH(data->ggpo_players) * sizeof(GGPOPlayer));
 	data->ggpo_players[0].size = sizeof(GGPOPlayer);
 	data->ggpo_players[0].type = GGPO_PLAYERTYPE_LOCAL;
 	data->ggpo_players[0].player_num = 1;
-	data->ggpo_players[0].u.local.padding = 0;
 	data->ggpo_players[1].size = sizeof(GGPOPlayer);
 	data->ggpo_players[1].type = GGPO_PLAYERTYPE_REMOTE;
 	data->ggpo_players[1].player_num = 2;
-	memcpy(data->ggpo_players[1].u.remote.ip_address, "127.0.0.1", 9);
-	data->ggpo_players[1].u.remote.port = TEK_NETWORK_PEER_PORT;
+	data->ggpo_players[1].u.steam_remote.steam_id = data->player_steam_ids[1];
 	GGPOSessionCallbacks session_callbacks = {0};
 	session_callbacks.begin_game = tek_begin_game;
 	session_callbacks.save_game_state = tek_save_game_state;
@@ -215,7 +224,7 @@ void network_battle_state_host(struct Game *game)
 	session_callbacks.free_buffer = tek_free_buffer;
 	session_callbacks.advance_frame = tek_advance_frame;
 	session_callbacks.on_event = tek_on_event;
-	GGPOErrorCode err = ggpo_start_session(&data->ggpo_session, &session_callbacks, "tek", 2, sizeof(struct BattleInput), TEK_NETWORK_HOST_PORT);
+	GGPOErrorCode err = ggpo_start_session(&data->ggpo_session, &session_callbacks, "tek", 2, sizeof(struct BattleInput), 0);
 	tek_check_error(err);
 	err = ggpo_add_player(data->ggpo_session, &data->ggpo_players[0], &data->ggpo_player_handles[0]);
 	tek_check_error(err);
@@ -230,44 +239,36 @@ void network_battle_state_host(struct Game *game)
 	battle_state_init(&simulation->battle_context);
 }
 
-void network_battle_state_host_term(struct Game *game)
-{
-	struct NetworkBattle *data = &game->network_battle;
-	struct Simulation *simulation = &game->simulation;
-	battle_state_term(&simulation->battle_context);
-
-	GGPOErrorCode err = ggpo_close_session(data->ggpo_session);
-	tek_check_error(err);
-	data->ggpo_session = NULL;
-	ggpo_game_global_state = NULL;
-}
-
-void network_battle_state_join(struct Game *game, uint64_steamid lobby_id)
+void network_battle_on_lobby_joined(struct Game *game, uint64_t lobby_id)
 {
 	struct NetworkBattle *data = &game->network_battle;
 	struct Simulation *simulation = &game->simulation;
 
-	data->state = NETWORK_BATTLE_STATE_JOINING;
+	data->state = NETWORK_BATTLE_STATE_PLAY;
 
 	fprintf(stdout, "[steam] joined lobby %llu.\n", lobby_id);
 	int num_players = SteamAPI_ISteamMatchmaking_GetNumLobbyMembers(SteamAPI_SteamMatchmaking(), lobby_id);
+
+	uint64_t remote_player_id = 0;
 	if (num_players == 2) {
 		uint64_t p0_id = SteamAPI_ISteamMatchmaking_GetLobbyMemberByIndex(SteamAPI_SteamMatchmaking(), lobby_id, 0);
 		uint64_t p1_id = SteamAPI_ISteamMatchmaking_GetLobbyMemberByIndex(SteamAPI_SteamMatchmaking(), lobby_id, 1);
 		fprintf(stdout, "[steam] P0 %llu P1 %llu\n", p0_id, p1_id);
-	}
 
+		if (p0_id != game->user_id)
+			remote_player_id = p0_id;
+		if (p1_id != game->user_id)
+			remote_player_id = p1_id;
+	}
 
 	ggpo_game_global_state = game;
 	data->ggpo_players[0].size = sizeof(GGPOPlayer);
 	data->ggpo_players[0].type = GGPO_PLAYERTYPE_REMOTE;
 	data->ggpo_players[0].player_num = 1;
-	memcpy(data->ggpo_players[0].u.remote.ip_address, "127.0.0.1", 9);
-	data->ggpo_players[0].u.remote.port = TEK_NETWORK_HOST_PORT;
+	data->ggpo_players[0].u.steam_remote.steam_id = remote_player_id;
 	data->ggpo_players[1].size = sizeof(GGPOPlayer);
 	data->ggpo_players[1].type = GGPO_PLAYERTYPE_LOCAL;
 	data->ggpo_players[1].player_num = 2;
-	data->ggpo_players[1].u.local.padding = 0;
 	GGPOSessionCallbacks session_callbacks = {0};
 	session_callbacks.begin_game = tek_begin_game;
 	session_callbacks.save_game_state = tek_save_game_state;
@@ -276,7 +277,7 @@ void network_battle_state_join(struct Game *game, uint64_steamid lobby_id)
 	session_callbacks.free_buffer = tek_free_buffer;
 	session_callbacks.advance_frame = tek_advance_frame;
 	session_callbacks.on_event = tek_on_event;
-	GGPOErrorCode err = ggpo_start_session(&data->ggpo_session, &session_callbacks, "tek", 2, sizeof(struct BattleInput), TEK_NETWORK_PEER_PORT);
+	GGPOErrorCode err = ggpo_start_session(&data->ggpo_session, &session_callbacks, "tek", 2, sizeof(struct BattleInput), 0);
 	tek_check_error(err);
 	err = ggpo_add_player(data->ggpo_session, &data->ggpo_players[0], &data->ggpo_player_handles[0]);
 	tek_check_error(err);
@@ -290,21 +291,6 @@ void network_battle_state_join(struct Game *game, uint64_steamid lobby_id)
 	simulation->battle_context.battle_non_state.rounds_first_to = 3;
 	battle_state_init(&simulation->battle_context);
 }
-
-void network_battle_state_join_term(struct Game *game)
-{
-	struct NetworkBattle *data = &game->network_battle;
-	struct Simulation *simulation = &game->simulation;
-
-	battle_state_term(&simulation->battle_context);
-
-	GGPOErrorCode err = ggpo_close_session(data->ggpo_session);
-	tek_check_error(err);
-	data->ggpo_session = NULL;
-	ggpo_game_global_state = NULL;
-}
-
-// --
 
 void network_battle_init(struct Game *game)
 {
@@ -316,21 +302,14 @@ void network_battle_term(struct Game *game)
 {
 	printf("NETWORK_BATTLE: Term\n");
 	struct NetworkBattle *data = &game->network_battle;
+	struct Simulation *simulation = &game->simulation;
 
-	switch (data->state) {
-	case NETWORK_BATTLE_STATE_MAIN_MENU: {
-		break;
-	}
+	battle_state_term(&simulation->battle_context);
 
-	case NETWORK_BATTLE_STATE_HOSTING: {
-		network_battle_state_host_term(game);
-		break;
-	}
-	case NETWORK_BATTLE_STATE_JOINING: {
-		network_battle_state_join_term(game);
-		break;
-	}
-	}
+	GGPOErrorCode err = ggpo_close_session(data->ggpo_session);
+	tek_check_error(err);
+	data->ggpo_session = NULL;
+	ggpo_game_global_state = NULL;
 }
 
 bool network_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
@@ -340,9 +319,9 @@ bool network_battle_update(struct Game *game, struct GameUpdateContext const *ct
 	bool result = false;
 	switch (data->state) {
 	case NETWORK_BATTLE_STATE_MAIN_MENU: {
-
 		if (data->host_pressed) {
-			network_battle_state_create_lobby(data);
+			data->state = NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_CREATION;
+			data->lobby_create_call = SteamAPI_ISteamMatchmaking_CreateLobby(SteamAPI_SteamMatchmaking(), k_ELobbyTypeFriendsOnly, 2);
 			data->host_pressed = false;
 		}
 		if (data->join_pressed) {
@@ -352,8 +331,7 @@ bool network_battle_update(struct Game *game, struct GameUpdateContext const *ct
 		break;
 	}
 
-	case NETWORK_BATTLE_STATE_HOSTING:
-	case NETWORK_BATTLE_STATE_JOINING: {
+	case NETWORK_BATTLE_STATE_PLAY: {
 
 
 		GGPOErrorCode err = 0;
@@ -385,12 +363,14 @@ bool network_battle_update(struct Game *game, struct GameUpdateContext const *ct
 		ImGui_End();
 
 		// Playing. Read inputs and simulate battle.
+		bool const is_host = data->lobby_create_call != 0;
 		simulation->accumulator += ctx->previous_frame_time;
 		const uint64_t dt = 16;
 		while (simulation->accumulator >= dt) {
 			TracyCZoneN(f, "Battle Frame", true);
 			struct BattleInputs battle_inputs = battle_read_input(game->inputs);
-			if (data->state == NETWORK_BATTLE_STATE_HOSTING) {
+
+			if (is_host) {
 				// Send player1 inputs to network
 				err = ggpo_add_local_input(data->ggpo_session, data->ggpo_player_handles[0], &battle_inputs.player1, sizeof(struct BattleInput));
 			} else {
@@ -412,12 +392,8 @@ bool network_battle_update(struct Game *game, struct GameUpdateContext const *ct
 					tek_check_error(err);
 
 					if (battle_result != BATTLE_FRAME_RESULT_CONTINUE || disconnect_flags != 0) {
-
-						if (data->state == NETWORK_BATTLE_STATE_HOSTING) {
-							network_battle_state_host_term(game);
-						} else if (data->state == NETWORK_BATTLE_STATE_JOINING) {
-							network_battle_state_join_term(game);
-						}
+						network_battle_term(game);
+						network_battle_init(game);
 						data->state = NETWORK_BATTLE_STATE_MAIN_MENU;
 						break;
 					}
@@ -439,7 +415,7 @@ void network_battle_render(struct Game *game)
 	struct NetworkBattle *data = &game->network_battle;
 	struct Simulation *simulation = &game->simulation;
 
-	if (data->state == NETWORK_BATTLE_STATE_HOSTING || data->state == NETWORK_BATTLE_STATE_JOINING) {
+	if (data->state == NETWORK_BATTLE_STATE_PLAY) {
 		battle_render(&simulation->battle_context);
 	}
 
@@ -528,7 +504,7 @@ void network_battle_render(struct Game *game)
 					CLAY_TEXT(s, CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {255, 255, 255, 255}}));
 				}
 			}
-		} else if (data->state == NETWORK_BATTLE_STATE_HOSTING || data->state == NETWORK_BATTLE_STATE_JOINING) {
+		} else if (data->state == NETWORK_BATTLE_STATE_PLAY) {
 			CLAY({.id = CLAY_ID("HeaderBar"), .layout = { .sizing = {.width = CLAY_SIZING_GROW(0)}, .childGap = 16}}) {
 
 				CLAY({

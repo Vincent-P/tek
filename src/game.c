@@ -16,8 +16,8 @@ void game_first_init(struct Game *game)
 	// C api need a manual dispatch for callbacks
 	SteamAPI_ManualDispatch_Init();
 
-	uint64_t user_id = SteamAPI_ISteamUser_GetSteamID(SteamAPI_SteamUser());
-	fprintf(stdout, "Init steam success: user id %llu.\n", user_id);
+	game->user_id = SteamAPI_ISteamUser_GetSteamID(SteamAPI_SteamUser());
+	fprintf(stdout, "Init steam success: user id %llu.\n", game->user_id);
 }
 
 void game_init(struct Game *game)
@@ -46,15 +46,16 @@ static void game_join_steam_lobby(struct Game *game, uint64_t lobby_id)
 	game->lobby_join_request = 0;
 
 	game->current_state = GAME_STATE_NETWORK_BATTLE;
-	network_battle_state_join(game, lobby_id);
+	network_battle_on_lobby_joined(game, lobby_id);
 }
 
 static void game_steam_callback(struct Game *game, int callback_type, void *callback_data, int callback_datasize)
 {
 	bool handled = false;
 	if (callback_type == k_iSteamUtilsSteamAPICallCompletedCallback) {
-		SteamAPICallCompleted_t* pCallCompleted = (SteamAPICallCompleted_t*)callback_data;
+		fprintf(stdout, "[steam]  steam api call completed.\n");
 
+		SteamAPICallCompleted_t* pCallCompleted = (SteamAPICallCompleted_t*)callback_data;
 		// Lobby Entered
 		if (pCallCompleted->m_hAsyncCall == game->lobby_join_request) {
 			LobbyEnter_t lobby_enter = {0};
@@ -89,6 +90,7 @@ static void game_steam_callback(struct Game *game, int callback_type, void *call
 
 	} else if (callback_type == k_iSteamMatchmakingLobbyDataUpdateCallback) {
 
+		fprintf(stdout, "[steam]  lobby data update.\n");
 		// assert(callback_datasize >= sizeof(LobbyDataUpdate_t)); // wrong?
 		LobbyDataUpdate_t *update = (LobbyDataUpdate_t*)callback_data;
 		if (update->m_bSuccess != 0 && update->m_ulSteamIDLobby == game->lobby_id) {
@@ -101,6 +103,7 @@ static void game_steam_callback(struct Game *game, int callback_type, void *call
 
 	} else if (callback_type == k_iSteamFriendsGameLobbyJoinRequestedCallback) {
 
+		fprintf(stdout, "[steam]  friend lobby join requested.\n");
 		assert(callback_datasize == sizeof(GameLobbyJoinRequested_t));
 		GameLobbyJoinRequested_t *join_request = (GameLobbyJoinRequested_t*)callback_data;
 		if (game->lobby_join_request == 0) {
@@ -109,6 +112,12 @@ static void game_steam_callback(struct Game *game, int callback_type, void *call
 		}
 		handled = true;
 
+	} else if (callback_type == k_iSteamMatchmakingLobbyChatUpdateCallback) {
+		fprintf(stdout, "[steam]  lobby chat update.\n");
+		int bob = 0;
+	} else if (callback_type == k_iSteamMatchmakingLobbyEnterCallback) {
+		fprintf(stdout, "[steam]  lobby enter.\n");
+		int bob = 0;
 	}
 
 	if (!handled) {

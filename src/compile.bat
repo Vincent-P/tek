@@ -16,7 +16,8 @@ set vulkan_link_flags=/LIBPATH:%VULKAN_SDK%/lib vulkan-1.lib user32.lib
 set imgui_link_flags=/LIBPATH:src\libs\imgui_build imgui.lib
 set tracy_flags=/DTRACY_ENABLE
 set tracy_link_flags=tracy.lib
+set ggpo_flags=/DGGPO_STEAM
 set ggpo_link_flags=ggpo.lib Winmm.lib ws2_32.lib
 set steamworks_link_flags=steam_api64.lib
-cl.exe src/main.c %common_flags% %vulkan_flags% %tracy_flags% /link /out:game.exe %sdl_link_flags% %vulkan_link_flags% %imgui_link_flags% %tracy_link_flags% %ggpo_link_flags% %steamworks_link_flags% /DEBUG:FULL
+cl.exe src/main.c %common_flags% %vulkan_flags% %tracy_flags% %ggpo_flags% /link /out:game.exe %sdl_link_flags% %vulkan_link_flags% %imgui_link_flags% %tracy_link_flags% %ggpo_link_flags% %steamworks_link_flags% /DEBUG:FULL
 cl.exe src/cooker.c %common_flags% %vulkan_flags% /link /out:cooker.exe %vulkan_link_flags% shaderc_shared.lib /DEBUG:FULL
