@@ -1,5 +1,7 @@
 #pragma once
 
+#define ASSERT(x) if ((x) == false) __debugbreak();
+
 
 // Maths
 

@@ -157,7 +157,7 @@ static uint8_t tek_read_json_hit_reaction(struct tek_Character *character, struc
 	reactions.crouch_block_stun += (int8_t)parent_move->recovery;
 
 	uint32_t i = character->hit_reactions_length;
-	assert(i < ARRAY_LENGTH(character->hit_reactions));
+	ASSERT(i < ARRAY_LENGTH(character->hit_reactions));
 	character->hit_reactions[i] = reactions;
 	character->hit_reactions_length++;
 	return (uint8_t)i;
@@ -200,7 +200,7 @@ static void tek_read_json_move_hit_conditions(struct tek_Character *character,
 		hit_condition_index++;
 	}
 	parent_move->hit_conditions_length = hit_condition_index;
-	assert(parent_move->hit_conditions_length <= ARRAY_LENGTH(parent_move->hit_conditions));
+	ASSERT(parent_move->hit_conditions_length <= ARRAY_LENGTH(parent_move->hit_conditions));
 }
 
 static struct tek_Cancel tek_read_cancel(struct json_object_s *cancel_obj)
@@ -259,7 +259,7 @@ static void tek_read_json_move_cancels(struct tek_Move *move, struct json_array_
 	}
 
 	move->cancels_length = cancel_index;
-	assert(move->cancels_length <= ARRAY_LENGTH(move->cancels));
+	ASSERT(move->cancels_length <= ARRAY_LENGTH(move->cancels));
 }
 
 static void tek_read_json_move_properties(union tek_MoveProperties *props, struct json_object_s *obj)
@@ -345,7 +345,7 @@ static void tek_read_json_move(struct tek_Character *character, struct json_obje
 	tek_read_json_move_hit_conditions(character, &move, hit_conditions);
 
 	uint32_t imove = character->moves_length;
-	assert(imove < ARRAY_LENGTH(character->moves));
+	ASSERT(imove < ARRAY_LENGTH(character->moves));
 	character->moves[imove] = move;
 	strncpy(character->move_names[imove].string,
 		movename->string,
@@ -360,7 +360,7 @@ static void tek_read_json_cancel_group(struct tek_Character *character, struct j
 	}
 
 	uint32_t group_index = character->cancel_groups_length;
-	assert(group_index < MAX_CANCEL_GROUPS);
+	ASSERT(group_index < MAX_CANCEL_GROUPS);
 	character->cancel_groups_length += 1;
 	struct tek_CancelGroup *group = &character->cancel_groups[group_index];
 
@@ -386,7 +386,7 @@ static void tek_read_json_cancel_group(struct tek_Character *character, struct j
 			cancel_index++;
 		}
 		group->cancels_length = cancel_index;
-		assert(group->cancels_length <= ARRAY_LENGTH(group->cancels));
+		ASSERT(group->cancels_length <= ARRAY_LENGTH(group->cancels));
 	}
 }
 
@@ -406,7 +406,7 @@ static void tek_read_json_hurtbox(struct tek_Character *character, struct json_o
 	}
 
 	uint32_t ibox = character->hurtboxes_length;
-	assert(ibox < ARRAY_LENGTH(character->hurtboxes_radius));
+	ASSERT(ibox < ARRAY_LENGTH(character->hurtboxes_radius));
 	character->hurtboxes_radius[ibox] = radius;
 	character->hurtboxes_height[ibox] = height;
 	character->hurtboxes_bone_id[ibox] = bone_id;
@@ -429,7 +429,7 @@ static void tek_read_json_hitbox(struct tek_Character *character, struct json_ob
 	}
 
 	uint32_t ibox = character->hitboxes_length;
-	assert(ibox < ARRAY_LENGTH(character->hitboxes_radius));
+	ASSERT(ibox < ARRAY_LENGTH(character->hitboxes_radius));
 	character->hitboxes_radius[ibox] = radius;
 	character->hitboxes_height[ibox] = height;
 	character->hitboxes_bone_id[ibox] = bone_id;
@@ -442,10 +442,10 @@ static uint32_t tek_create_hit_reactions_move(struct tek_Character *character,
 					  uint8_t stun,
 					  const char *fmt)
 {
-	assert(character->moves_length + 1 < ARRAY_LENGTH(character->moves));
+	ASSERT(character->moves_length + 1 < ARRAY_LENGTH(character->moves));
 	struct tek_Move *new_move = character->moves + character->moves_length;
 	memcpy(new_move, base_move, sizeof(struct tek_Move));
-	assert(new_move->cancels_length == 1);
+	ASSERT(new_move->cancels_length == 1);
 	new_move->cancels[0].starting_frame = stun;
 	uint32_t imove = (uint32_t)(base_move - character->moves);
 	struct tek_DebugName *base_name = character->move_names + imove;
@@ -492,7 +492,7 @@ void tek_read_character_json()
 
 	struct Blob character_json_file = file_read_entire_file(source_path);
 	struct json_value_s* root = json_parse_ex(character_json_file.data, character_json_file.size, json_parse_flags_allow_c_style_comments | json_parse_flags_allow_trailing_comma , NULL, NULL, NULL);
-	assert(root->type == json_type_object);
+	ASSERT(root->type == json_type_object);
 
 	struct json_array_s *moves = NULL;
 	struct json_array_s *group_cancels = NULL;
@@ -553,7 +553,7 @@ void tek_read_character_json()
 
 struct tek_Move *tek_character_find_move(struct tek_Character *character, uint32_t id)
 {
-	assert(id != 0);
+	ASSERT(id != 0);
 	for (uint32_t imove = 0; imove < ARRAY_LENGTH(character->moves); ++imove) {
 		if (character->moves[imove].id == id) {
 			return character->moves + imove;
@@ -564,7 +564,7 @@ struct tek_Move *tek_character_find_move(struct tek_Character *character, uint32
 
 struct tek_CancelGroup *tek_character_find_cancel_group(struct tek_Character *character, uint32_t id)
 {
-	assert(id != 0);
+	ASSERT(id != 0);
 	for (uint32_t icancel_group = 0; icancel_group < ARRAY_LENGTH(character->cancel_groups); ++icancel_group) {
 		if (character->cancel_groups[icancel_group].id == id) {
 			return character->cancel_groups + icancel_group;

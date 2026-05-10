@@ -83,10 +83,10 @@ bool anim_evaluate_animation(struct AnimSkeleton const *skeleton, Animation cons
 	}
 	out_pose->bones_length = skeleton->bones_length;
 	for (uint32_t ibone = 0; ibone < anim->tracks_length; ++ibone) {
-		assert(anim->tracks[ibone].translations.length == count);
-		assert(anim->tracks[ibone].rotations.length == count);
-		assert(anim->tracks[ibone].scales.length == count);
-		assert(anim->tracks_identifier[ibone] == skeleton->bones_identifier[ibone]);
+		ASSERT(anim->tracks[ibone].translations.length == count);
+		ASSERT(anim->tracks[ibone].rotations.length == count);
+		ASSERT(anim->tracks[ibone].scales.length == count);
+		ASSERT(anim->tracks_identifier[ibone] == skeleton->bones_identifier[ibone]);
 
 		Float3 translation = anim->tracks[ibone].translations.data[frame];
 		Quat rotation = anim->tracks[ibone].rotations.data[frame];
@@ -97,7 +97,7 @@ bool anim_evaluate_animation(struct AnimSkeleton const *skeleton, Animation cons
 
 	if (frame > 0) {
 		// apply the translation from previous frame to this frame
-		assert(anim->root_motion_track.translations.length == count);
+		ASSERT(anim->root_motion_track.translations.length == count);
 		Float3 prev_translation = anim->root_motion_track.translations.data[frame-1];
 		Float3 current_translation = anim->root_motion_track.translations.data[frame];
 		out_pose->root_motion_delta_translation = float3_sub(current_translation, prev_translation);
@@ -107,7 +107,7 @@ bool anim_evaluate_animation(struct AnimSkeleton const *skeleton, Animation cons
 		out_pose->root_motion_delta_rotation = quat_delta(current_rotation, prev_rotation);
 	} else {
 		// apply the first root motion translation key
-		assert(anim->root_motion_track.translations.length == count);
+		ASSERT(anim->root_motion_track.translations.length == count);
 		Float3 current_translation = anim->root_motion_track.translations.data[frame];
 		out_pose->root_motion_delta_translation = current_translation;
 
@@ -126,7 +126,7 @@ void anim_pose_compute_global_transforms(struct AnimSkeleton const *skeleton, st
 	pose->global_transforms[0] = float3x4_mul(skeleton->bones_global_transforms[0], pose->local_transforms[0]);
 	for (uint32_t i = 1; i < skeleton->bones_length; ++i) {
 		uint8_t iparent = skeleton->bones_parent[i];
-		assert(iparent < skeleton->bones_length);
+		ASSERT(iparent < skeleton->bones_length);
 		pose->global_transforms[i] = float3x4_mul(pose->global_transforms[iparent], pose->local_transforms[i]);
 	}
 }

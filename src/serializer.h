@@ -1,4 +1,5 @@
 #pragma once
+#include "core.h"
 
 typedef struct Serializer Serializer;
 struct Blob
@@ -30,7 +31,7 @@ enum SerializerVersions
 #define SerializeSimpleType(T) \
 void Serialize_##T(Serializer *serializer, T *value) \
 { \
-	assert(serializer->cursor + sizeof(T) <= serializer->buffer.size); \
+	ASSERT(serializer->cursor + sizeof(T) <= serializer->buffer.size); \
 	T *buffer_as_##T = (T*)((char*)serializer->buffer.data + serializer->cursor); \
 	serializer->cursor += sizeof(T); \
 	\
@@ -43,10 +44,10 @@ void Serialize_##T(Serializer *serializer, T *value) \
 
 void SerializeBytes(Serializer *serializer, void *data, uint32_t size)
 {
-	assert(serializer->cursor + size <= serializer->buffer.size);
+	ASSERT(serializer->cursor + size <= serializer->buffer.size);
 	void *buffer = (char*)serializer->buffer.data + serializer->cursor;
 	serializer->cursor += size;
-		
+
 	if (serializer->is_reading) {
 		memcpy(data, buffer, size);
 	} else {

@@ -246,11 +246,11 @@ void renderer_init(Renderer *renderer, struct AssetLibrary *assets, SDL_Window *
 	// Create mesh resources
 	uint32_t MAX_MESH_ALLOCATIONS = 32;
 	int res = oa_create(&renderer->mesh_vbuffer_allocator, RENDERER_MESH_VERTEX_CAPACITY, MAX_MESH_ALLOCATIONS);
-	assert(res == 0);
+	ASSERT(res == 0);
 	res = oa_create(&renderer->mesh_ibuffer_allocator, RENDERER_MESH_INDEX_CAPACITY, MAX_MESH_ALLOCATIONS);
-	assert(res == 0);
+	ASSERT(res == 0);
 	res = oa_create(&renderer->mesh_skinned_vbuffer_allocator, RENDERER_MESH_VERTEX_CAPACITY, MAX_MESH_ALLOCATIONS);
-	assert(res == 0);
+	ASSERT(res == 0);
 	renderer->mesh_ibuffer = 6;
 	renderer->mesh_skinned_positions_vbuffer = 7;
 	renderer->mesh_skinned_normals_vbuffer = 8;
@@ -350,10 +350,10 @@ void renderer_create_render_skeletal_mesh(Renderer *renderer, struct SkeletalMes
 	// geometry buffers.
 	oa_allocation_t skinned_vbuffer_allocation = {0};
 	int alloc_res = oa_allocate(&renderer->mesh_skinned_vbuffer_allocator, asset->vertices_length, &skinned_vbuffer_allocation);
-	assert(alloc_res == 0);
+	ASSERT(alloc_res == 0);
 	oa_allocation_t ibuffer_allocation = {0};
 	alloc_res = oa_allocate(&renderer->mesh_ibuffer_allocator, asset->indices_length, &ibuffer_allocation);
-	assert(alloc_res == 0);
+	ASSERT(alloc_res == 0);
 
 	// Fill data
 	renderer->meshes[handle].skinned_vbuffer_allocation = skinned_vbuffer_allocation;
@@ -388,7 +388,7 @@ void renderer_register_skeletal_mesh_instance(Renderer *renderer, struct Skeleta
 {
 	// Create instance into our instances array
 	uint32_t iinstance = renderer->mesh_instances_length;
-	assert(iinstance < ARRAY_LENGTH(renderer->skeletal_mesh_instances));
+	ASSERT(iinstance < ARRAY_LENGTH(renderer->skeletal_mesh_instances));
 	data.mesh_render_handle = data.mesh->render_handle;
 	renderer->skeletal_mesh_instances[iinstance] = data;
 	renderer->mesh_instances_length += 1;
@@ -400,7 +400,7 @@ void renderer_register_skeletal_mesh_instance(Renderer *renderer, struct Skeleta
 	int alloc_res = oa_allocate(&renderer->mesh_vbuffer_allocator,
 				    data.mesh->vertices_length,
 				    &renderer->mesh_instances[iinstance].vbuffer_allocation);
-	assert(alloc_res == 0);
+	ASSERT(alloc_res == 0);
 
 	// Keep track of the previous transform
 	Float3x4 current_transform = data.dynamic_data_spatial->world_transform;
@@ -444,11 +444,11 @@ void renderer_upload_texture(Renderer* renderer, struct RendererTextureUpload up
 {
 	char *upload_begin = buffer_get_mapped_pointer(renderer->device, renderer->upload_buffer);
 	char *upload_end = upload_begin + RENDERER_UPLOAD_BUFFER_SIZE;
-	assert((char*)upload.temp_data >= upload_begin && (char*)upload.temp_data < upload_end);
+	ASSERT((char*)upload.temp_data >= upload_begin && (char*)upload.temp_data < upload_end);
 	uint32_t buffer_offset = (uint32_t)((char*)upload.temp_data - upload_begin);
 
-	assert(upload.width > 0);
-	assert(upload.height > 0);
+	ASSERT(upload.width > 0);
+	ASSERT(upload.height > 0);
 
 	vulkan_copy_buffer_to_texture(renderer->device, (struct VulkanBufferTextureCopy){
 			.buffer = renderer->upload_buffer,
@@ -581,8 +581,8 @@ static void renderer_drawer2d_pass(Renderer *renderer, VulkanFrame *frame, Vulka
 	// Upload vertices
 	uint32_t vbuffer_size = buffer_get_size(renderer->device, renderer->drawer2d_vbuffer);
 	uint32_t ibuffer_size = buffer_get_size(renderer->device, renderer->drawer2d_ibuffer);
-	assert(vbuffer_size == sizeof(drawer->current_vertices));
-	assert(ibuffer_size == sizeof(drawer->current_indices));
+	ASSERT(vbuffer_size == sizeof(drawer->current_vertices));
+	ASSERT(ibuffer_size == sizeof(drawer->current_indices));
 
 	struct Vertex2D *vertices_gpu = buffer_get_mapped_pointer(renderer->device, renderer->drawer2d_vbuffer);
 	uint32_t *indices_gpu = buffer_get_mapped_pointer(renderer->device, renderer->drawer2d_ibuffer);
@@ -810,7 +810,7 @@ void renderer_render(Renderer *renderer)
 		// upload bone matrices to constant buffer
 		char *gpu_data = buffer_get_mapped_pointer(renderer->device, renderer->constant_buffer);
 		gpu_data += renderer->constant_offset;
-		assert(renderer->constant_offset + sizeof(dynamic_data_mesh->pose) <= buffer_get_size(renderer->device, renderer->constant_buffer));
+		ASSERT(renderer->constant_offset + sizeof(dynamic_data_mesh->pose) <= buffer_get_size(renderer->device, renderer->constant_buffer));
 		memcpy(gpu_data, dynamic_data_mesh->pose, sizeof(dynamic_data_mesh->pose));
 		struct ComputeSkinningConstants
 		{

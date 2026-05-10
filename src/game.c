@@ -8,7 +8,7 @@ void game_first_init(struct Game *game)
 	SteamErrMsg errMsg = { 0 };
 	if (SteamAPI_InitFlat(&errMsg) != k_ESteamAPIInitResult_OK) {
 		fprintf(stderr, "Failed to init Steam: %s.\n", errMsg);
-		assert(false);
+		ASSERT(false);
 		return;
 	}
 	// Enable relay for P2P
@@ -91,7 +91,7 @@ static void game_steam_callback(struct Game *game, int callback_type, void *call
 	} else if (callback_type == k_iSteamMatchmakingLobbyDataUpdateCallback) {
 
 		fprintf(stdout, "[steam]  lobby data update.\n");
-		// assert(callback_datasize >= sizeof(LobbyDataUpdate_t)); // wrong?
+		// ASSERT(callback_datasize >= sizeof(LobbyDataUpdate_t)); // wrong?
 		LobbyDataUpdate_t *update = (LobbyDataUpdate_t*)callback_data;
 		if (update->m_bSuccess != 0 && update->m_ulSteamIDLobby == game->lobby_id) {
 			fprintf(stdout, "Data update for lobby %llu member %llu.\n", game->lobby_id, update->m_ulSteamIDMember);
@@ -104,7 +104,7 @@ static void game_steam_callback(struct Game *game, int callback_type, void *call
 	} else if (callback_type == k_iSteamFriendsGameLobbyJoinRequestedCallback) {
 
 		fprintf(stdout, "[steam]  friend lobby join requested.\n");
-		assert(callback_datasize == sizeof(GameLobbyJoinRequested_t));
+		ASSERT(callback_datasize == sizeof(GameLobbyJoinRequested_t));
 		GameLobbyJoinRequested_t *join_request = (GameLobbyJoinRequested_t*)callback_data;
 		if (game->lobby_join_request == 0) {
 			fprintf(stdout, "Request to join lobby %llu.\n", join_request->m_steamIDLobby);

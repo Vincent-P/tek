@@ -84,7 +84,7 @@ bool inputs_process_event(SDL_Event *event, struct Inputs *inputs)
 	bool is_gamepad_down = event->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN;
 	bool is_gamepad_up = event->type == SDL_EVENT_GAMEPAD_BUTTON_UP;
 	if (is_gamepad_down || is_gamepad_up) {
-		assert((SDL_GamepadButton)InputGamepadButtons_COUNT == SDL_GAMEPAD_BUTTON_COUNT);
+		ASSERT((SDL_GamepadButton)InputGamepadButtons_COUNT == SDL_GAMEPAD_BUTTON_COUNT);
 		inputs->gamepad_buttons_is_down[event->gbutton.button] = is_gamepad_down;
 	}
 

@@ -32,7 +32,7 @@ MaterialAsset const *asset_library_get_material(struct AssetLibrary *assets, Ass
 			return assets->materials + i;
 		}
 	}
-	assert(false);
+	ASSERT(false);
 	return NULL;
 }
 
@@ -43,7 +43,7 @@ ComputeProgramAsset const *asset_library_get_compute_program(struct AssetLibrary
 			return assets->compute_programs + i;
 		}
 	}
-	assert(false);
+	ASSERT(false);
 	return NULL;
 }
 
@@ -54,7 +54,7 @@ SkeletalMeshAsset const *asset_library_get_skeletal_mesh(struct AssetLibrary *as
 			return assets->skeletal_meshes + i;
 		}
 	}
-	assert(false);
+	ASSERT(false);
 	return NULL;
 }
 
@@ -65,7 +65,7 @@ AnimSkeleton const *asset_library_get_anim_skeleton(struct AssetLibrary *assets,
 			return assets->anim_skeletons + i;
 		}
 	}
-	assert(false);
+	ASSERT(false);
 	return NULL;
 }
 
@@ -76,7 +76,7 @@ Animation const *asset_library_get_animation(struct AssetLibrary *assets, AssetI
 			return assets->animations + i;
 		}
 	}
-	assert(false);
+	ASSERT(false);
 	return NULL;
 }
 
@@ -91,7 +91,7 @@ AssetId asset_library_add_material(struct AssetLibrary *assets, struct MaterialA
 	}
 
 	uint32_t i = assets->material_generation++;
-	assert(i < ASSET_MATERIAL_CAPACITY);
+	ASSERT(i < ASSET_MATERIAL_CAPACITY);
 	assets->materials[i] = material;
 	assets->materials_id[i] = material.id;
 	return material.id;
@@ -108,7 +108,7 @@ AssetId asset_library_add_compute_program(struct AssetLibrary *assets, struct Co
 	}
 
 	uint32_t i = assets->compute_program_generation++;
-	assert(i < ASSET_COMPUTE_PROGRAM_CAPACITY);
+	ASSERT(i < ASSET_COMPUTE_PROGRAM_CAPACITY);
 	assets->compute_programs[i] = program;
 	assets->compute_programs_id[i] = program.id;
 	return program.id;
@@ -117,7 +117,7 @@ AssetId asset_library_add_compute_program(struct AssetLibrary *assets, struct Co
 AssetId asset_library_add_skeletal_mesh(struct AssetLibrary *assets, struct SkeletalMeshAsset skeletal_mesh)
 {
 	uint32_t i = assets->skeletal_mesh_generation++;
-	assert(i < ASSET_SKELETAL_MESH_CAPACITY);
+	ASSERT(i < ASSET_SKELETAL_MESH_CAPACITY);
 	assets->skeletal_meshes[i] = skeletal_mesh;
 	assets->skeletal_meshes_id[i] = skeletal_mesh.id;
 	return skeletal_mesh.id;
@@ -126,7 +126,7 @@ AssetId asset_library_add_skeletal_mesh(struct AssetLibrary *assets, struct Skel
 AssetId asset_library_add_anim_skeleton(struct AssetLibrary *assets, struct AnimSkeleton anim_skeleton)
 {
 	uint32_t i = assets->anim_skeleton_generation++;
-	assert(i < ASSET_ANIM_SKELETON_CAPACITY);
+	ASSERT(i < ASSET_ANIM_SKELETON_CAPACITY);
 	assets->anim_skeletons[i] = anim_skeleton;
 	assets->anim_skeletons_id[i] = anim_skeleton.id;
 	return anim_skeleton.id;
@@ -135,7 +135,7 @@ AssetId asset_library_add_anim_skeleton(struct AssetLibrary *assets, struct Anim
 AssetId asset_library_add_animation(struct AssetLibrary *assets, struct Animation animation)
 {
 	uint32_t i = assets->animation_generation++;
-	assert(i < ASSET_ANIMATIONS_CAPACITY);
+	ASSERT(i < ASSET_ANIMATIONS_CAPACITY);
 	assets->animations[i] = animation;
 	assets->animations_id[i] = animation.id;
 	return animation.id;

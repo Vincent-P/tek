@@ -316,7 +316,7 @@ bool local_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
 	case LOCAL_BATTLE_STATE_PAUSE: {
 		if (data->pause_resume_pressed) {
 			data->state = data->pause_previous_state;
-			assert(data->state != LOCAL_BATTLE_STATE_PAUSE);
+			ASSERT(data->state != LOCAL_BATTLE_STATE_PAUSE);
 		} else if (data->pause_options_pressed) {
 		} else if (data->pause_mainmenu_pressed) {
 			_exit_local_battle(game);

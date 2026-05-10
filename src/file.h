@@ -7,7 +7,7 @@ struct Blob file_read_entire_file(const char* path)
 	if (f == NULL) {
 		perror("Error");
 	}
-	assert(f != NULL);
+	ASSERT(f != NULL);
 	fseek(f, 0, SEEK_END);
 	long fsize = ftell(f);
 	fseek(f, 0, SEEK_SET);  /* same as rewind(f); */
@@ -51,7 +51,7 @@ Serializer serialize_begin_write_file(uint32_t buffer_capacity)
 	serializer.is_reading = false;
 	serializer.version = SV_LATEST;
 	Serialize_uint32_t(&serializer, &serializer.version);
-	return serializer;	
+	return serializer;
 }
 
 void serialize_end_write_file(Serializer *serializer, const char* path)

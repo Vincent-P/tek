@@ -65,7 +65,7 @@ void drawer2d_init(struct Drawer2D *drawer, struct Renderer *renderer)
 
 	struct atlas2d_Allocation empty_atlas_alloc = {0};
 	bool atlas_success = atlas2d_allocate(drawer->glyph_cache->atlas, 1, &empty_atlas_alloc);
-	assert(atlas_success);
+	ASSERT(atlas_success);
 }
 
 void drawer2d_reset_frame(struct Drawer2D *drawer)
@@ -87,8 +87,8 @@ void drawer2d_set_clip_rect(struct Drawer2D *drawer, float x, float y, float w, 
 static void _drawer2d_draw_rect(struct Drawer2D *drawer, float top, float left, float width, float height, uint32_t color, uint32_t texture, float u0, float u1, float v0, float v1)
 {
 	(void)texture;
-	assert(drawer->current_vertices_length + 4 < DRAWER_2D_VERTEX_CAPACITY);
-	assert(drawer->current_indices_length + 6 < DRAWER_2D_INDEX_CAPACITY);
+	ASSERT(drawer->current_vertices_length + 4 < DRAWER_2D_VERTEX_CAPACITY);
+	ASSERT(drawer->current_indices_length + 6 < DRAWER_2D_INDEX_CAPACITY);
 
 	uint32_t v = drawer->current_vertices_length;
 	uint32_t i = drawer->current_indices_length;
@@ -199,7 +199,7 @@ bool glyph_cache_get_rasterized_glyph(struct GlyphCache *glyph_cache, int32_t co
 		.h = (float)bitmap_height,
 		.advance_w = advance_width * scale,
 	};
-	assert(glyph_cache->rasterized_glyphs_length + 1 <= GLYPH_CACHE_RASTERIZED_GLYPH_CAPACITY);
+	ASSERT(glyph_cache->rasterized_glyphs_length + 1 <= GLYPH_CACHE_RASTERIZED_GLYPH_CAPACITY);
 	glyph_cache->rasterized_glyphs[glyph_cache->rasterized_glyphs_length] = glyph;
 	glyph_cache->rasterized_glyphs_length += 1;
 	*out_glyph = glyph;

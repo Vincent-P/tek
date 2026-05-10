@@ -27,7 +27,7 @@ static const char* _get_motion_label(struct BattleInput input)
 		"u",
 		"uf",
 	};
-	assert(input.motion < ARRAY_LENGTH(MOTIONS_LABELS));
+	ASSERT(input.motion < ARRAY_LENGTH(MOTIONS_LABELS));
 	return MOTIONS_LABELS[input.motion];
 }
 
@@ -51,7 +51,7 @@ static const char* _get_action_label(struct BattleInput input)
 		"RP+LK+RK",
 		"LP+RP+LK+RK",
 	};
-	assert(input.actions < ARRAY_LENGTH(ACTIONS_LABELS));
+	ASSERT(input.actions < ARRAY_LENGTH(ACTIONS_LABELS));
 	return ACTIONS_LABELS[input.actions];
 }
 
@@ -380,7 +380,7 @@ static void _evaluate_hit_conditions(struct PlayerEntity *p1, struct PlayerEntit
 		uint32_t last_active = current_move->last_active;
 		bool is_active = first_active <= current && current <= last_active;
 		if (is_active) {
-			assert(current_move->hitbox < c1->hitboxes_length);
+			ASSERT(current_move->hitbox < c1->hitboxes_length);
 			uint32_t ihitbox = current_move->hitbox;
 			Float3 hit_center = np1->hitboxes_position[ihitbox];
 			float hit_radius = c1->hitboxes_radius[ihitbox];
@@ -406,7 +406,7 @@ static void _evaluate_hit_conditions(struct PlayerEntity *p1, struct PlayerEntit
 						struct tek_HitReactions *hit_reaction = c1->hit_reactions + hit_condition.ireactions;
 
 						struct tek_Move *p2_current_move = tek_character_find_move(c2, p2->tek.current_move_id);
-						assert(p2->tek.input_buffer_head > 0);
+						ASSERT(p2->tek.input_buffer_head > 0);
 						struct BattleInput p2_current_input = p2->tek.input_buffer[(p2->tek.input_buffer_head-1)%INPUT_BUFFER_SIZE];
 
 						// The "crouching state" is only about high crush! not actual crouch move or animation
@@ -866,7 +866,7 @@ void battle_render(struct BattleContext *ctx)
 			uint32_t last_active = current_move->last_active;
 			bool is_active = first_active <= current && current <= last_active;
 			if (is_active) {
-				assert(current_move->hitbox < characters[iplayer]->hitboxes_length);
+				ASSERT(current_move->hitbox < characters[iplayer]->hitboxes_length);
 				uint32_t ihitbox = current_move->hitbox;
 				Float3 center = nonplayers[iplayer]->hitboxes_position[ihitbox];
 				float radius = characters[iplayer]->hitboxes_radius[ihitbox];

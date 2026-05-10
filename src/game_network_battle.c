@@ -9,7 +9,7 @@ struct Game *ggpo_game_global_state = NULL;
 
 void tek_check_error(GGPOErrorCode err)
 {
-	assert(err == 0);
+	ASSERT(err == 0);
 }
 
 /*

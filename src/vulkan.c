@@ -196,7 +196,7 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	create_info.enabledExtensionCount	= ARRAY_LENGTH(instance_extensions);
 	create_info.ppEnabledExtensionNames	= instance_extensions;
 	VkResult res = vkCreateInstance(&create_info, NULL, &device->instance);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 
 #if defined(ENABLE_VALIDATION)
 	device->my_vkCreateDebugUtilsMessengerEXT  = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(device->instance, "vkCreateDebugUtilsMessengerEXT");
@@ -215,7 +215,7 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 
 		VkDebugUtilsMessengerEXT messenger = VK_NULL_HANDLE;
 		res = device->my_vkCreateDebugUtilsMessengerEXT(device->instance, &ci, NULL, &messenger);
-		assert(res == VK_SUCCESS);
+		ASSERT(res == VK_SUCCESS);
 	}
 #endif
 
@@ -244,7 +244,7 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	VkQueueFamilyProperties queue_families[16];
 	uint32_t queue_families_count = 0;
 	vkGetPhysicalDeviceQueueFamilyProperties(device->physical_device, &queue_families_count, NULL);
-	assert(queue_families_count < 16);
+	ASSERT(queue_families_count < 16);
 	vkGetPhysicalDeviceQueueFamilyProperties(device->physical_device, &queue_families_count, queue_families);
 	float priority = 0.0;
 	VkDeviceQueueCreateInfo queue_info	= {.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
@@ -274,11 +274,11 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	dci.ppEnabledExtensionNames	= device_extensions;
 	dci.pEnabledFeatures		= NULL;
 	res = vkCreateDevice(device->physical_device, &dci, NULL, &device->device);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 	vkGetDeviceQueue(device->device, device->graphics_family_idx, 0, &device->graphics_queue);
 
 	device->my_vkCmdPushDescriptorSetKHR = (PFN_vkCmdPushDescriptorSetKHR)vkGetDeviceProcAddr(device->device, "vkCmdPushDescriptorSetKHR");
-	assert(device->my_vkCmdPushDescriptorSetKHR != NULL);
+	ASSERT(device->my_vkCmdPushDescriptorSetKHR != NULL);
 
 	// -- Create command buffers
 	for (uint32_t iframe = 0; iframe < FRAME_COUNT; ++iframe) {
@@ -286,24 +286,24 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 		command_pool_info.flags = 0;
 		command_pool_info.queueFamilyIndex = device->graphics_family_idx;
 		res = vkCreateCommandPool(device->device, &command_pool_info, NULL, &device->command_pool[iframe]);
-		assert(res == VK_SUCCESS);
+		ASSERT(res == VK_SUCCESS);
 		VkCommandBufferAllocateInfo cmd_info = {.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
 		cmd_info.commandPool = device->command_pool[iframe];
 		cmd_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 		cmd_info.commandBufferCount = 1;
 		res = vkAllocateCommandBuffers(device->device, &cmd_info, &device->command_buffer[iframe]);
-		assert(res == VK_SUCCESS);
+		ASSERT(res == VK_SUCCESS);
 		VkFenceCreateInfo fence_info = {.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
 		fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 		res = vkCreateFence(device->device, &fence_info, NULL, &device->command_fence[iframe]);
-		assert(res == VK_SUCCESS);
+		ASSERT(res == VK_SUCCESS);
 	}
 	for (uint32_t ibackbuffer = 0; ibackbuffer < MAX_BACKBUFFER_COUNT; ++ibackbuffer) {
 		VkSemaphoreCreateInfo semaphore_info = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 		res = vkCreateSemaphore(device->device, &semaphore_info, NULL, &device->swapchain_acquire_semaphore[ibackbuffer]);
-		assert(res == VK_SUCCESS);
+		ASSERT(res == VK_SUCCESS);
 		res = vkCreateSemaphore(device->device, &semaphore_info, NULL, &device->swapchain_present_semaphore[ibackbuffer]);
-		assert(res == VK_SUCCESS);
+		ASSERT(res == VK_SUCCESS);
 	}
 
 
@@ -339,18 +339,18 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	mem_info.allocationSize = MAIN_MEMORY_SIZE;
 	mem_info.memoryTypeIndex = main_memory_type_index;
 	res = vkAllocateMemory(device->device, &mem_info, NULL, &device->main_memory);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 	res = vkMapMemory(device->device, device->main_memory, 0, mem_info.allocationSize, 0, &device->main_memory_mapped);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 	mem_info.pNext = NULL;
 	mem_info.allocationSize = RT_MEMORY_SIZE;
 	mem_info.memoryTypeIndex = rt_type_index;
 	res = vkAllocateMemory(device->device, &mem_info, NULL, &device->rt_memory);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 	res = oa_create(&device->main_memory_allocator, MAIN_MEMORY_SIZE / MEMORY_ALIGNMENT, 128 * 1024);
-	assert(res == 0);
+	ASSERT(res == 0);
 	res = oa_create(&device->rt_memory_allocator, RT_MEMORY_SIZE / MEMORY_ALIGNMENT, VK_RT_CAPACITY);
-	assert(res == 0);
+	ASSERT(res == 0);
 
 	// -- Resources
 	device->upload_buffer = VK_BUFFER_CAPACITY - 1;
@@ -359,7 +359,7 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 
 	VkSamplerCreateInfo sampler_info = {.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
 	res = vkCreateSampler(device->device, &sampler_info, NULL, &device->default_sampler);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 
 	// -- Prepare descriptor layout
 	VkDescriptorSetLayoutBinding bindings[2] = {
@@ -387,7 +387,7 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	desc_layout_info.pBindings = bindings;
 	VkDescriptorSetLayout desc_layout = VK_NULL_HANDLE;
 	res = vkCreateDescriptorSetLayout(device->device, &desc_layout_info, NULL, &desc_layout);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 
 	VkPushConstantRange push_constants_ranges[] = {
 		// {stage, offset, size}
@@ -399,7 +399,7 @@ void vulkan_create_device(VulkanDevice *device, void *hwnd)
 	pipeline_layout_info.pushConstantRangeCount = ARRAY_LENGTH(push_constants_ranges);
 	pipeline_layout_info.pPushConstantRanges = push_constants_ranges;
 	res = vkCreatePipelineLayout(device->device, &pipeline_layout_info, NULL, &device->pipeline_layout);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 
 	device->swapchain_last_wnd = hwnd;
 	create_swapchain(device, hwnd);
@@ -419,7 +419,7 @@ static void create_swapchain(VulkanDevice *device, void *hwnd)
 
 	RECT client_rect = {0};
 	BOOL win32_res = GetClientRect(hwnd, &client_rect);
-	assert(win32_res);
+	ASSERT(win32_res);
 	width = client_rect.right - client_rect.left;
 	height = client_rect.bottom - client_rect.top;
 	VkWin32SurfaceCreateInfoKHR createInfo = {.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR};
@@ -427,7 +427,7 @@ static void create_swapchain(VulkanDevice *device, void *hwnd)
 	createInfo.hinstance = GetModuleHandle(NULL);
 	createInfo.hwnd = hwnd;
 	VkResult res = vkCreateWin32SurfaceKHR(device->instance, &createInfo, NULL, &surface);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 
 #elif defined(__linux__)
 
@@ -438,7 +438,7 @@ static void create_swapchain(VulkanDevice *device, void *hwnd)
 	create_info.display = g_display;
 	create_info.surface = g_surface;
 	VkResult res = vkCreateWaylandSurfaceKHR(device->instance, &create_info, NULL, &surface);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 
 #endif
 
@@ -447,12 +447,12 @@ static void create_swapchain(VulkanDevice *device, void *hwnd)
 	// Get the list of VkFormats that are supported:
 	uint32_t formatCount;
 	res = vkGetPhysicalDeviceSurfaceFormatsKHR(device->physical_device, surface, &formatCount, NULL);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 	VkSurfaceFormatKHR *surfFormats = (VkSurfaceFormatKHR *)malloc(formatCount * sizeof(VkSurfaceFormatKHR));
 	res = vkGetPhysicalDeviceSurfaceFormatsKHR(device->physical_device, surface, &formatCount, surfFormats);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 	// Defaults to the first format.
-	assert(formatCount >= 1);
+	ASSERT(formatCount >= 1);
 	VkSurfaceFormatKHR surf_format = surfFormats[0];
 	// If the format list includes just one entry of VK_FORMAT_UNDEFINED,
 	// the surface has no preferred format.  Otherwise, at least one
@@ -483,7 +483,7 @@ static void create_swapchain(VulkanDevice *device, void *hwnd)
 	device->swapchain_format = surf_format;
 	VkSurfaceCapabilitiesKHR surfCapabilities = {0};
 	res = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device->physical_device, surface, &surfCapabilities);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 	VkExtent2D swapchainExtent = {0};
 	// width and height are either both 0xFFFFFFFF, or both not 0xFFFFFFFF.
 	if (surfCapabilities.currentExtent.width == 0xFFFFFFFF) {
@@ -511,7 +511,7 @@ static void create_swapchain(VulkanDevice *device, void *hwnd)
 	// The FIFO present mode is guaranteed by the spec to be supported
 	VkPresentModeKHR swapchainPresentMode = VK_PRESENT_MODE_FIFO_RELAXED_KHR;
 	uint32_t images_count = surfCapabilities.minImageCount;
-	assert(images_count < MAX_BACKBUFFER_COUNT);
+	ASSERT(images_count < MAX_BACKBUFFER_COUNT);
 	fprintf(stderr, "[vulkan] swapchain backbuffer count %u\n", images_count);
 
 	VkSurfaceTransformFlagBitsKHR preTransform = surfCapabilities.currentTransform;
@@ -557,13 +557,13 @@ static void create_swapchain(VulkanDevice *device, void *hwnd)
 	}
 
 	res = vkCreateSwapchainKHR(device->device, &swapchain_ci, NULL, &device->swapchain);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 
 
 	res = vkGetSwapchainImagesKHR(device->device, device->swapchain, &device->swapchain_image_count, NULL);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 	res = vkGetSwapchainImagesKHR(device->device, device->swapchain, &device->swapchain_image_count, device->swapchain_images);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 
 #if defined(__linux__)
 	wl_surface_commit(g_surface);
@@ -585,7 +585,7 @@ void new_graphics_program(VulkanDevice *device, uint32_t handle, MaterialAsset m
 
 void new_graphics_program_ex(VulkanDevice *device, uint32_t handle, MaterialAsset material_asset, struct VulkanGraphicsPsoSpec spec)
 {
-	assert(material_asset.render_pass_id < ARRAY_LENGTH(RENDER_PASSES));
+	ASSERT(material_asset.render_pass_id < ARRAY_LENGTH(RENDER_PASSES));
 	struct RenderPass renderpass = RENDER_PASSES[material_asset.render_pass_id];
 
 	bool const has_pixel_shader = material_asset.pixel_shader_bytecode.size > 0;
@@ -687,7 +687,7 @@ void new_graphics_program_ex(VulkanDevice *device, uint32_t handle, MaterialAsse
 
 	VkPipeline pipeline = VK_NULL_HANDLE;
 	VkResult res = vkCreateGraphicsPipelines(device->device, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &pipeline);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 
 	device->graphics_psos[handle].pipeline = pipeline;
 }
@@ -707,9 +707,9 @@ void new_compute_program(VulkanDevice *device, uint32_t handle, ComputeProgramAs
 
 	VkPipeline pipeline = VK_NULL_HANDLE;
 	VkResult res = vkCreateComputePipelines(device->device, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &pipeline);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 
-	// assert(device->compute_psos[handle].pipeline == VK_NULL_HANDLE);
+	// ASSERT(device->compute_psos[handle].pipeline == VK_NULL_HANDLE);
 	device->compute_psos[handle].pipeline = pipeline;
 }
 
@@ -722,7 +722,7 @@ void new_buffer_internal(VulkanDevice *device, uint32_t handle,uint32_t size, Vk
 	buffer_info.usage = usage | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR;
 	VkBuffer buffer = VK_NULL_HANDLE;
 	VkResult res = vkCreateBuffer(device->device, &buffer_info, NULL, &buffer);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 
 	VkDeviceBufferMemoryRequirements buf_requirements = {.sType = VK_STRUCTURE_TYPE_DEVICE_BUFFER_MEMORY_REQUIREMENTS};
 	buf_requirements.pCreateInfo = &buffer_info;
@@ -732,15 +732,15 @@ void new_buffer_internal(VulkanDevice *device, uint32_t handle,uint32_t size, Vk
 	VkDeviceMemory memory = device->main_memory;
 	void *memory_mapped = device->main_memory_mapped;
 	bool main_memory_support = ((mem_requirements.memoryRequirements.memoryTypeBits >> device->main_memory_type_index) & 1) != 0;
-	assert(main_memory_support);
-	assert(mem_requirements.memoryRequirements.alignment <= MEMORY_ALIGNMENT);
+	ASSERT(main_memory_support);
+	ASSERT(mem_requirements.memoryRequirements.alignment <= MEMORY_ALIGNMENT);
 	oa_allocation_t allocation = {0};
 	uint32_t rounded_up_size = (size + MEMORY_ALIGNMENT - 1) / MEMORY_ALIGNMENT;
 	int alloc_res = oa_allocate(&device->main_memory_allocator, rounded_up_size, &allocation);
-	assert(alloc_res == 0);
+	ASSERT(alloc_res == 0);
 	uint32_t real_offset = allocation.offset * MEMORY_ALIGNMENT;
 	res = vkBindBufferMemory(device->device, buffer, memory, real_offset);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 
 	// Get GPU address
 	VkBufferDeviceAddressInfoKHR address_info = {.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR};
@@ -751,7 +751,7 @@ void new_buffer_internal(VulkanDevice *device, uint32_t handle,uint32_t size, Vk
 
 	fprintf(stderr, "[vulkan] cpu: %p | gpu: %p | size: %u\n", mapped, (void*)gpu_address, size);
 
-	assert(device->buffers[handle].buffer == VK_NULL_HANDLE);
+	ASSERT(device->buffers[handle].buffer == VK_NULL_HANDLE);
 
 	device->buffers[handle].allocation = allocation;
 	device->buffers[handle].buffer = buffer;
@@ -784,22 +784,22 @@ void new_indirect_upload_buffer(VulkanDevice *device, uint32_t handle, uint32_t 
 
 void* buffer_get_mapped_pointer(VulkanDevice *device, uint32_t handle)
 {
-	assert(handle < ARRAY_LENGTH(device->buffers));
-	assert(device->buffers[handle].mapped != NULL);
+	ASSERT(handle < ARRAY_LENGTH(device->buffers));
+	ASSERT(device->buffers[handle].mapped != NULL);
 	return device->buffers[handle].mapped;
 }
 
 uint64_t buffer_get_gpu_address(VulkanDevice *device, uint32_t handle)
 {
-	assert(handle < ARRAY_LENGTH(device->buffers));
-	assert(device->buffers[handle].gpu_address != 0);
+	ASSERT(handle < ARRAY_LENGTH(device->buffers));
+	ASSERT(device->buffers[handle].gpu_address != 0);
 	return device->buffers[handle].gpu_address;
 }
 
 uint32_t buffer_get_size(VulkanDevice *device, uint32_t handle)
 {
-	assert(handle < ARRAY_LENGTH(device->buffers));
-	assert(device->buffers[handle].size != 0);
+	ASSERT(handle < ARRAY_LENGTH(device->buffers));
+	ASSERT(device->buffers[handle].size != 0);
 	return device->buffers[handle].size;
 }
 
@@ -807,7 +807,8 @@ uint32_t buffer_get_size(VulkanDevice *device, uint32_t handle)
 // -- Render Targets
 void new_render_target(VulkanDevice *device, const char* name, uint32_t handle, uint32_t width, uint32_t height, int format, int samples)
 {
-	assert(device->rts[handle].image == VK_NULL_HANDLE);
+	// for now :)
+	// ASSERT(device->rts[handle].image == VK_NULL_HANDLE);
 
 	bool is_depth = format == PG_FORMAT_D32_SFLOAT;
 
@@ -833,21 +834,21 @@ void new_render_target(VulkanDevice *device, const char* name, uint32_t handle, 
 	image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	VkImage image = VK_NULL_HANDLE;
 	VkResult res = vkCreateImage(device->device, &image_info, NULL, &image);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 
 	VkDeviceImageMemoryRequirements image_requirements = {.sType = VK_STRUCTURE_TYPE_DEVICE_IMAGE_MEMORY_REQUIREMENTS};
 	image_requirements.pCreateInfo = &image_info;
 	VkMemoryRequirements2 mem_requirements = {.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
 	vkGetDeviceImageMemoryRequirements(device->device, &image_requirements, &mem_requirements);
-	assert(((mem_requirements.memoryRequirements.memoryTypeBits >> device->rt_type_index) & 1) != 0); // check that our memory supports this render_target
-	assert(mem_requirements.memoryRequirements.alignment <= MEMORY_ALIGNMENT);
+	ASSERT(((mem_requirements.memoryRequirements.memoryTypeBits >> device->rt_type_index) & 1) != 0); // check that our memory supports this render_target
+	ASSERT(mem_requirements.memoryRequirements.alignment <= MEMORY_ALIGNMENT);
 	oa_allocation_t allocation = {0};
 	uint32_t rounded_up_size = (uint32_t)((mem_requirements.memoryRequirements.size + MEMORY_ALIGNMENT - 1) / MEMORY_ALIGNMENT);
 	int alloc_res = oa_allocate(&device->rt_memory_allocator, rounded_up_size, &allocation);
-	assert(alloc_res == 0);
+	ASSERT(alloc_res == 0);
 	uint32_t real_offset = allocation.offset * MEMORY_ALIGNMENT;
 	res = vkBindImageMemory(device->device, image, device->rt_memory, real_offset);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 
 	// create image view
 	VkImageViewCreateInfo view_info = {.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
@@ -895,11 +896,11 @@ void new_render_target(VulkanDevice *device, const char* name, uint32_t handle, 
 
 void resize_render_target(VulkanDevice *device, uint32_t handle, uint32_t width, uint32_t height)
 {
-	assert(handle < ARRAY_LENGTH(device->rts));
-	assert(device->rts[handle].image_view != VK_NULL_HANDLE);
+	ASSERT(handle < ARRAY_LENGTH(device->rts));
+	ASSERT(device->rts[handle].image_view != VK_NULL_HANDLE);
 
 	oa_free(&device->rt_memory_allocator, &device->rts[handle].allocation);
-	// TODO: free VkImage and VkImageView
+	// TODO: free VkImage and VkImageView, we don't leak memory tho
 
 	new_render_target(device,
 			  device->rts[handle].debug_name,
@@ -927,21 +928,21 @@ void new_texture(VulkanDevice *device, const char* name, uint32_t handle, uint32
 	image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	VkImage image = VK_NULL_HANDLE;
 	VkResult res = vkCreateImage(device->device, &image_info, NULL, &image);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 
 	VkDeviceImageMemoryRequirements image_requirements = {.sType = VK_STRUCTURE_TYPE_DEVICE_IMAGE_MEMORY_REQUIREMENTS};
 	image_requirements.pCreateInfo = &image_info;
 	VkMemoryRequirements2 mem_requirements = {.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
 	vkGetDeviceImageMemoryRequirements(device->device, &image_requirements, &mem_requirements);
-	assert(((mem_requirements.memoryRequirements.memoryTypeBits >> device->rt_type_index) & 1) != 0); // check that our memory supports this render_target
-	assert(mem_requirements.memoryRequirements.alignment <= MEMORY_ALIGNMENT);
+	ASSERT(((mem_requirements.memoryRequirements.memoryTypeBits >> device->rt_type_index) & 1) != 0); // check that our memory supports this render_target
+	ASSERT(mem_requirements.memoryRequirements.alignment <= MEMORY_ALIGNMENT);
 	oa_allocation_t allocation = {0};
 	uint32_t rounded_up_size = (uint32_t)((mem_requirements.memoryRequirements.size + MEMORY_ALIGNMENT - 1) / MEMORY_ALIGNMENT);
 	int alloc_res = oa_allocate(&device->rt_memory_allocator, rounded_up_size, &allocation);
-	assert(alloc_res == 0);
+	ASSERT(alloc_res == 0);
 	uint32_t real_offset = allocation.offset * MEMORY_ALIGNMENT;
 	res = vkBindImageMemory(device->device, image, device->rt_memory, real_offset);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 
 	// create image view
 	VkImageViewCreateInfo view_info = {.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
@@ -982,7 +983,7 @@ void new_texture(VulkanDevice *device, const char* name, uint32_t handle, uint32
 	device->textures[handle].height = height;
 
 	// temp: prepare upload
-	assert(device->upload_buffer_offset + size <= device->buffers[device->upload_buffer].size);
+	ASSERT(device->upload_buffer_offset + size <= device->buffers[device->upload_buffer].size);
 	memcpy((char*)device->buffers[device->upload_buffer].mapped + device->upload_buffer_offset,
 	       data,
 	       size);
@@ -1034,12 +1035,12 @@ static void set_image_layout(VkCommandBuffer cmd, VkImage image, VkImageLayout o
 		break;
 
         case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-		assert(false); // deprecated
+		ASSERT(false); // deprecated
 		image_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 		break;
 
         case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-		assert(false); // deprecated
+		ASSERT(false); // deprecated
 		image_barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 		break;
 
@@ -1071,9 +1072,9 @@ void begin_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t *out_swapcha
 	// -- wait for command buffer to finish
 	TracyCZoneN(wait, "wait for GPU", true);
 	res = vkWaitForFences(device->device, 1, &device->command_fence[frame->iframe], VK_TRUE, DEFAULT_TIMEOUT);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 	res = vkResetFences(device->device, 1, &device->command_fence[frame->iframe]);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 	TracyCZoneEnd(wait);
 
 	// -- recreate swapchain if needed
@@ -1091,13 +1092,13 @@ void begin_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t *out_swapcha
 
 	// -- reset command buffers
 	res = vkResetCommandPool(device->device, device->command_pool[frame->iframe], 0);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 
 	// -- begin
 	frame->cmd = device->command_buffer[frame->iframe];
 	VkCommandBufferBeginInfo begin_info = {.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
 	res = vkBeginCommandBuffer(frame->cmd, &begin_info);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 
 	if (out_swapchain_w != NULL) {
 		*out_swapchain_w = device->swapchain_width;
@@ -1159,7 +1160,7 @@ void end_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t output_rt_hand
 				    VK_NULL_HANDLE,
 				    &ibackbuffer);
 	TracyCZoneEnd(acquire);
-	assert(res == VK_SUCCESS || res == VK_SUBOPTIMAL_KHR || res == VK_ERROR_OUT_OF_DATE_KHR);
+	ASSERT(res == VK_SUCCESS || res == VK_SUBOPTIMAL_KHR || res == VK_ERROR_OUT_OF_DATE_KHR);
 	if (res == VK_SUBOPTIMAL_KHR || res == VK_ERROR_OUT_OF_DATE_KHR)
 		device->should_recreate_swapchain = 1;
 
@@ -1208,7 +1209,7 @@ void end_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t output_rt_hand
 
 	// -- end
 	res = vkEndCommandBuffer(frame->cmd);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 
 	// -- submit
 	TracyCZoneN(submit, "Submit", true);
@@ -1228,7 +1229,7 @@ void end_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t output_rt_hand
 	submit_info.signalSemaphoreInfoCount = 1;
 	submit_info.pSignalSemaphoreInfos = &signal_semaphore_info;
 	res = vkQueueSubmit2(device->graphics_queue, 1, &submit_info, device->command_fence[frame->iframe]);
-	assert(res == VK_SUCCESS);
+	ASSERT(res == VK_SUCCESS);
 	TracyCZoneEnd(submit);
 
 	// -- present
@@ -1242,7 +1243,7 @@ void end_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t output_rt_hand
 	present_info.waitSemaphoreCount = 1;
 	present_info.pResults = NULL;
 	res = vkQueuePresentKHR(device->graphics_queue, &present_info);
-	assert(res == VK_SUCCESS || res == VK_SUBOPTIMAL_KHR || res == VK_ERROR_OUT_OF_DATE_KHR);
+	ASSERT(res == VK_SUCCESS || res == VK_SUBOPTIMAL_KHR || res == VK_ERROR_OUT_OF_DATE_KHR);
 	if (res == VK_SUBOPTIMAL_KHR|| res == VK_ERROR_OUT_OF_DATE_KHR)
 		device->should_recreate_swapchain = 1;
 	TracyCZoneEnd(present);
@@ -1252,7 +1253,7 @@ void end_frame(VulkanDevice *device, VulkanFrame *frame, uint32_t output_rt_hand
 
 void vulkan_copy_buffer_to_texture(VulkanDevice *device, struct VulkanBufferTextureCopy copy)
 {
-	assert(device->buffer_texture_copies_length + 1 < VK_BUFFER_TEXTURE_COPY_CAPACITY);
+	ASSERT(device->buffer_texture_copies_length + 1 < VK_BUFFER_TEXTURE_COPY_CAPACITY);
 
 	device->buffer_texture_copies[device->buffer_texture_copies_length] = copy;
 	device->buffer_texture_copies_length += 1;
@@ -1266,8 +1267,8 @@ static void begin_render_pass_internal(VulkanDevice *device, VulkanFrame *frame,
 	uint32_t render_height = 8 << 10;
 
 	for (uint32_t icolor = 0; icolor < pass_info.color_rts_length; ++icolor) {
-		assert(pass_info.color_rts[icolor] < ARRAY_LENGTH(device->rts));
-		assert(device->rts[icolor].image_view != VK_NULL_HANDLE);
+		ASSERT(pass_info.color_rts[icolor] < ARRAY_LENGTH(device->rts));
+		ASSERT(device->rts[icolor].image_view != VK_NULL_HANDLE);
 		VulkanRenderTarget *rt = device->rts + pass_info.color_rts[icolor];
 		pass->color_rts[icolor] = rt;
 
@@ -1386,7 +1387,7 @@ void vulkan_clear(VulkanDevice *device, VulkanRenderPass *pass, union VulkanClea
 
 	uint32_t iattachment = 0;
 	for (; iattachment < colors_length; ++iattachment) {
-		assert(iattachment < ARRAY_LENGTH(attachments));
+		ASSERT(iattachment < ARRAY_LENGTH(attachments));
 		attachments[iattachment].aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		attachments[iattachment].colorAttachment = iattachment;
 		attachments[iattachment].clearValue.color.uint32[0] = colors[iattachment].u32[0];
@@ -1398,7 +1399,7 @@ void vulkan_clear(VulkanDevice *device, VulkanRenderPass *pass, union VulkanClea
 		rects[iattachment].layerCount = 1;
 	}
 	if (pass->depth_rt != NULL) {
-		assert(iattachment < ARRAY_LENGTH(attachments));
+		ASSERT(iattachment < ARRAY_LENGTH(attachments));
 		attachments[iattachment].aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 		attachments[iattachment].clearValue.depthStencil.depth = depth;
 		rects[iattachment].rect.extent.width = pass->render_width;
@@ -1440,16 +1441,16 @@ void vulkan_push_constants(VulkanDevice *device, VulkanFrame *frame, void *data,
 void vulkan_bind_graphics_pso(VulkanDevice *device, VulkanRenderPass *pass, uint32_t pso_handle)
 {
 	VulkanFrame *frame = pass->frame;
-	assert(pso_handle < ARRAY_LENGTH(device->graphics_psos));
-	assert(device->graphics_psos[pso_handle].pipeline != VK_NULL_HANDLE);
+	ASSERT(pso_handle < ARRAY_LENGTH(device->graphics_psos));
+	ASSERT(device->graphics_psos[pso_handle].pipeline != VK_NULL_HANDLE);
 	vkCmdBindPipeline(frame->cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, device->graphics_psos[pso_handle].pipeline);
 }
 
 void vulkan_bind_index_buffer(VulkanDevice *device, VulkanRenderPass *pass, uint32_t buffer_handle)
 {
 	VulkanFrame *frame = pass->frame;
-	assert(buffer_handle < ARRAY_LENGTH(device->buffers));
-	assert(device->buffers[buffer_handle].buffer != VK_NULL_HANDLE);
+	ASSERT(buffer_handle < ARRAY_LENGTH(device->buffers));
+	ASSERT(device->buffers[buffer_handle].buffer != VK_NULL_HANDLE);
 	vkCmdBindIndexBuffer(frame->cmd, device->buffers[buffer_handle].buffer, 0, VK_INDEX_TYPE_UINT32);
 }
 
@@ -1491,8 +1492,8 @@ void vulkan_insert_debug_label(VulkanDevice *device, VulkanFrame *frame, const c
 
 void vulkan_bind_compute_pso(VulkanDevice *device, VulkanFrame *frame, uint32_t pso)
 {
-	assert(pso < ARRAY_LENGTH(device->compute_psos));
-	assert(device->compute_psos[pso].pipeline != VK_NULL_HANDLE);
+	ASSERT(pso < ARRAY_LENGTH(device->compute_psos));
+	ASSERT(device->compute_psos[pso].pipeline != VK_NULL_HANDLE);
 	vkCmdBindPipeline(frame->cmd, VK_PIPELINE_BIND_POINT_COMPUTE, device->compute_psos[pso].pipeline);
 }
 
