@@ -479,6 +479,12 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         // All clay layouts are declared between Clay_BeginLayout and Clay_EndLayout
         Clay_BeginLayout();
 
+	// Setup UI size
+	UiWidgetId root = ui_widget_make(&application->game.ui, 0, "root");
+	ui_push_parent(&application->game.ui, root);
+	ui_pop_parent(&application->game.ui);
+
+
 	uint64_t new_time = SDL_GetTicks();
 	uint64_t previous_frame_time = new_time - application->current_time;
 	application->current_time = new_time;

@@ -3,6 +3,7 @@
 #include "game_mainmenu.h"
 #include "game_local_battle.h"
 #include "game_network_battle.h"
+#include "ui.h"
 
 
 struct AssetLibrary;
@@ -42,6 +43,8 @@ struct Game
 	struct MainMenu mainmenu;
 	struct LocalBattle local_battle;
 	struct NetworkBattle network_battle;
+
+	struct UiHierarchy ui;
 };
 
 struct GameUpdateContext
