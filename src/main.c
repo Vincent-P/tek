@@ -481,8 +481,9 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
 	// Setup UI size
 	UiWidgetId root = ui_widget_make(&application->game.ui, 0, "root");
+	ui_widget_set_size_x(&application->game.ui, root, (UiSize){UI_SIZE_KIND_PIXELS, (float)display_w});
+	ui_widget_set_size_y(&application->game.ui, root, (UiSize){UI_SIZE_KIND_PIXELS, (float)display_h});
 	ui_push_parent(&application->game.ui, root);
-	ui_pop_parent(&application->game.ui);
 
 
 	uint64_t new_time = SDL_GetTicks();
@@ -499,6 +500,10 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 	game_update(&application->game, &update_ctx);
 
 	game_render(&application->game);
+
+	ui_pop_parent(&application->game.ui);
+	ui_layout_end_frame(&application->game.ui, root);
+	ui_imgui(&application->game.ui, root);
 
         Clay_RenderCommandArray clay_render_commands = Clay_EndLayout();
 	clay_integration_render(application->drawer, &clay_render_commands);

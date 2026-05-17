@@ -12,7 +12,7 @@
 
 // -- Device
 #define FRAME_COUNT 2
-#define ENABLE_VALIDATION
+// #define ENABLE_VALIDATION
 #define MAIN_MEMORY_SIZE (128 << 20)
 #define RT_MEMORY_SIZE (1 << 30)
 #define MEMORY_ALIGNMENT (256 << 10) // 64K not enough for depth rt ?? -> 256K needed for MSAA

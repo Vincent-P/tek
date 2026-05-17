@@ -346,6 +346,63 @@ bool local_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
 	return result;
 }
 
+static void _local_battle_render_player_bar(UiHierarchy *h, const char *id, float p1_hp_filled, const char* name_str, int rounds_p1_won, int rounds_first_to)
+{
+	float empty_bar_percent = 1.0f - p1_hp_filled;
+	float filled_bar_percent = p1_hp_filled;
+
+	UiWidgetId p1bar = ui_push_parent(h, ui_widget_make(h, 0, id));
+	ui_widget_set_size_x(h, p1bar, (UiSize){UI_SIZE_KIND_FLEX, 1.0f});
+	ui_widget_set_size_y(h, p1bar, (UiSize){UI_SIZE_KIND_CHILDREN_SUM});
+	ui_widget_set_child_layout_axis(h, p1bar, 1); // Y=1
+	{
+		UiWidgetId healthbar = ui_push_parent(h, ui_widget_make(h, 0, "health_bar"));
+		ui_widget_set_size_x(h, healthbar, (UiSize){UI_SIZE_KIND_PERCENT, 1.0f});
+		ui_widget_set_size_y(h, healthbar, (UiSize){UI_SIZE_KIND_PIXELS, 50.0f});
+		ui_widget_set_child_layout_axis(h, healthbar, 0); // X=0
+		{
+			UiWidgetId emptyhealth = ui_widget_make(h, 0, "empty_health");
+			ui_widget_set_size_x(h, emptyhealth, (UiSize){UI_SIZE_KIND_PERCENT, empty_bar_percent});
+			ui_widget_set_size_y(h, emptyhealth, (UiSize){UI_SIZE_KIND_PERCENT, 1.0f});
+
+			UiWidgetId filledhealth = ui_widget_make(h, 0, "filled_health");
+			ui_widget_set_size_x(h, filledhealth, (UiSize){UI_SIZE_KIND_PERCENT, filled_bar_percent});
+			ui_widget_set_size_y(h, filledhealth, (UiSize){UI_SIZE_KIND_PERCENT, 1.0f});
+
+		}
+		ui_pop_parent(h);
+
+		UiWidgetId info = ui_push_parent(h, ui_widget_make(h, 0, "info"));
+		ui_widget_set_size_x(h, info, (UiSize){UI_SIZE_KIND_FLEX, 1.0f});
+		ui_widget_set_size_y(h, info, (UiSize){UI_SIZE_KIND_CHILDREN_SUM});
+		{
+			UiWidgetId name = ui_widget_make(h, 0, "info");
+			ui_widget_set_display_string(h, name, name_str);
+			ui_widget_set_size_x(h, name, (UiSize){UI_SIZE_KIND_TEXT});
+			ui_widget_set_size_y(h, name, (UiSize){UI_SIZE_KIND_TEXT});
+
+			UiWidgetId padding = ui_widget_make(h, 0, "padding");
+			ui_widget_set_size_x(h, padding, (UiSize){UI_SIZE_KIND_FLEX, 1.0f});
+			ui_widget_set_size_y(h, padding, (UiSize){UI_SIZE_KIND_FLEX, 1.0f});
+
+			UiWidgetId rounds = ui_push_parent(h, ui_widget_make(h, 0, "rounds"));
+			ui_widget_set_size_x(h, rounds, (UiSize){UI_SIZE_KIND_CHILDREN_SUM});
+			ui_widget_set_size_y(h, rounds, (UiSize){UI_SIZE_KIND_CHILDREN_SUM});
+			for (int i = 1; i <= rounds_first_to; ++i) {
+				const char *label = (i <= rounds_p1_won) ? "X" : "O";
+				UiWidgetId icon = ui_widget_make(h, 0, "icon");
+				ui_widget_set_display_string(h, name, label);
+				ui_widget_set_size_x(h, icon, (UiSize){UI_SIZE_KIND_TEXT});
+				ui_widget_set_size_y(h, icon, (UiSize){UI_SIZE_KIND_TEXT});
+			}
+			ui_pop_parent(h);
+
+		}
+		ui_pop_parent(h);
+	}
+	ui_pop_parent(h);
+}
+
 void local_battle_render(struct Game *game)
 {
 	struct LocalBattle *data = &game->local_battle;
@@ -362,69 +419,19 @@ void local_battle_render(struct Game *game)
 	int rounds_p2_won = simulation->battle_context.battle_non_state.rounds_p2_won;
 
 	UiWidgetId outer = ui_push_parent(&game->ui, ui_widget_make(&game->ui, 0, "outer_container"));
-	ui_widget_equip_size_x(&game->ui, outer, (UiSize){UI_SIZE_KIND_PERCENT, 1.0f});
-	ui_widget_equip_size_y(&game->ui, outer, (UiSize){UI_SIZE_KIND_PERCENT, 1.0f});
-	ui_widget_equip_child_layout_axis(&game->ui, outer, 1); // Y=1
+	ui_widget_set_size_x(&game->ui, outer, (UiSize){UI_SIZE_KIND_PERCENT, 1.0f});
+	ui_widget_set_size_y(&game->ui, outer, (UiSize){UI_SIZE_KIND_PERCENT, 1.0f});
+	ui_widget_set_child_layout_axis(&game->ui, outer, 1); // Y=1
 
 	if (data->state == LOCAL_BATTLE_STATE_PLAY || data->state == LOCAL_BATTLE_STATE_REPLAY) {
 		UiWidgetId headerbar = ui_push_parent(&game->ui, ui_widget_make(&game->ui, 0, "header_bar"));
-		ui_widget_equip_size_x(&game->ui, headerbar, (UiSize){UI_SIZE_KIND_PERCENT, 1.0f});
-		ui_widget_equip_size_y(&game->ui, headerbar, (UiSize){UI_SIZE_KIND_CHILDREN_SUM});
-		ui_widget_equip_child_layout_axis(&game->ui, headerbar, 0); // X=0
+		ui_widget_set_size_x(&game->ui, headerbar, (UiSize){UI_SIZE_KIND_PERCENT, 1.0f});
+		ui_widget_set_size_y(&game->ui, headerbar, (UiSize){UI_SIZE_KIND_CHILDREN_SUM});
+		ui_widget_set_child_layout_axis(&game->ui, headerbar, 0); // X=0
 		{
-			UiWidgetId p1bar = ui_push_parent(&game->ui, ui_widget_make(&game->ui, 0, "player1_bar"));
-			ui_widget_equip_size_x(&game->ui, p1bar, (UiSize){UI_SIZE_KIND_FLEX});
-			ui_widget_equip_size_y(&game->ui, p1bar, (UiSize){UI_SIZE_KIND_CHILDREN_SUM});
-			ui_widget_equip_child_layout_axis(&game->ui, p1bar, 1); // Y=1
-			{
-				UiWidgetId healthbar = ui_push_parent(&game->ui, ui_widget_make(&game->ui, 0, "health_bar"));
-				ui_widget_equip_size_x(&game->ui, healthbar, (UiSize){UI_SIZE_KIND_PERCENT, 1.0f});
-				ui_widget_equip_size_y(&game->ui, healthbar, (UiSize){UI_SIZE_KIND_PIXELS, 50.0f});
-				ui_widget_equip_child_layout_axis(&game->ui, healthbar, 0); // X=0
-				{
-					float empty_bar_percent = 1.0f - p1_hp_filled;
-					float filled_bar_percent = 1.0f - p1_hp_filled;
+			_local_battle_render_player_bar(&game->ui, "p1_bar", p1_hp_filled, "SuperBob", rounds_p1_won, rounds_first_to);
+			_local_battle_render_player_bar(&game->ui, "p2_bar", p2_hp_filled, "Seb", rounds_p2_won, rounds_first_to);
 
-					UiWidgetId emptyhealth = ui_widget_make(&game->ui, 0, "empty_health");
-					ui_widget_equip_size_x(&game->ui, emptyhealth, (UiSize){UI_SIZE_KIND_PERCENT, empty_bar_percent});
-					ui_widget_equip_size_y(&game->ui, emptyhealth, (UiSize){UI_SIZE_KIND_PERCENT, 1.0f});
-
-					UiWidgetId filledhealth = ui_widget_make(&game->ui, 0, "filled_health");
-					ui_widget_equip_size_x(&game->ui, filledhealth, (UiSize){UI_SIZE_KIND_PERCENT, filled_bar_percent});
-					ui_widget_equip_size_y(&game->ui, filledhealth, (UiSize){UI_SIZE_KIND_PERCENT, 1.0f});
-
-				}
-				ui_pop_parent(&game->ui);
-
-				UiWidgetId info = ui_push_parent(&game->ui, ui_widget_make(&game->ui, 0, "info"));
-				ui_widget_equip_size_x(&game->ui, info, (UiSize){UI_SIZE_KIND_FLEX});
-				ui_widget_equip_size_y(&game->ui, info, (UiSize){UI_SIZE_KIND_CHILDREN_SUM});
-				{
-					UiWidgetId name = ui_push_parent(&game->ui, ui_widget_make(&game->ui, 0, "info"));
-					ui_widget_equip_display_string(&game->ui, name, "SuperBob");
-					ui_widget_equip_size_x(&game->ui, name, (UiSize){UI_SIZE_KIND_TEXT});
-					ui_widget_equip_size_y(&game->ui, name, (UiSize){UI_SIZE_KIND_TEXT});
-
-					UiWidgetId padding = ui_push_parent(&game->ui, ui_widget_make(&game->ui, 0, "padding"));
-					ui_widget_equip_size_x(&game->ui, padding, (UiSize){UI_SIZE_KIND_FLEX});
-					ui_widget_equip_size_y(&game->ui, padding, (UiSize){UI_SIZE_KIND_FLEX});
-
-					UiWidgetId rounds = ui_push_parent(&game->ui, ui_widget_make(&game->ui, 0, "rounds"));
-					ui_widget_equip_size_x(&game->ui, rounds, (UiSize){UI_SIZE_KIND_CHILDREN_SUM});
-					ui_widget_equip_size_y(&game->ui, rounds, (UiSize){UI_SIZE_KIND_CHILDREN_SUM});
-					for (int i = 1; i <= rounds_first_to; ++i) {
-						const char *label = (i <= rounds_p1_won) ? "X" : "O";
-						UiWidgetId icon = ui_push_parent(&game->ui, ui_widget_make(&game->ui, 0, "icon"));
-						ui_widget_equip_display_string(&game->ui, name, label);
-						ui_widget_equip_size_x(&game->ui, icon, (UiSize){UI_SIZE_KIND_TEXT});
-						ui_widget_equip_size_y(&game->ui, icon, (UiSize){UI_SIZE_KIND_TEXT});
-					}
-					ui_pop_parent(&game->ui);
-
-				}
-				ui_pop_parent(&game->ui);
-			}
-			ui_pop_parent(&game->ui);
 		}
 		ui_pop_parent(&game->ui);
 	}

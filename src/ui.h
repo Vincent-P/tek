@@ -60,6 +60,7 @@ struct UiWidget
 	// per frame info
 	UiWidgetFlags flags;
 	UiSize semantic_size[2];
+	int layout_axis;
 	const char* string;
 
 	// computed every frame
@@ -89,13 +90,17 @@ struct UiHierarchy
 uint64_t ui_key_null(void);
 uint64_t ui_key_from_int(uint64_t n);
 uint64_t ui_key_combine(uint64_t a, uint64_t b);
+
+void ui_layout_end_frame(UiHierarchy *h, UiWidgetId root);
+void ui_imgui(UiHierarchy *h, UiWidgetId root);
+
+// set widget
 UiWidgetId ui_widget_make(UiHierarchy *h, UiWidgetFlags flags, const char *string);
+void ui_widget_set_display_string(UiHierarchy *h, UiWidgetId widget, const char *string);
+void ui_widget_set_child_layout_axis(UiHierarchy *h, UiWidgetId widget, int axis); // X = 0, Y =1
+void ui_widget_set_size_x(UiHierarchy *h, UiWidgetId widget, UiSize size);
+void ui_widget_set_size_y(UiHierarchy *h, UiWidgetId widget, UiSize size);
 
-
-void ui_widget_equip_display_string(UiHierarchy *h, UiWidgetId widget, const char *string);
-void ui_widget_equip_child_layout_axis(UiHierarchy *h, UiWidgetId widget, int axis); // X = 0, Y =1
-void ui_widget_equip_size_x(UiHierarchy *h, UiWidgetId widget, UiSize size);
-void ui_widget_equip_size_y(UiHierarchy *h, UiWidgetId widget, UiSize size);
 
 // managing the parent stack
 UiWidgetId ui_push_parent(UiHierarchy *h, UiWidgetId widget);
