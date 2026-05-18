@@ -114,6 +114,26 @@ static void postload_assets(struct AssetLibrary *assets, struct Renderer *render
 static void ImGui_ImplSDL3_PlatformSetImeData(ImGuiContext*, ImGuiViewport* viewport, ImGuiPlatformImeData* data);
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
+	// options
+	int i_starting_state_opt = argc;
+	int starting_state = -1;
+	for (int iopt = 1; iopt < argc; ++iopt) {
+		if (strstr("starting_state", argv[iopt])) {
+			i_starting_state_opt = iopt;
+		}
+		if (i_starting_state_opt + 1 == iopt) {
+			int n = 0;
+			if (sscanf(argv[iopt], "%d", &n) > 0) {
+				if (0 <= n && n < GAME_STATE_COUNT) {
+					starting_state = n;
+				}
+			}
+		}
+	}
+
+	//
+
+
 	(void)argc;
 	(void)argv;
 	TracyCZoneN(f, "AppInit", true);
@@ -161,6 +181,24 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 	application->game.renderer = application->renderer;
 	application->game.inputs = &application->inputs;
 	game_init(&application->game);
+
+	if (starting_state >= 0 && application->game.current_state != starting_state) {
+		application->game.current_state = starting_state;
+		switch (starting_state) {
+		case GAME_STATE_MAIN_MENU: {
+			mainmenu_init(&application->game.mainmenu);
+			break;
+		}
+		case GAME_STATE_LOCAL_BATTLE: {
+			local_battle_init(&application->game);
+			break;
+		}
+		case GAME_STATE_NETWORK_BATTLE: {
+			network_battle_init(&application->game);
+			break;
+		}
+		}
+	}
 
 	watcher_init("cooking");
 
