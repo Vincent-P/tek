@@ -1,5 +1,7 @@
 #pragma once
 
+struct Drawer2D;
+
 void ui_new_frame();
 void ui_button(const char *label, bool *clicked);
 const char* ui_string(const char* string, uint32_t length);
@@ -62,6 +64,7 @@ struct UiWidget
 	UiSize semantic_size[2];
 	int layout_axis;
 	const char* string;
+	uint32_t color;
 
 	// computed every frame
 	float computed_rel_position[2];
@@ -100,8 +103,11 @@ void ui_widget_set_display_string(UiHierarchy *h, UiWidgetId widget, const char 
 void ui_widget_set_child_layout_axis(UiHierarchy *h, UiWidgetId widget, int axis); // X = 0, Y =1
 void ui_widget_set_size_x(UiHierarchy *h, UiWidgetId widget, UiSize size);
 void ui_widget_set_size_y(UiHierarchy *h, UiWidgetId widget, UiSize size);
+void ui_widget_set_color(UiHierarchy *h, UiWidgetId widget, uint32_t color);
 
 
 // managing the parent stack
 UiWidgetId ui_push_parent(UiHierarchy *h, UiWidgetId widget);
 UiWidgetId ui_pop_parent(UiHierarchy *h);
+
+void ui_render(UiHierarchy *h, UiWidgetId root, struct Drawer2D *drawer);

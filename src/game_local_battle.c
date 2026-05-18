@@ -364,10 +364,12 @@ static void _local_battle_render_player_bar(UiHierarchy *h, const char *id, floa
 			UiWidgetId emptyhealth = ui_widget_make(h, 0, "empty_health");
 			ui_widget_set_size_x(h, emptyhealth, (UiSize){UI_SIZE_KIND_PERCENT, empty_bar_percent});
 			ui_widget_set_size_y(h, emptyhealth, (UiSize){UI_SIZE_KIND_PERCENT, 1.0f});
+			ui_widget_set_color(h, emptyhealth, 0xFF000000);
 
 			UiWidgetId filledhealth = ui_widget_make(h, 0, "filled_health");
 			ui_widget_set_size_x(h, filledhealth, (UiSize){UI_SIZE_KIND_PERCENT, filled_bar_percent});
 			ui_widget_set_size_y(h, filledhealth, (UiSize){UI_SIZE_KIND_PERCENT, 1.0f});
+			ui_widget_set_color(h, filledhealth, 0xFF3bb3b1);
 
 		}
 		ui_pop_parent(h);
@@ -380,10 +382,12 @@ static void _local_battle_render_player_bar(UiHierarchy *h, const char *id, floa
 			ui_widget_set_display_string(h, name, name_str);
 			ui_widget_set_size_x(h, name, (UiSize){UI_SIZE_KIND_TEXT});
 			ui_widget_set_size_y(h, name, (UiSize){UI_SIZE_KIND_TEXT});
+			ui_widget_set_color(h, name, 0xFF880000);
 
 			UiWidgetId padding = ui_widget_make(h, 0, "padding");
 			ui_widget_set_size_x(h, padding, (UiSize){UI_SIZE_KIND_FLEX, 1.0f});
-			ui_widget_set_size_y(h, padding, (UiSize){UI_SIZE_KIND_FLEX, 1.0f});
+			ui_widget_set_size_y(h, padding, (UiSize){UI_SIZE_KIND_PIXELS, 10.0f});
+			ui_widget_set_color(h, padding, 0xFF0000FF);
 
 			UiWidgetId rounds = ui_push_parent(h, ui_widget_make(h, 0, "rounds"));
 			ui_widget_set_size_x(h, rounds, (UiSize){UI_SIZE_KIND_CHILDREN_SUM});
@@ -394,6 +398,7 @@ static void _local_battle_render_player_bar(UiHierarchy *h, const char *id, floa
 				ui_widget_set_display_string(h, name, label);
 				ui_widget_set_size_x(h, icon, (UiSize){UI_SIZE_KIND_TEXT});
 				ui_widget_set_size_y(h, icon, (UiSize){UI_SIZE_KIND_TEXT});
+				ui_widget_set_color(h, icon, 0xFF880000);
 			}
 			ui_pop_parent(h);
 
@@ -430,6 +435,12 @@ void local_battle_render(struct Game *game)
 		ui_widget_set_child_layout_axis(&game->ui, headerbar, 0); // X=0
 		{
 			_local_battle_render_player_bar(&game->ui, "p1_bar", p1_hp_filled, "SuperBob", rounds_p1_won, rounds_first_to);
+
+			UiWidgetId padding = ui_widget_make(&game->ui, 0, "padding");
+			ui_widget_set_size_x(&game->ui, padding, (UiSize){UI_SIZE_KIND_FLEX, 0.1f});
+			ui_widget_set_size_y(&game->ui, padding, (UiSize){UI_SIZE_KIND_PIXELS, 10.0f});
+			ui_widget_set_color(&game->ui, padding, 0xFF0000FF);
+
 			_local_battle_render_player_bar(&game->ui, "p2_bar", p2_hp_filled, "Seb", rounds_p2_won, rounds_first_to);
 
 		}

@@ -1486,6 +1486,10 @@ void vulkan_insert_debug_label(VulkanDevice *device, VulkanFrame *frame, const c
 		label_info.pLabelName = label;
 		device->my_vkCmdInsertDebugUtilsLabelEXT(frame->cmd, &label_info);
 	}
+#else
+	(void)device;
+	(void)frame;
+	(void)label;
 #endif
 }
 

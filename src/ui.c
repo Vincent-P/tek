@@ -57,17 +57,6 @@ uint64_t ui_key_combine(uint64_t a, uint64_t b)
 	return a ^ ( b + 0x9e3779b9 + (a<<6) + (a>>2));
 }
 
-void _ui_layout_node(UiHierarchy *h, UiWidgetId node, bool is_leaf)
-{
-	(void)h;
-	(void)node;
-	(void)is_leaf;
-	if (is_leaf) {
-	} else {
-		// if we are an internal node, we need to
-	}
-}
-
 float _measure_text(const char *s, int axis)
 {
 	if (axis == 0) {
@@ -121,6 +110,17 @@ void _ui_layout_traversal(UiHierarchy *h, UiWidgetId node)
 				child->computed_size[0] = current->computed_size[0];
 				child->computed_size[1] = current->computed_size[1];
 
+				if (child->semantic_size[0].kind == UI_SIZE_KIND_PERCENT) {
+					// for "upward" sizes such as parent percentage, the child
+					// should base its size on our original constraints.
+					child->computed_size[0] = original_constraints[0];
+				}
+				if (child->semantic_size[1].kind == UI_SIZE_KIND_PERCENT) {
+					// for "upward" sizes such as parent percentage, the child
+					// should base its size on our original constraints.
+					child->computed_size[1] = original_constraints[1];
+				}
+
 				_ui_layout_traversal(h, c);
 
 				// When a child has been laid out, update constraints
@@ -164,6 +164,7 @@ void _ui_layout_traversal(UiHierarchy *h, UiWidgetId node)
 		}
 
 		// now all children have computed their size, position them
+		float cursor[2] = {0.0f, 0.0f};
 
 		// for now, our size is sum of children in layout axis, and maximum in other axis
 		current->computed_size[0] = 0.0f;
@@ -171,8 +172,11 @@ void _ui_layout_traversal(UiHierarchy *h, UiWidgetId node)
 		for (UiWidgetId c = current->first_child; c != 0; ) {
 			UiWidget *child = &h->widgets[c];
 			for (int axis = 0; axis < 2; ++axis) {
+				child->computed_rel_position[axis] = cursor[axis];
+
 				if (axis == current->layout_axis) {
 					current->computed_size[axis] += child->computed_size[axis];
+					cursor[axis] += child->computed_size[axis];
 				} else {
 					if (current->computed_size[axis] < child->computed_size[axis]) {
 						current->computed_size[axis] = child->computed_size[axis];
@@ -218,26 +222,30 @@ void _ui_imgui_rec(UiHierarchy *h, UiWidgetId root)
 {
 	UiWidget *current = &h->widgets[root];
 
-	if (ImGui_TreeNode(current->string)) {
-		ImGui_Text("K[%llu]", current->key);
+	bool is_opened = ImGui_TreeNode(current->string);
+	ImGui_SameLine();
 
-		#if 0
-		ImGui_Text("hash_prev %u", current->hash_prev);
-		ImGui_Text("hash_next %u", current->hash_next);
+	ImGui_Text("K[%llu]", current->key);
 
-		ImGui_Text("parent %u", current->parent);
-		ImGui_Text("first_child %u", current->first_child);
-		ImGui_Text("last_child %u", current->last_child);
-		ImGui_Text("next %u", current->next);
-		ImGui_Text("prev %u", current->prev);
+#if 0
+	ImGui_Text("hash_prev %u", current->hash_prev);
+	ImGui_Text("hash_next %u", current->hash_next);
 
-		ImGui_Text("string %s", current->string);
-		#endif
+	ImGui_Text("parent %u", current->parent);
+	ImGui_Text("first_child %u", current->first_child);
+	ImGui_Text("last_child %u", current->last_child);
+	ImGui_Text("next %u", current->next);
+	ImGui_Text("prev %u", current->prev);
 
-		ImGui_SameLine();
-		ImGui_Text("P[%fx%f]", current->computed_rel_position[0], current->computed_rel_position[1]);
-		ImGui_SameLine();
-		ImGui_Text("S[%fx%f]", current->computed_size[0], current->computed_size[1]);
+	ImGui_Text("string %s", current->string);
+#endif
+
+	ImGui_SameLine();
+	ImGui_Text("P[%fx%f]", current->computed_rel_position[0], current->computed_rel_position[1]);
+	ImGui_SameLine();
+	ImGui_Text("S[%fx%f]", current->computed_size[0], current->computed_size[1]);
+
+	if (is_opened) {
 
 		for (UiWidgetId c = current->first_child; c != 0; ) {
 			_ui_imgui_rec(h, c);
@@ -372,6 +380,11 @@ void ui_widget_set_size_y(UiHierarchy *h, UiWidgetId widget, UiSize size)
 	h->widgets[widget].semantic_size[1] = size;
 }
 
+void ui_widget_set_color(UiHierarchy *h, UiWidgetId widget, uint32_t color)
+{
+	h->widgets[widget].color = color;
+}
+
 // managing the parent stack
 UiWidgetId ui_push_parent(UiHierarchy *h, UiWidgetId widget)
 {
@@ -387,4 +400,32 @@ UiWidgetId ui_pop_parent(UiHierarchy *h)
 	ASSERT(h->parent_stack_length != 0);
 	h->parent_stack_length -= 1;
 	return h->parent_stack[h->parent_stack_length + 1];
+}
+
+
+void _ui_render_rec(UiHierarchy *h, UiWidgetId node, struct Drawer2D *drawer, float cursor_x, float cursor_y)
+{
+	UiWidget *current = &h->widgets[node];
+
+	if (current->color != 0) {
+		float top = cursor_y + current->computed_rel_position[1];
+		float left = cursor_x + current->computed_rel_position[0];
+		float width = current->computed_size[0];
+		float height = current->computed_size[1];
+
+		drawer2d_draw_rect(drawer, top, left, width, height, current->color);
+	}
+
+
+	cursor_x += current->computed_rel_position[0];
+	cursor_y += current->computed_rel_position[1];
+	for (UiWidgetId c = current->first_child; c != 0; ) {
+		_ui_render_rec(h, c, drawer, cursor_x, cursor_y);
+		c = h->widgets[c].next;
+	}
+}
+
+void ui_render(UiHierarchy *h, UiWidgetId root, struct Drawer2D *drawer)
+{
+	_ui_render_rec(h, root, drawer, 0.0f, 0.0f);
 }

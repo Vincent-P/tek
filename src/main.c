@@ -545,6 +545,10 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
         Clay_RenderCommandArray clay_render_commands = Clay_EndLayout();
 	clay_integration_render(application->drawer, &clay_render_commands);
+
+	ui_render(&application->game.ui, root, application->drawer);
+
+
 	application->drawer->viewport_width = (float)display_w;
 	application->drawer->viewport_height = (float)display_h;
 	renderer_set_drawer2d(application->renderer, application->drawer);
