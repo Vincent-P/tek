@@ -63,7 +63,11 @@ struct UiWidget
 	UiWidgetFlags flags;
 	UiSize semantic_size[2];
 	int layout_axis;
+	float padding;
 	const char* string;
+	const char* display_string;
+	uint32_t display_string_length;
+	float font_size;
 	uint32_t color;
 
 	// computed every frame
@@ -94,13 +98,13 @@ uint64_t ui_key_null(void);
 uint64_t ui_key_from_int(uint64_t n);
 uint64_t ui_key_combine(uint64_t a, uint64_t b);
 
-void ui_layout_end_frame(UiHierarchy *h, UiWidgetId root);
+void ui_layout_end_frame(UiHierarchy *h, UiWidgetId root, struct Drawer2D *drawer);
 void ui_imgui(UiHierarchy *h, UiWidgetId root);
 
 // set widget
 UiWidgetId ui_widget_make(UiHierarchy *h, UiWidgetFlags flags, const char *string);
-void ui_widget_set_display_string(UiHierarchy *h, UiWidgetId widget, const char *string);
-void ui_widget_set_child_layout_axis(UiHierarchy *h, UiWidgetId widget, int axis); // X = 0, Y =1
+void ui_widget_set_display_string(UiHierarchy *h, UiWidgetId widget, const char *string, uint32_t string_lenght, float font_size);
+void ui_widget_set_layout(UiHierarchy *h, UiWidgetId widget, int layout_axis, float padding); // X = 0, Y =1
 void ui_widget_set_size_x(UiHierarchy *h, UiWidgetId widget, UiSize size);
 void ui_widget_set_size_y(UiHierarchy *h, UiWidgetId widget, UiSize size);
 void ui_widget_set_color(UiHierarchy *h, UiWidgetId widget, uint32_t color);

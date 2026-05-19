@@ -540,7 +540,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 	game_render(&application->game);
 
 	ui_pop_parent(&application->game.ui);
-	ui_layout_end_frame(&application->game.ui, root);
+	ui_layout_end_frame(&application->game.ui, root, application->drawer);
 	ui_imgui(&application->game.ui, root);
 
         Clay_RenderCommandArray clay_render_commands = Clay_EndLayout();
@@ -582,5 +582,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 #include "drawer2d.c"
 #include "atlas2d.c"
 #include "ui.c"
+#include "ui_helpers.c"
 
 #include "editor.c"

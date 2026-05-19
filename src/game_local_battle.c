@@ -1,5 +1,6 @@
 #include "game_local_battle.h"
 #include "game_battle.h"
+#include "ui_helpers.h"
 
 void local_battle_new_match(struct Game *game)
 {
@@ -348,18 +349,20 @@ bool local_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
 
 static void _local_battle_render_player_bar(UiHierarchy *h, const char *id, float p1_hp_filled, const char* name_str, int rounds_p1_won, int rounds_first_to)
 {
+	const float padding = ADJUST_FLOAT(0.0f);
+
 	float empty_bar_percent = 1.0f - p1_hp_filled;
 	float filled_bar_percent = p1_hp_filled;
 
 	UiWidgetId p1bar = ui_push_parent(h, ui_widget_make(h, 0, id));
 	ui_widget_set_size_x(h, p1bar, (UiSize){UI_SIZE_KIND_FLEX, 1.0f});
 	ui_widget_set_size_y(h, p1bar, (UiSize){UI_SIZE_KIND_CHILDREN_SUM});
-	ui_widget_set_child_layout_axis(h, p1bar, 1); // Y=1
+	ui_widget_set_layout(h, p1bar, 1, padding); // Y=1
 	{
 		UiWidgetId healthbar = ui_push_parent(h, ui_widget_make(h, 0, "health_bar"));
 		ui_widget_set_size_x(h, healthbar, (UiSize){UI_SIZE_KIND_PERCENT, 1.0f});
 		ui_widget_set_size_y(h, healthbar, (UiSize){UI_SIZE_KIND_PIXELS, 50.0f});
-		ui_widget_set_child_layout_axis(h, healthbar, 0); // X=0
+		ui_widget_set_layout(h, healthbar, 0, 0.0f); // X=0
 		{
 			UiWidgetId emptyhealth = ui_widget_make(h, 0, "empty_health");
 			ui_widget_set_size_x(h, emptyhealth, (UiSize){UI_SIZE_KIND_PERCENT, empty_bar_percent});
@@ -378,8 +381,8 @@ static void _local_battle_render_player_bar(UiHierarchy *h, const char *id, floa
 		ui_widget_set_size_x(h, info, (UiSize){UI_SIZE_KIND_FLEX, 1.0f});
 		ui_widget_set_size_y(h, info, (UiSize){UI_SIZE_KIND_CHILDREN_SUM});
 		{
-			UiWidgetId name = ui_widget_make(h, 0, "info");
-			ui_widget_set_display_string(h, name, name_str);
+			UiWidgetId name = ui_widget_make(h, UI_WidgetFlag_DrawText, "info");
+			ui_widget_set_display_string(h, name, name_str, (uint32_t)strlen(name_str), 24.0f);
 			ui_widget_set_size_x(h, name, (UiSize){UI_SIZE_KIND_TEXT});
 			ui_widget_set_size_y(h, name, (UiSize){UI_SIZE_KIND_TEXT});
 			ui_widget_set_color(h, name, 0xFF880000);
@@ -394,8 +397,8 @@ static void _local_battle_render_player_bar(UiHierarchy *h, const char *id, floa
 			ui_widget_set_size_y(h, rounds, (UiSize){UI_SIZE_KIND_CHILDREN_SUM});
 			for (int i = 1; i <= rounds_first_to; ++i) {
 				const char *label = (i <= rounds_p1_won) ? "X" : "O";
-				UiWidgetId icon = ui_widget_make(h, 0, "icon");
-				ui_widget_set_display_string(h, name, label);
+				UiWidgetId icon = ui_widget_make(h, UI_WidgetFlag_DrawText, "icon");
+				ui_widget_set_display_string(h, icon, label, 1, 24.0f);
 				ui_widget_set_size_x(h, icon, (UiSize){UI_SIZE_KIND_TEXT});
 				ui_widget_set_size_y(h, icon, (UiSize){UI_SIZE_KIND_TEXT});
 				ui_widget_set_color(h, icon, 0xFF880000);
@@ -408,6 +411,47 @@ static void _local_battle_render_player_bar(UiHierarchy *h, const char *id, floa
 	ui_pop_parent(h);
 }
 
+static void _local_battle_render_player_input(UiHierarchy *h, struct BattleState const* battle_state, struct TekPlayerComponent const *p1)
+{
+	uint32_t count = INPUT_BUFFER_SIZE;
+	if (p1->input_buffer_head < count) {
+		count = (uint32_t)p1->input_buffer_head;
+	}
+
+	uint32_t it = (uint32_t)p1->input_buffer_head-1;
+	uint32_t p1_cur_input_index = it % INPUT_BUFFER_SIZE;
+	struct BattleInput input = p1->input_buffer[p1_cur_input_index];
+	uint32_t frame = battle_state->frame_number;
+	for (uint32_t i = 0; i < count; i++, it--) {
+		uint32_t cur_input_index = it % INPUT_BUFFER_SIZE;
+		if (p1->input_buffer[cur_input_index].motion == input.motion
+		    && p1->input_buffer[cur_input_index].actions == input.actions) {
+			// Input is the same from the previous one
+		} else {
+			// Input is different, display
+			struct BattleInput next_input = p1->input_buffer[cur_input_index];
+			uint32_t next_frame = battle_state->frame_number - i;
+
+			uint32_t duration = frame - next_frame;
+			char label[64] = {0};
+			uint32_t label_length = sprintf(label, "%s %s - %u", _get_motion_label(input), _get_action_label(input), duration);
+			ui_label(h, "input", ui_string(label, label_length), label_length, 24.0f, 0xFF000000);
+
+
+			input = next_input;
+			frame = next_frame;
+		}
+		if (it == 0) {
+			break;
+		}
+	}
+	// Last input
+	uint32_t duration = frame - (battle_state->frame_number - count);
+	char label[64] = {0};
+	uint32_t label_length = sprintf(label, "%s %s - %u", _get_motion_label(input), _get_action_label(input), duration);
+	ui_label(h, "input", ui_string(label, label_length), label_length, 24.0f, 0xFF000000);
+}
+
 void local_battle_render(struct Game *game)
 {
 	struct LocalBattle *data = &game->local_battle;
@@ -417,36 +461,70 @@ void local_battle_render(struct Game *game)
 	}
 
 
+	struct BattleState const* battle_state = &simulation->battle_context.battle_state;
+	struct TekPlayerComponent const *p1 = &battle_state->p1_entity.tek;
+	struct TekPlayerComponent const *p2 = &battle_state->p2_entity.tek;
+
 	float p1_hp_filled = simulation->battle_context.battle_state.p1_entity.tek.hp * 0.01f;
 	float p2_hp_filled = simulation->battle_context.battle_state.p2_entity.tek.hp * 0.01f;
 	int rounds_first_to = simulation->battle_context.battle_non_state.rounds_first_to;
 	int rounds_p1_won = simulation->battle_context.battle_non_state.rounds_p1_won;
 	int rounds_p2_won = simulation->battle_context.battle_non_state.rounds_p2_won;
 
-	UiWidgetId outer = ui_push_parent(&game->ui, ui_widget_make(&game->ui, 0, "outer_container"));
-	ui_widget_set_size_x(&game->ui, outer, (UiSize){UI_SIZE_KIND_PERCENT, 1.0f});
-	ui_widget_set_size_y(&game->ui, outer, (UiSize){UI_SIZE_KIND_PERCENT, 1.0f});
-	ui_widget_set_child_layout_axis(&game->ui, outer, 1); // Y=1
+	const float padding = ADJUST_FLOAT(0.0f);
+
+	UiHierarchy *h = &game->ui;
+
+	UiWidgetId outer = ui_push_parent(h, ui_widget_make(h, 0, "outer_container"));
+	ui_widget_set_size_x(h, outer, (UiSize){UI_SIZE_KIND_PERCENT, 1.0f});
+	ui_widget_set_size_y(h, outer, (UiSize){UI_SIZE_KIND_PERCENT, 1.0f});
+	ui_widget_set_layout(h, outer, 1, padding); // Y=1
 
 	if (data->state == LOCAL_BATTLE_STATE_PLAY || data->state == LOCAL_BATTLE_STATE_REPLAY) {
-		UiWidgetId headerbar = ui_push_parent(&game->ui, ui_widget_make(&game->ui, 0, "header_bar"));
-		ui_widget_set_size_x(&game->ui, headerbar, (UiSize){UI_SIZE_KIND_PERCENT, 1.0f});
-		ui_widget_set_size_y(&game->ui, headerbar, (UiSize){UI_SIZE_KIND_CHILDREN_SUM});
-		ui_widget_set_child_layout_axis(&game->ui, headerbar, 0); // X=0
+		// header bar
+		UiWidgetId headerbar = ui_push_parent(h, ui_widget_make(h, 0, "header_bar"));
+		ui_widget_set_size_x(h, headerbar, (UiSize){UI_SIZE_KIND_PERCENT, 1.0f});
+		ui_widget_set_size_y(h, headerbar, (UiSize){UI_SIZE_KIND_CHILDREN_SUM});
+		ui_widget_set_layout(h, headerbar, 0, 0.0f); // X=0
 		{
-			_local_battle_render_player_bar(&game->ui, "p1_bar", p1_hp_filled, "SuperBob", rounds_p1_won, rounds_first_to);
+			_local_battle_render_player_bar(h, "p1_bar", p1_hp_filled, "SuperBob", rounds_p1_won, rounds_first_to);
 
-			UiWidgetId padding = ui_widget_make(&game->ui, 0, "padding");
-			ui_widget_set_size_x(&game->ui, padding, (UiSize){UI_SIZE_KIND_FLEX, 0.1f});
-			ui_widget_set_size_y(&game->ui, padding, (UiSize){UI_SIZE_KIND_PIXELS, 10.0f});
-			ui_widget_set_color(&game->ui, padding, 0xFF0000FF);
+			UiWidgetId padding = ui_push_parent(h, ui_widget_make(h, 0, "padding"));
+			ui_widget_set_size_x(h, padding, (UiSize){UI_SIZE_KIND_FLEX, 0.1f});
+			ui_widget_set_size_y(h, padding, (UiSize){UI_SIZE_KIND_CHILDREN_SUM});
+			ui_widget_set_color(h, padding, 0xFF0000FF);
+			{
+				ui_label(h, "timer", "59", 2, 50.0f, 0xFF000000);
+			}
+			ui_pop_parent(h);
 
-			_local_battle_render_player_bar(&game->ui, "p2_bar", p2_hp_filled, "Seb", rounds_p2_won, rounds_first_to);
+			_local_battle_render_player_bar(h, "p2_bar", p2_hp_filled, "Seb", rounds_p2_won, rounds_first_to);
 
 		}
-		ui_pop_parent(&game->ui);
+		ui_pop_parent(h);
+
+
+		// input replay
+		UiWidgetId hud = ui_push_parent(h, ui_widget_make(h, 0, "hud"));
+		ui_widget_set_size_x(h, hud, (UiSize){UI_SIZE_KIND_PERCENT, 1.0f});
+		ui_widget_set_size_y(h, hud, (UiSize){UI_SIZE_KIND_FLEX, 1.0f});
+		{
+			ui_push_column(h, "p1_input", 0);
+			_local_battle_render_player_input(h, battle_state, p1);
+			ui_pop_column(h);
+
+			UiWidgetId padding = ui_widget_make(h, 0, "padding");
+			ui_widget_set_size_x(h, padding, (UiSize){UI_SIZE_KIND_FLEX, 1.0f});
+			ui_widget_set_size_y(h, padding, (UiSize){UI_SIZE_KIND_FLEX, 1.0f});
+			ui_widget_set_color(h, padding, 0x00000000);
+
+			ui_push_column(h, "p2_input", 0);
+			_local_battle_render_player_input(h, battle_state, p2);
+			ui_pop_column(h);
+		}
+		ui_pop_parent(h);
 	}
-	ui_pop_parent(&game->ui);
+	ui_pop_parent(h);
 
 
 	CLAY({
@@ -456,147 +534,12 @@ void local_battle_render(struct Game *game)
 		}) {
 
 		if (data->state == LOCAL_BATTLE_STATE_PLAY || data->state == LOCAL_BATTLE_STATE_REPLAY) {
-			CLAY({.id = CLAY_ID("HeaderBar"), .layout = { .sizing = {.width = CLAY_SIZING_GROW(0)}, .childGap = 16}}) {
-
-				CLAY({
-						.id = CLAY_IDI("PlayerBar", 1),
-						.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = {.width = CLAY_SIZING_GROW(0)}, .padding = CLAY_PADDING_ALL(16), .childGap = 16 },
-						.backgroundColor = {0, 0, 0, 64}
-					}) {
-
-					CLAY({
-							.id = CLAY_IDI("HealthBar", 1),
-							.layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(50) }},
-							.backgroundColor = {0, 0, 255, 255}
-						}) {
-
-						CLAY({.id = CLAY_IDI("EmptyHealth", 1),
-								.layout = { .sizing = { .width = CLAY_SIZING_PERCENT(1.0f - p1_hp_filled), .height = CLAY_SIZING_GROW(0) }},
-								.backgroundColor = {0, 0, 0, 255},
-							});
-						CLAY({.id = CLAY_IDI("FilledHealth", 1),
-								.layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0) }},
-								.backgroundColor = {240, 240, 240, 255},
-							});
-					}
-					CLAY({.id = CLAY_IDI("PlayerInfo", 1), .layout = {.sizing = {CLAY_SIZING_GROW(0)}}}) {
-						CLAY({.id = CLAY_IDI("PlayerName", 1)}) {
-							CLAY_TEXT(CLAY_STRING("SuperBob"), CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {255, 255, 255, 255}}));
-					        }
-						CLAY({.id = CLAY_IDI("PlayerFill", 1), .layout = {.sizing = {CLAY_SIZING_GROW(0)}}}) { }
-						CLAY({.id = CLAY_IDI("PlayerRounds", 1)}) {
-							for (int i = 1; i <= rounds_first_to; ++i) {
-								if (i <= rounds_p1_won) {
-									CLAY_TEXT(CLAY_STRING("X"), CLAY_TEXT_CONFIG({.fontSize = 32, .textColor = {255, 255, 255, 255}}));
-								} else {
-									CLAY_TEXT(CLAY_STRING("O"), CLAY_TEXT_CONFIG({.fontSize = 32, .textColor = {255, 255, 255, 255}}));
-								}
-							}
-					        }
-					}
-				}
-
-				CLAY_TEXT(CLAY_STRING("59"), CLAY_TEXT_CONFIG({ .fontSize = 50, .textColor = {255, 255, 255, 255} }));
-
-				CLAY({
-						.id = CLAY_IDI("PlayerBar", 2),
-						.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = {.width = CLAY_SIZING_GROW(0)}, .padding = CLAY_PADDING_ALL(16), .childGap = 16, .childAlignment = {.x = CLAY_ALIGN_X_RIGHT} },
-						.backgroundColor = {0, 0, 0, 64}
-					}) {
-
-					CLAY({
-							.id = CLAY_IDI("HealthBar", 2),
-							.layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(50) }},
-							.backgroundColor = {0, 0, 255, 255}
-						}) {
-
-						CLAY({.id = CLAY_IDI("FilledHealth", 2),
-								.layout = { .sizing = { .width = CLAY_SIZING_PERCENT(p2_hp_filled), .height = CLAY_SIZING_GROW(0) }},
-								.backgroundColor = {240, 240, 240, 255},
-							});
-						CLAY({.id = CLAY_IDI("EmptyHealth", 2),
-								.layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0) }},
-								.backgroundColor = {0, 0, 0, 255},
-							});
-					}
-
-					CLAY({.id = CLAY_IDI("PlayerInfo", 2), .layout = {.sizing = {CLAY_SIZING_GROW(0)}}}) {
-						CLAY({.id = CLAY_IDI("PlayerRounds", 2)}) {
-							for (int i = 1; i <= rounds_first_to; ++i) {
-								if (i <= rounds_p2_won) {
-									CLAY_TEXT(CLAY_STRING("X"), CLAY_TEXT_CONFIG({.fontSize = 32, .textColor = {255, 255, 255, 255}}));
-								} else {
-									CLAY_TEXT(CLAY_STRING("O"), CLAY_TEXT_CONFIG({.fontSize = 32, .textColor = {255, 255, 255, 255}}));
-								}
-							}
-					        }
-						CLAY({.id = CLAY_IDI("PlayerFill", 2), .layout = {.sizing = {CLAY_SIZING_GROW(0)}}}) { }
-						CLAY({.id = CLAY_IDI("PlayerName", 2)}) {
-							CLAY_TEXT(CLAY_STRING("Seb"), CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {255, 255, 255, 255}}));
-					        }
-					}
-
-				}
-
-
-			}
-
 			CLAY({.id = CLAY_ID("HUD"), .layout = { .layoutDirection = CLAY_LEFT_TO_RIGHT, .sizing = {.width = CLAY_SIZING_GROW(0)} }}) {
 
 				CLAY({
 						.id = CLAY_IDI("PlayerInput", 1),
 						.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = {.width = CLAY_SIZING_FIT(0), .height = CLAY_SIZING_GROW(0)}, .padding = CLAY_PADDING_ALL(16), .childGap = 16 },
 					}) {
-					struct BattleState* battle_state = &simulation->battle_context.battle_state;
-					struct TekPlayerComponent const *p1 = &battle_state->p1_entity.tek;
-
-					uint32_t count = INPUT_BUFFER_SIZE;
-					if (p1->input_buffer_head < count) {
-						count = (uint32_t)p1->input_buffer_head;
-					}
-
-					uint32_t it = (uint32_t)p1->input_buffer_head-1;
-					uint32_t p1_cur_input_index = it % INPUT_BUFFER_SIZE;
-					struct BattleInput input = p1->input_buffer[p1_cur_input_index];
-					uint32_t frame = battle_state->frame_number;
-					for (uint32_t i = 0; i < count; i++, it--) {
-						uint32_t cur_input_index = it % INPUT_BUFFER_SIZE;
-						if (p1->input_buffer[cur_input_index].motion == input.motion
-						    && p1->input_buffer[cur_input_index].actions == input.actions) {
-							// Input is the same from the previous one
-						} else {
-							// Input is different, display
-							struct BattleInput next_input = p1->input_buffer[cur_input_index];
-							uint32_t next_frame = battle_state->frame_number - i;
-
-							uint32_t duration = frame - next_frame;
-							char label[64] = {0};
-							uint32_t label_length = sprintf(label, "%s %s - %u", _get_motion_label(input), _get_action_label(input), duration);
-
-							Clay_String label_string = (Clay_String){
-								.isStaticallyAllocated = false,
-								.length = label_length,
-								.chars = ui_string(label, label_length),
-							};
-							CLAY_TEXT(label_string, CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {0, 0, 0, 255}}));
-
-							input = next_input;
-							frame = next_frame;
-						}
-						if (it == 0) {
-							break;
-						}
-					}
-					// Last input
-					uint32_t duration = frame - (battle_state->frame_number - count);
-					char label[64] = {0};
-					uint32_t label_length = sprintf(label, "%s %s - %u", _get_motion_label(input), _get_action_label(input), duration);
-					Clay_String label_string = (Clay_String){
-						.isStaticallyAllocated = false,
-						.length = label_length,
-						.chars = ui_string(label, label_length),
-					};
-					CLAY_TEXT(label_string, CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {0, 0, 0, 255}}));
 				}
 
 				CLAY({.id = CLAY_ID("Empty"), .layout = { .sizing = {CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0)}}}) {}
@@ -605,8 +548,6 @@ void local_battle_render(struct Game *game)
 						.id = CLAY_IDI("PlayerInput", 2),
 						.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = {.width = CLAY_SIZING_FIT(0), .height = CLAY_SIZING_GROW(0)}, .padding = CLAY_PADDING_ALL(16), .childGap = 16, .childAlignment = {.x = CLAY_ALIGN_X_RIGHT} },
 					}) {
-					struct BattleState* battle_state = &simulation->battle_context.battle_state;
-					struct TekPlayerComponent const *p2 = &battle_state->p2_entity.tek;
 					uint32_t count = INPUT_BUFFER_SIZE;
 					if (p2->input_buffer_head < count) {
 						count = (uint32_t)p2->input_buffer_head;

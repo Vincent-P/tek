@@ -57,16 +57,18 @@ uint64_t ui_key_combine(uint64_t a, uint64_t b)
 	return a ^ ( b + 0x9e3779b9 + (a<<6) + (a>>2));
 }
 
-float _measure_text(const char *s, int axis)
+float _measure_text(const char *s, uint32_t string_length, float font_size, int axis, struct Drawer2D *drawer)
 {
-	if (axis == 0) {
-		return strlen(s) * 10.0f;
-	} else {
-		return 10.0f;
-	}
+	struct DrawerTextInfo text_info = {0};
+	text_info.size_px = font_size;
+	text_info.color = 0;
+
+	float bounds[2] = {0.0f, 0.0f};
+	drawer2d_text_bounds(drawer, s, string_length, text_info, &bounds[0], &bounds[1]);
+	return bounds[axis];
 }
 
-void _ui_layout_traversal(UiHierarchy *h, UiWidgetId node)
+void _ui_layout_traversal(UiHierarchy *h, UiWidgetId node, struct Drawer2D *drawer)
 {
 	UiWidget *current = &h->widgets[node];
 	bool is_leaf = current->last_child == 0;
@@ -77,7 +79,7 @@ void _ui_layout_traversal(UiHierarchy *h, UiWidgetId node)
 			if (current->semantic_size[axis].kind == UI_SIZE_KIND_PIXELS) {
 				current->computed_size[axis] = current->semantic_size[axis].value;
 			} else if (current->semantic_size[axis].kind == UI_SIZE_KIND_TEXT) {
-				current->computed_size[axis] = _measure_text(current->string, axis);
+				current->computed_size[axis] = _measure_text(current->display_string, current->display_string_length, current->font_size, axis, drawer);
 			} else if (current->semantic_size[axis].kind == UI_SIZE_KIND_PERCENT) {
 				// parent size constraints are already written in computed_size
 				current->computed_size[axis] *= current->semantic_size[axis].value;
@@ -95,6 +97,12 @@ void _ui_layout_traversal(UiHierarchy *h, UiWidgetId node)
 				current->computed_size[axis] = current->semantic_size[axis].value;
 			}
 		}
+
+		// Substract padding to our size constraint
+		current->computed_size[0] -= 2.0f * current->padding;
+		current->computed_size[1] -= 2.0f * current->padding;
+
+
 		float original_constraints[2] = {0};
 		original_constraints[0] = current->computed_size[0];
 		original_constraints[1] = current->computed_size[1];
@@ -121,7 +129,7 @@ void _ui_layout_traversal(UiHierarchy *h, UiWidgetId node)
 					child->computed_size[1] = original_constraints[1];
 				}
 
-				_ui_layout_traversal(h, c);
+				_ui_layout_traversal(h, c, drawer);
 
 				// When a child has been laid out, update constraints
 				current->computed_size[current->layout_axis] -= child->computed_size[current->layout_axis];
@@ -153,7 +161,7 @@ void _ui_layout_traversal(UiHierarchy *h, UiWidgetId node)
 				child->computed_size[0] = is_child0_flex ? current->computed_size[0] * flex0_factor : current->computed_size[0];
 				child->computed_size[1] = is_child1_flex ? current->computed_size[1] * flex1_factor : current->computed_size[1];
 
-				_ui_layout_traversal(h, c);
+				_ui_layout_traversal(h, c, drawer);
 
 				// When a child has been laid out, update constraints
 				if (child->semantic_size[current->layout_axis].kind != UI_SIZE_KIND_FLEX) {
@@ -164,7 +172,7 @@ void _ui_layout_traversal(UiHierarchy *h, UiWidgetId node)
 		}
 
 		// now all children have computed their size, position them
-		float cursor[2] = {0.0f, 0.0f};
+		float cursor[2] = {current->padding, current->padding};
 
 		// for now, our size is sum of children in layout axis, and maximum in other axis
 		current->computed_size[0] = 0.0f;
@@ -185,15 +193,17 @@ void _ui_layout_traversal(UiHierarchy *h, UiWidgetId node)
 			}
 			c = child->next;
 		}
+		current->computed_size[0] += 2.0f * current->padding;
+		current->computed_size[1] += 2.0f * current->padding;
 	}
 }
 
-void ui_layout_end_frame(UiHierarchy *h, UiWidgetId root)
+void ui_layout_end_frame(UiHierarchy *h, UiWidgetId root, struct Drawer2D *drawer)
 {
 	ASSERT(h->parent_stack_length == 0);
 
 	// Layout widgets
-	_ui_layout_traversal(h, root);
+	_ui_layout_traversal(h, root, drawer);
 
 	// Garbage collect unused widgets
 	for (uint32_t i = 0; i < ARRAY_LENGTH(h->widgets); ++i) {
@@ -360,14 +370,17 @@ UiWidgetId ui_widget_make(UiHierarchy *h, UiWidgetFlags flags, const char *strin
 }
 
 // some other possible building parameterizations
-void ui_widget_set_display_string(UiHierarchy *h, UiWidgetId widget, const char *string)
+void ui_widget_set_display_string(UiHierarchy *h, UiWidgetId widget, const char *string, uint32_t string_length, float font_size)
 {
-	h->widgets[widget].string = string;
+	h->widgets[widget].display_string = string;
+	h->widgets[widget].display_string_length = string_length;
+	h->widgets[widget].font_size = font_size;
 }
 
-void ui_widget_set_child_layout_axis(UiHierarchy *h, UiWidgetId widget, int axis)
+void ui_widget_set_layout(UiHierarchy *h, UiWidgetId widget, int layout_axis, float padding)
 {
-	h->widgets[widget].layout_axis = axis;
+	h->widgets[widget].layout_axis = layout_axis;
+	h->widgets[widget].padding = padding;
 }
 
 void ui_widget_set_size_x(UiHierarchy *h, UiWidgetId widget, UiSize size)
@@ -407,7 +420,18 @@ void _ui_render_rec(UiHierarchy *h, UiWidgetId node, struct Drawer2D *drawer, fl
 {
 	UiWidget *current = &h->widgets[node];
 
-	if (current->color != 0) {
+	if ((current->flags & UI_WidgetFlag_DrawText) != 0) {
+		float top = cursor_y + current->computed_rel_position[1];
+		float left = cursor_x + current->computed_rel_position[0];
+		float width = current->computed_size[0];
+		float height = current->computed_size[1];
+
+		struct DrawerTextInfo text_info = {0};
+		text_info.size_px = current->font_size;
+		text_info.color = current->color;
+		drawer2d_draw_text(drawer, current->display_string, current->display_string_length, top, left, width, height, text_info);
+
+	} else if (current->color != 0) {
 		float top = cursor_y + current->computed_rel_position[1];
 		float left = cursor_x + current->computed_rel_position[0];
 		float width = current->computed_size[0];
