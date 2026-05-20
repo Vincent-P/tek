@@ -71,130 +71,137 @@ float _measure_text(const char *s, uint32_t string_length, float font_size, int 
 void _ui_layout_traversal(UiHierarchy *h, UiWidgetId node, struct Drawer2D *drawer)
 {
 	UiWidget *current = &h->widgets[node];
-	bool is_leaf = current->last_child == 0;
-	if (is_leaf) {
 
+	// validate widget state
+	ASSERT(current->layout_axis <= 1);
+
+	// Update our size constraint written in `computed_size`
+	for (int axis = 0; axis < 2; ++axis) {
+		if (current->semantic_size[axis].kind == UI_SIZE_KIND_PIXELS) {
+			// Pixels size override any constraint
+			current->computed_size[axis] = current->semantic_size[axis].value;
+		} else if (current->semantic_size[axis].kind == UI_SIZE_KIND_TEXT) {
+			// Text size override any constraint
+			current->computed_size[axis] = _measure_text(current->display_string, current->display_string_length, current->font_size, axis, drawer);
+		} else if (current->semantic_size[axis].kind == UI_SIZE_KIND_PERCENT) {
+			// Percent size multiplies with the maximum size constraint (assuming the parent constraints to its full size)
+			current->computed_size[axis] *= current->semantic_size[axis].value;
+		} else {
+			// CHILDREN_SUM, FLEX
+		}
+	}
+
+	// Substract padding to our size constraint
+	current->computed_size[0] -= 2.0f * current->padding;
+	current->computed_size[1] -= 2.0f * current->padding;
+
+	// The size constraint need to be saved for children with percent sizes.
+	float original_constraints[2] = {0};
+	original_constraints[0] = current->computed_size[0];
+	original_constraints[1] = current->computed_size[1];
+
+	// First get size of every non-flex children, so that we can compute remaining space for flex children.
+	for (UiWidgetId c = current->first_child; c != 0; ) {
+		UiWidget *child = &h->widgets[c];
+		bool is_child_flex = false;
+		// Prepare constraint for non-flex children
 		for (int axis = 0; axis < 2; ++axis) {
-			// if we are a leaf, the size of the node is the size of its content, easy!
-			if (current->semantic_size[axis].kind == UI_SIZE_KIND_PIXELS) {
-				current->computed_size[axis] = current->semantic_size[axis].value;
-			} else if (current->semantic_size[axis].kind == UI_SIZE_KIND_TEXT) {
-				current->computed_size[axis] = _measure_text(current->display_string, current->display_string_length, current->font_size, axis, drawer);
-			} else if (current->semantic_size[axis].kind == UI_SIZE_KIND_PERCENT) {
-				// parent size constraints are already written in computed_size
-				current->computed_size[axis] *= current->semantic_size[axis].value;
+			if (child->semantic_size[axis].kind == UI_SIZE_KIND_FLEX) {
+				is_child_flex = true;
+			} else if (child->semantic_size[axis].kind == UI_SIZE_KIND_PERCENT) {
+				child->computed_size[axis] = original_constraints[axis];
 			} else {
-				// NULL, CHILDREN_SUM, FLEX
+				child->computed_size[axis] = current->computed_size[axis];
 			}
 		}
+		if (!is_child_flex) {
+			_ui_layout_traversal(h, c, drawer);
+			// Substract the final size of the child to our size constraint
+			current->computed_size[current->layout_axis] -= child->computed_size[current->layout_axis];
+		}
+		c = child->next;
+	}
 
-	} else {
-		ASSERT(current->layout_axis <= 1);
-
-		// First we need to set our constraints if we are forced to a pixel size
+	// Compute sizes of flex children with remaining size
+	float max_flex[2] = {0.0f, 0.0f};
+	for (UiWidgetId c = current->first_child; c != 0; ) {
+		UiWidget *child = &h->widgets[c];
 		for (int axis = 0; axis < 2; ++axis) {
-			if (current->semantic_size[axis].kind == UI_SIZE_KIND_PIXELS) {
-				current->computed_size[axis] = current->semantic_size[axis].value;
+			if (child->semantic_size[axis].kind == UI_SIZE_KIND_FLEX) {
+				max_flex[axis] += child->semantic_size[axis].value;
+			}
+		}
+		c = child->next;
+	}
+	for (UiWidgetId c = current->first_child; c != 0; ) {
+
+		UiWidget *child = &h->widgets[c];
+
+		bool is_child_flex = false;
+		// Compute flex factor per axis
+		float flex_factors[2] = {0.0f, 0.0f};
+		for (int axis = 0; axis < 2; ++axis) {
+			if (child->semantic_size[axis].kind == UI_SIZE_KIND_FLEX) {
+				is_child_flex = true;
+				flex_factors[axis] = child->semantic_size[axis].value / max_flex[axis];
+			} else {
+				flex_factors[axis] = 1.0f;
 			}
 		}
 
-		// Substract padding to our size constraint
-		current->computed_size[0] -= 2.0f * current->padding;
-		current->computed_size[1] -= 2.0f * current->padding;
+		if (is_child_flex) {
+			// Set size constrainst on children from the parent
+			child->computed_size[0] = flex_factors[0] * current->computed_size[0];
+			child->computed_size[1] = flex_factors[1] * current->computed_size[1];
 
+			_ui_layout_traversal(h, c, drawer);
 
-		float original_constraints[2] = {0};
-		original_constraints[0] = current->computed_size[0];
-		original_constraints[1] = current->computed_size[1];
-
-		// Compute sizes of all non-flex children
-		for (UiWidgetId c = current->first_child; c != 0; ) {
-
-			UiWidget *child = &h->widgets[c];
-			bool is_child_flex = child->semantic_size[0].kind == UI_SIZE_KIND_FLEX
-				|| child->semantic_size[1].kind == UI_SIZE_KIND_FLEX;
-			if (!is_child_flex) {
-				// Set size constrainst on children from the parent
-				child->computed_size[0] = current->computed_size[0];
-				child->computed_size[1] = current->computed_size[1];
-
-				if (child->semantic_size[0].kind == UI_SIZE_KIND_PERCENT) {
-					// for "upward" sizes such as parent percentage, the child
-					// should base its size on our original constraints.
-					child->computed_size[0] = original_constraints[0];
-				}
-				if (child->semantic_size[1].kind == UI_SIZE_KIND_PERCENT) {
-					// for "upward" sizes such as parent percentage, the child
-					// should base its size on our original constraints.
-					child->computed_size[1] = original_constraints[1];
-				}
-
-				_ui_layout_traversal(h, c, drawer);
-
-				// When a child has been laid out, update constraints
+			// When a child has been laid out, update constraints
+			// We don't update size constraints if the axis is flex, because the constraint contains the remaining space.
+			if (child->semantic_size[current->layout_axis].kind != UI_SIZE_KIND_FLEX) {
 				current->computed_size[current->layout_axis] -= child->computed_size[current->layout_axis];
 			}
-			c = child->next;
 		}
+		c = child->next;
+	}
 
-		// Compute sizes of flex children with remaining size
-		float max_flex[2] = {0.0f, 0.0f};
-		for (UiWidgetId c = current->first_child; c != 0; ) {
-			UiWidget *child = &h->widgets[c];
-			if (child->semantic_size[0].kind == UI_SIZE_KIND_FLEX) {
-				max_flex[0] += child->semantic_size[0].value;
+	// Now all children have computed their size, position them
+	float cursor[2] = {current->padding, current->padding};
+	for (UiWidgetId c = current->first_child; c != 0; ) {
+		UiWidget *child = &h->widgets[c];
+		for (int axis = 0; axis < 2; ++axis) {
+			child->computed_rel_position[axis] = cursor[axis];
+			if (axis == current->layout_axis) {
+				// If the axis is the layout axis, children are positioned in order
+				// so we move the cursor after each children
+				cursor[axis] += child->computed_size[axis];
 			}
-			if (child->semantic_size[1].kind == UI_SIZE_KIND_FLEX) {
-				max_flex[1] += child->semantic_size[1].value;
-			}
-			c = child->next;
 		}
-		for (UiWidgetId c = current->first_child; c != 0; ) {
+		c = child->next;
+	}
 
-			UiWidget *child = &h->widgets[c];
-			bool is_child0_flex = child->semantic_size[0].kind == UI_SIZE_KIND_FLEX;
-			bool is_child1_flex = child->semantic_size[1].kind == UI_SIZE_KIND_FLEX;
-			if (is_child0_flex || is_child1_flex) {
-				// Set size constrainst on children from the parent
-				float flex0_factor = child->semantic_size[0].value / max_flex[0];
-				float flex1_factor = child->semantic_size[1].value / max_flex[1];
-				child->computed_size[0] = is_child0_flex ? current->computed_size[0] * flex0_factor : current->computed_size[0];
-				child->computed_size[1] = is_child1_flex ? current->computed_size[1] * flex1_factor : current->computed_size[1];
-
-				_ui_layout_traversal(h, c, drawer);
-
-				// When a child has been laid out, update constraints
-				if (child->semantic_size[current->layout_axis].kind != UI_SIZE_KIND_FLEX) {
-					current->computed_size[current->layout_axis] -= child->computed_size[current->layout_axis];
-				}
-			}
-			c = child->next;
-		}
-
-		// now all children have computed their size, position them
-		float cursor[2] = {current->padding, current->padding};
-
-		// for now, our size is sum of children in layout axis, and maximum in other axis
-		current->computed_size[0] = 0.0f;
-		current->computed_size[1] = 0.0f;
-		for (UiWidgetId c = current->first_child; c != 0; ) {
-			UiWidget *child = &h->widgets[c];
-			for (int axis = 0; axis < 2; ++axis) {
-				child->computed_rel_position[axis] = cursor[axis];
-
+	// finally compute our own size
+	for (int axis = 0; axis < 2; ++axis) {
+		if (current->semantic_size[axis].kind == UI_SIZE_KIND_CHILDREN_SUM) {
+			current->computed_size[axis] = 0.0f;
+			for (UiWidgetId c = current->first_child; c != 0; ) {
+				UiWidget *child = &h->widgets[c];
 				if (axis == current->layout_axis) {
 					current->computed_size[axis] += child->computed_size[axis];
-					cursor[axis] += child->computed_size[axis];
 				} else {
+					// Keep track of the maximum size
 					if (current->computed_size[axis] < child->computed_size[axis]) {
 						current->computed_size[axis] = child->computed_size[axis];
 					}
 				}
+				c = child->next;
 			}
-			c = child->next;
+			// computed_size bounds all children. We need to add padding to get the final size.
+			current->computed_size[axis] += 2.0f * current->padding;
+		} else {
+			current->computed_size[axis] = original_constraints[axis];
+			current->computed_size[axis] += 2.0f * current->padding;
 		}
-		current->computed_size[0] += 2.0f * current->padding;
-		current->computed_size[1] += 2.0f * current->padding;
 	}
 }
 
@@ -339,7 +346,16 @@ UiWidgetId ui_widget_make(UiHierarchy *h, UiWidgetFlags flags, const char *strin
 	}
 	// widget is at index
 	h->widgets[index].flags = flags;
+	h->widgets[index].semantic_size[0] = (UiSize){0};
+	h->widgets[index].semantic_size[1] = (UiSize){0};
+	h->widgets[index].layout_axis = 0;
+	h->widgets[index].padding = 0.0f;
 	h->widgets[index].string = string;
+	h->widgets[index].display_string = NULL;
+	h->widgets[index].display_string_length = 0;
+	h->widgets[index].font_size = 0.0f;
+	h->widgets[index].color = 0;
+
 	h->widgets[index].first_child = 0;
 	h->widgets[index].last_child = 0;
 	h->widgets[index].next = 0;

@@ -10,11 +10,10 @@ const char* ui_string(const char* string, uint32_t length);
 typedef enum UiSizeKind UiSizeKind;
 enum UiSizeKind
 {
-	UI_SIZE_KIND_NULL,
+	UI_SIZE_KIND_CHILDREN_SUM,
 	UI_SIZE_KIND_PIXELS,
 	UI_SIZE_KIND_TEXT,
 	UI_SIZE_KIND_PERCENT,
-	UI_SIZE_KIND_CHILDREN_SUM,
 	UI_SIZE_KIND_FLEX,
 };
 

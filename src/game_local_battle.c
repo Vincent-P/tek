@@ -349,15 +349,13 @@ bool local_battle_update(struct Game *game, struct GameUpdateContext const *ctx)
 
 static void _local_battle_render_player_bar(UiHierarchy *h, const char *id, float p1_hp_filled, const char* name_str, int rounds_p1_won, int rounds_first_to)
 {
-	const float padding = ADJUST_FLOAT(0.0f);
-
 	float empty_bar_percent = 1.0f - p1_hp_filled;
 	float filled_bar_percent = p1_hp_filled;
 
 	UiWidgetId p1bar = ui_push_parent(h, ui_widget_make(h, 0, id));
 	ui_widget_set_size_x(h, p1bar, (UiSize){UI_SIZE_KIND_FLEX, 1.0f});
 	ui_widget_set_size_y(h, p1bar, (UiSize){UI_SIZE_KIND_CHILDREN_SUM});
-	ui_widget_set_layout(h, p1bar, 1, padding); // Y=1
+	ui_widget_set_layout(h, p1bar, 1, 4.0f); // Y=1
 	{
 		UiWidgetId healthbar = ui_push_parent(h, ui_widget_make(h, 0, "health_bar"));
 		ui_widget_set_size_x(h, healthbar, (UiSize){UI_SIZE_KIND_PERCENT, 1.0f});
@@ -471,14 +469,12 @@ void local_battle_render(struct Game *game)
 	int rounds_p1_won = simulation->battle_context.battle_non_state.rounds_p1_won;
 	int rounds_p2_won = simulation->battle_context.battle_non_state.rounds_p2_won;
 
-	const float padding = ADJUST_FLOAT(0.0f);
-
 	UiHierarchy *h = &game->ui;
 
-	UiWidgetId outer = ui_push_parent(h, ui_widget_make(h, 0, "outer_container"));
+	UiWidgetId outer = ui_push_parent(h, ui_widget_make(h, 0, "vertical_container"));
 	ui_widget_set_size_x(h, outer, (UiSize){UI_SIZE_KIND_PERCENT, 1.0f});
 	ui_widget_set_size_y(h, outer, (UiSize){UI_SIZE_KIND_PERCENT, 1.0f});
-	ui_widget_set_layout(h, outer, 1, padding); // Y=1
+	ui_widget_set_layout(h, outer, 1, 16.0f); // Y=1
 
 	if (data->state == LOCAL_BATTLE_STATE_PLAY || data->state == LOCAL_BATTLE_STATE_REPLAY) {
 		// header bar
@@ -490,8 +486,7 @@ void local_battle_render(struct Game *game)
 			_local_battle_render_player_bar(h, "p1_bar", p1_hp_filled, "SuperBob", rounds_p1_won, rounds_first_to);
 
 			UiWidgetId padding = ui_push_parent(h, ui_widget_make(h, 0, "padding"));
-			ui_widget_set_size_x(h, padding, (UiSize){UI_SIZE_KIND_FLEX, 0.1f});
-			ui_widget_set_size_y(h, padding, (UiSize){UI_SIZE_KIND_CHILDREN_SUM});
+			ui_widget_set_layout(h, padding, 0, 8.0f);
 			ui_widget_set_color(h, padding, 0xFF0000FF);
 			{
 				ui_label(h, "timer", "59", 2, 50.0f, 0xFF000000);
