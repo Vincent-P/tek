@@ -22,3 +22,11 @@ UiWidgetId ui_label(UiHierarchy *h, const char *id, const char *string, uint32_t
 	ui_widget_set_color(h, res, color);
 	return res;
 }
+
+UiWidgetId ui_push_container(UiHierarchy *h, const char *string, UiWidgetFlags flags, UiSize x, UiSize y)
+{
+	UiWidgetId res = ui_push_parent(h, ui_widget_make(h, flags, string));
+	ui_widget_set_size_x(h, res, x);
+	ui_widget_set_size_y(h, res, y);
+	return res;
+}
