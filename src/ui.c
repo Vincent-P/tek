@@ -233,6 +233,14 @@ void ui_layout_end_frame(UiHierarchy *h, UiWidgetId root, struct Drawer2D *drawe
 
 	h->global_generation = 0;
 	h->current_frame += 1;
+
+	// inputs
+	if (!h->inputs.mouse_is_down) {
+		h->active_key = 0;
+	} else {
+
+	}
+	h->hot_key = 0;
 }
 
 void _ui_imgui_rec(UiHierarchy *h, UiWidgetId root)
@@ -385,6 +393,41 @@ UiWidgetId ui_widget_make(UiHierarchy *h, UiWidgetFlags flags, const char *strin
 	return index;
 }
 
+UiWidgetInputs ui_widget_behavior(UiHierarchy *h, UiWidgetId w)
+{
+	UiWidgetInputs result = {0};
+	result.widget = w;
+	result.mouse_position[0] = h->inputs.mouse_position[0];
+	result.mouse_position[1] = h->inputs.mouse_position[1];
+	float left = h->widgets[w].computed_abs_position[0];
+	float width = h->widgets[w].computed_size[0];
+	float top = h->widgets[w].computed_abs_position[1];
+	float height = h->widgets[w].computed_size[1];
+	bool mouse_in_x =  left <= result.mouse_position[0] && result.mouse_position[0] <= left + width;
+	bool mouse_in_y =  top <= result.mouse_position[1] && result.mouse_position[1] <= top + height;
+
+	UiWidgetFlags flags = h->widgets[w].flags;
+	uint64_t key = h->widgets[w].key;
+
+	result.hovered = mouse_in_x && mouse_in_y;
+	if (result.hovered) {
+		if ((flags & UI_WidgetFlag_Clickable) != 0) {
+			h->hot_key = key;
+
+			result.pressed = h->hot_key == key && h->inputs.mouse_is_down;
+			if (result.pressed) {
+				result.clicked = h->active_key != key;
+				h->active_key = key;
+			}
+
+			result.released = h->hot_key == key && h->active_key == key && !h->inputs.mouse_is_down;
+		}
+	}
+
+	return result;
+}
+
+
 // some other possible building parameterizations
 void ui_widget_set_display_string(UiHierarchy *h, UiWidgetId widget, const char *string, uint32_t string_length, float font_size)
 {
@@ -436,11 +479,15 @@ void _ui_render_rec(UiHierarchy *h, UiWidgetId node, struct Drawer2D *drawer, fl
 {
 	UiWidget *current = &h->widgets[node];
 
+	float top = cursor_y + current->computed_rel_position[1];
+	float left = cursor_x + current->computed_rel_position[0];
+	float width = current->computed_size[0];
+	float height = current->computed_size[1];
+
+	current->computed_abs_position[0] = left;
+	current->computed_abs_position[1] = top;
+
 	if ((current->flags & UI_WidgetFlag_DrawText) != 0) {
-		float top = cursor_y + current->computed_rel_position[1];
-		float left = cursor_x + current->computed_rel_position[0];
-		float width = current->computed_size[0];
-		float height = current->computed_size[1];
 
 		struct DrawerTextInfo text_info = {0};
 		text_info.size_px = current->font_size;
@@ -448,11 +495,6 @@ void _ui_render_rec(UiHierarchy *h, UiWidgetId node, struct Drawer2D *drawer, fl
 		drawer2d_draw_text(drawer, current->display_string, current->display_string_length, top, left, width, height, text_info);
 
 	} else if (current->color != 0) {
-		float top = cursor_y + current->computed_rel_position[1];
-		float left = cursor_x + current->computed_rel_position[0];
-		float width = current->computed_size[0];
-		float height = current->computed_size[1];
-
 		drawer2d_draw_rect(drawer, top, left, width, height, current->color);
 	}
 

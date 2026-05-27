@@ -15,6 +15,7 @@ UiWidgetId ui_push_column(UiHierarchy *h, const char* string, UiWidgetFlags flag
 void ui_pop_column(UiHierarchy *h);
 
 UiWidgetId ui_label(UiHierarchy *h, const char *id, const char* string, uint32_t string_length, float font_size, uint32_t color);
+UiWidgetId ui_label_nt(UiHierarchy *h, const char *id, const char* string, float font_size, uint32_t color);
 
 // widget_make + push_parent + set_size
 UiWidgetId ui_push_container(UiHierarchy *h, const char *string, UiWidgetFlags flags, UiSize x, UiSize y);

@@ -456,6 +456,51 @@ bool imgui_process_event(SDL_Event* event)
 	return false;
 }
 
+bool ui_process_event(struct UiInputs *inputs, SDL_Event* event)
+{
+	switch (event->type) {
+	case SDL_EVENT_MOUSE_MOTION:
+		{
+			float mouse_pos_x = (float)event->motion.x;
+			float mouse_pos_y = (float)event->motion.y;
+
+			inputs->mouse_position[0] = mouse_pos_x;
+			inputs->mouse_position[1] = mouse_pos_y;
+			return true;
+		}
+	case SDL_EVENT_MOUSE_WHEEL:
+		{
+		}
+	case SDL_EVENT_MOUSE_BUTTON_DOWN:
+	case SDL_EVENT_MOUSE_BUTTON_UP:
+		{
+			int mouse_button = -1;
+			if (event->button.button == SDL_BUTTON_LEFT) { mouse_button = 0; }
+			if (event->button.button == SDL_BUTTON_RIGHT) { mouse_button = 1; }
+			if (event->button.button == SDL_BUTTON_MIDDLE) { mouse_button = 2; }
+			if (event->button.button == SDL_BUTTON_X1) { mouse_button = 3; }
+			if (event->button.button == SDL_BUTTON_X2) { mouse_button = 4; }
+			if (mouse_button == -1)
+				break;
+
+			if (event->button.button == SDL_BUTTON_LEFT) {
+				inputs->mouse_is_down = (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN);
+			}
+
+			return true;
+		}
+
+        case SDL_EVENT_KEY_DOWN:
+        case SDL_EVENT_KEY_UP:
+		{
+		}
+	case SDL_EVENT_TEXT_INPUT:
+		{
+		}
+	}
+	return false;
+}
+
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 {
 	TracyCZoneN(f, "AppEvent", true);
@@ -468,6 +513,8 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 	imgui_process_event(event);
 	inputs_process_event(event, &application->inputs);
 	clay_integration_process_event(application, event);
+	ui_process_event(&application->game.ui.inputs, event);
+
 
 	TracyCZoneEnd(f);
 	return SDL_APP_CONTINUE;

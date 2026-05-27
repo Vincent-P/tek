@@ -23,6 +23,13 @@ UiWidgetId ui_label(UiHierarchy *h, const char *id, const char *string, uint32_t
 	return res;
 }
 
+UiWidgetId ui_label_nt(UiHierarchy *h, const char *id, const char* string, float font_size, uint32_t color)
+{
+	uint32_t length = (uint32_t)strlen(string);
+	const char *interned_string = ui_string(string, length);
+	return ui_label(h, id, interned_string, length, font_size, color);
+}
+
 UiWidgetId ui_push_container(UiHierarchy *h, const char *string, UiWidgetFlags flags, UiSize x, UiSize y)
 {
 	UiWidgetId res = ui_push_parent(h, ui_widget_make(h, flags, string));

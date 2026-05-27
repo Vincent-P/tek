@@ -7,6 +7,13 @@ void ui_button(const char *label, bool *clicked);
 const char* ui_string(const char* string, uint32_t length);
 
 
+struct UiInputs
+{
+	float mouse_position[2];
+	bool mouse_is_down;
+};
+
+
 typedef enum UiSizeKind UiSizeKind;
 enum UiSizeKind
 {
@@ -70,12 +77,24 @@ struct UiWidget
 	uint32_t color;
 
 	// computed every frame
+	float computed_abs_position[2];
 	float computed_rel_position[2];
 	float computed_size[2];
 
 	// persistent data
 	float hot_transition;
 	float active_transition;
+};
+
+typedef struct UiWidgetInputs UiWidgetInputs;
+struct UiWidgetInputs
+{
+	UiWidgetId widget;
+	float mouse_position[2];
+	bool clicked;
+	bool pressed;
+	bool released;
+	bool hovered;
 };
 
 typedef struct UiHierarchy UiHierarchy;
@@ -88,6 +107,10 @@ struct UiHierarchy
 	uint32_t parent_stack_length;
 	uint32_t id_stack_length;
 	uint64_t global_generation;
+
+	struct UiInputs inputs;
+	uint64_t hot_key;
+	uint64_t active_key;
 
 	uint32_t current_frame;
 };
@@ -102,6 +125,8 @@ void ui_imgui(UiHierarchy *h, UiWidgetId root);
 
 // set widget
 UiWidgetId ui_widget_make(UiHierarchy *h, UiWidgetFlags flags, const char *string);
+UiWidgetInputs ui_widget_behavior(UiHierarchy *h, UiWidgetId w);
+
 void ui_widget_set_display_string(UiHierarchy *h, UiWidgetId widget, const char *string, uint32_t string_lenght, float font_size);
 void ui_widget_set_layout(UiHierarchy *h, UiWidgetId widget, int layout_axis, float padding); // X = 0, Y =1
 void ui_widget_set_size_x(UiHierarchy *h, UiWidgetId widget, UiSize size);
