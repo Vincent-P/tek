@@ -176,7 +176,7 @@ void game_render(struct Game *game)
 {
 	switch (game->current_state) {
 	case GAME_STATE_MAIN_MENU: {
-		mainmenu_render(&game->mainmenu);
+		mainmenu_render(game);
 		break;
 	}
 	case GAME_STATE_LOCAL_BATTLE: {

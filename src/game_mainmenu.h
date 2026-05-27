@@ -13,4 +13,4 @@ struct MainMenu
 void mainmenu_init(struct MainMenu *mainmenu);
 void mainmenu_term(struct MainMenu *mainmenu);
 bool mainmenu_update(struct Game *game, struct GameUpdateContext const *ctx);
-void mainmenu_render(struct MainMenu *mainmenu);
+void mainmenu_render(struct Game *game);

@@ -65,6 +65,13 @@ SerializeSimpleType(Float3x4);
 // 1 3 = 1*3+3 = 4  != 10
 // 2 3 = 2*3+3 = 9  != 11
 
+float saturate(float x)
+{
+	float a = (x < 0.0f) ? 0.0f : x;
+	return (a > 1.0f) ? 1.0f : a;
+}
+
+
 Float3 float3_from_float(float a)
 {
 	Float3 r;

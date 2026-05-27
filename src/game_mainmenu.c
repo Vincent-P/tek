@@ -1,5 +1,6 @@
 #include "game_mainmenu.h"
-#include "ui.h"
+#include "ui_helpers.h"
+
 
 void mainmenu_init(struct MainMenu *mainmenu)
 {
@@ -31,30 +32,40 @@ bool mainmenu_update(struct Game *game, struct GameUpdateContext const* ctx)
 	return false;
 }
 
-void mainmenu_render(struct MainMenu *mainmenu)
+static bool _mainmenu_render_button(UiHierarchy *h, const char *label)
 {
-	CLAY({ .id = CLAY_ID("OuterContainer"), .layout = { .sizing = {CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0)}, .padding = CLAY_PADDING_ALL(16), .childGap = 16 }}) {
+	float FONT_SIZE = ADJUST_FLOAT(48.0f);
+	int COLOR = ADJUST_INT(0xFF000000);
+	float HOVER_FONT_SIZE = ADJUST_FLOAT(64.0f);
+	int HOVER_COLOR = ADJUST_INT(0xFF0403e8);
 
+	UiWidgetId row = ui_push_container(h, "row", UI_WidgetFlag_Clickable, (UiSize){0}, (UiSize){0});
+	UiWidgetInputs inputs = ui_widget_behavior(h, row);
+	{
+		int color = inputs.hovered ? HOVER_COLOR : COLOR;
+		float font_size = inputs.hovered ? HOVER_FONT_SIZE : FONT_SIZE;
+		ui_label_nt(h, "name", label, font_size, color);
+	}
+	ui_pop_parent(h);
 
-		CLAY({
-				.id = CLAY_ID("Floating"),
-				.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = { .width = CLAY_SIZING_FIXED(300), .height = CLAY_SIZING_FIT(0) }, .padding = CLAY_PADDING_ALL(16), .childGap = 16 },
-				.floating = { .attachTo = CLAY_ATTACH_TO_PARENT, .attachPoints = { .element = CLAY_ATTACH_POINT_CENTER_BOTTOM, .parent = CLAY_ATTACH_POINT_CENTER_CENTER } },
-				.backgroundColor = {0, 0, 0, 128}
-			}) {
+	return inputs.clicked;
+}
 
-			ui_button("Local battle", &mainmenu->local_pressed);
-			if (mainmenu->local_pressed) {
-				printf("Local battle!\n");
-			}
+void mainmenu_render(struct Game *game)
+{
+	struct MainMenu *mainmenu = &game->mainmenu;
 
-			ui_button("Network battle", &mainmenu->network_pressed);
-			if (mainmenu->network_pressed) {
-				printf("Network battle!\n");
-			}
+	UiHierarchy *h = &game->ui;
 
-			ui_button("Options", NULL);
-		}
-        }
+	UiWidgetId outer = ui_push_container(h, "vertical_container", 0, UI_SIZE_PERCENT(1.0f), UI_SIZE_PERCENT(1.0f));
+	ui_widget_set_layout(h, outer, 1, 128.0f); // Y=1
+	{
 
+		mainmenu->local_pressed = _mainmenu_render_button(h, "PLAY LOCAL");
+		mainmenu->network_pressed = _mainmenu_render_button(h, "HOST ONLINE");
+		mainmenu->network_pressed = _mainmenu_render_button(h, "JOIN ONLINE");
+		_mainmenu_render_button(h, "OPTIONS");
+		_mainmenu_render_button(h, "QUIT");
+	}
+	ui_pop_parent(h);
 }
