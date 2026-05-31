@@ -1,6 +1,7 @@
 #include "game_network_battle.h"
 
 #include "steam_api_c.h"
+#include "ui_helpers.h"
 
 
 // ggpo callbacks
@@ -178,7 +179,8 @@ void network_battle_steam_callback(struct Game *game, struct GameUpdateContext c
 
 						data->state = NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_PLAYERS;
 					} else {
-						data->state = NETWORK_BATTLE_STATE_MAIN_MENU;
+
+					        ASSERT(false);
 						data->lobby_create_call = 0;
 					}
 				}
@@ -298,10 +300,13 @@ void network_battle_on_lobby_joined(struct Game *game, uint64_t lobby_id)
 	battle_state_init(&simulation->battle_context);
 }
 
-void network_battle_init(struct Game *game)
+void network_battle_create_lobby(struct Game *game)
 {
-	(void)game;
-	printf("NETWORK_BATTLE: Init\n");
+	printf("NETWORK_BATTLE: Create lobby\n");
+	struct NetworkBattle *data = &game->network_battle;
+	*data = (struct NetworkBattle){0};
+	data->state = NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_CREATION;
+	data->lobby_create_call = SteamAPI_ISteamMatchmaking_CreateLobby(SteamAPI_SteamMatchmaking(), k_ELobbyTypeFriendsOnly, 2);
 	ggpo_log(NULL, "test");
 }
 
@@ -325,19 +330,6 @@ bool network_battle_update(struct Game *game, struct GameUpdateContext const *ct
 	struct Simulation *simulation = &game->simulation;
 	bool result = false;
 	switch (data->state) {
-	case NETWORK_BATTLE_STATE_MAIN_MENU: {
-		if (data->host_pressed) {
-			data->state = NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_CREATION;
-			data->lobby_create_call = SteamAPI_ISteamMatchmaking_CreateLobby(SteamAPI_SteamMatchmaking(), k_ELobbyTypeFriendsOnly, 2);
-			data->host_pressed = false;
-		}
-		if (data->join_pressed) {
-			// network_battle_state_join(data);
-			data->join_pressed = false;
-		}
-		break;
-	}
-
 	case NETWORK_BATTLE_STATE_PLAY: {
 
 
@@ -384,6 +376,7 @@ bool network_battle_update(struct Game *game, struct GameUpdateContext const *ct
 				// Send player2 inputs to network
 				err = ggpo_add_local_input(data->ggpo_session, data->ggpo_player_handles[1], &battle_inputs.player1, sizeof(struct BattleInput));
 			}
+			data->ggpo_synchronizing = GGPO_SUCCEEDED(err);
 			if (GGPO_SUCCEEDED(err)) {
 				tek_check_error(err);
 				// Receive both inputs from network
@@ -400,8 +393,10 @@ bool network_battle_update(struct Game *game, struct GameUpdateContext const *ct
 
 					if (battle_result != BATTLE_FRAME_RESULT_CONTINUE || disconnect_flags != 0) {
 						network_battle_term(game);
-						network_battle_init(game);
-						data->state = NETWORK_BATTLE_STATE_MAIN_MENU;
+						// network_battle_init(game);
+
+						// TODO: go back to main menu
+						ASSERT(false);
 						break;
 					}
 				}
@@ -426,241 +421,170 @@ void network_battle_render(struct Game *game)
 		battle_render(&simulation->battle_context);
 	}
 
+	UiHierarchy *h = &game->ui;
+	struct BattleState const* battle_state = &simulation->battle_context.battle_state;
+	struct TekPlayerComponent const *p1 = &battle_state->p1_entity.tek;
+	struct TekPlayerComponent const *p2 = &battle_state->p2_entity.tek;
+
 	float p1_hp_filled = simulation->battle_context.battle_state.p1_entity.tek.hp * 0.01f;
 	float p2_hp_filled = simulation->battle_context.battle_state.p2_entity.tek.hp * 0.01f;
 	int rounds_first_to = simulation->battle_context.battle_non_state.rounds_first_to;
 	int rounds_p1_won = simulation->battle_context.battle_non_state.rounds_p1_won;
 	int rounds_p2_won = simulation->battle_context.battle_non_state.rounds_p2_won;
 
-	CLAY({
-			.id = CLAY_ID("OuterContainer"),
-			.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = {CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0)}, .padding = CLAY_PADDING_ALL(16), .childGap = 16 },
-			.backgroundColor = {0,0,0,0}
-		}) {
+	float FONT_SIZE = ADJUST_FLOAT(48.0f);
+	int COLOR = ADJUST_INT(0xFF000000);
 
-
-
-		if (data->state == NETWORK_BATTLE_STATE_MAIN_MENU) {
-			CLAY({.id = CLAY_ID("MAIN_MENU_FRAME"), .floating = { .attachTo = CLAY_ATTACH_TO_PARENT }, .layout = {.sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0)}}, .backgroundColor = {0, 0, 0, 128}} ) {
-				CLAY({
-						.id = CLAY_ID("Floating"),
-						.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = { .width = CLAY_SIZING_FIT(300), .height = CLAY_SIZING_FIT(0) }, .padding = CLAY_PADDING_ALL(16), .childGap = 16 },
-						.floating = { .offset = {0, 16}, .attachTo = CLAY_ATTACH_TO_PARENT, .attachPoints = { .element = CLAY_ATTACH_POINT_CENTER_BOTTOM, .parent = CLAY_ATTACH_POINT_CENTER_CENTER } },
-						.backgroundColor = {0, 0, 0, 128}
-					}) {
-					ui_button("Host", &data->host_pressed);
-					ui_button("Join", &data->join_pressed);
-				}
-			}
-		} else if (data->state == NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_CREATION) {
-			CLAY({.id = CLAY_ID("MAIN_MENU_FRAME"), .floating = { .attachTo = CLAY_ATTACH_TO_PARENT }, .layout = {.sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0)}}, .backgroundColor = {0, 0, 0, 128}} ) {
-				CLAY({
-						.id = CLAY_ID("Floating"),
-						.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = { .width = CLAY_SIZING_FIT(300), .height = CLAY_SIZING_FIT(0) }, .padding = CLAY_PADDING_ALL(16), .childGap = 16 },
-						.floating = { .offset = {0, 16}, .attachTo = CLAY_ATTACH_TO_PARENT, .attachPoints = { .element = CLAY_ATTACH_POINT_CENTER_BOTTOM, .parent = CLAY_ATTACH_POINT_CENTER_CENTER } },
-						.backgroundColor = {0, 0, 0, 128}
-					}) {
-					CLAY_TEXT(CLAY_STRING("Waiting for lobby creation"), CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {255, 255, 255, 255}}));
-				}
-			}
-		} else if (data->state == NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_PLAYERS) {
-			CLAY({.id = CLAY_ID("MAIN_MENU_FRAME"), .floating = { .attachTo = CLAY_ATTACH_TO_PARENT }, .layout = {.sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0)}}, .backgroundColor = {0, 0, 0, 128}} ) {
-				CLAY({
-						.id = CLAY_ID("Floating"),
-						.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = { .width = CLAY_SIZING_FIT(300), .height = CLAY_SIZING_FIT(0) }, .padding = CLAY_PADDING_ALL(16), .childGap = 16 },
-						.floating = { .offset = {0, 16}, .attachTo = CLAY_ATTACH_TO_PARENT, .attachPoints = { .element = CLAY_ATTACH_POINT_CENTER_BOTTOM, .parent = CLAY_ATTACH_POINT_CENTER_CENTER } },
-						.backgroundColor = {0, 0, 0, 128}
-					}) {
-					CLAY_TEXT(CLAY_STRING("Waiting for players..."), CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {255, 255, 255, 255}}));
-
-
-
-					// 64 bits total
-					union SteamID_t
-					{
-						struct SteamIDComponent_t
-						{
-#ifdef VALVE_BIG_ENDIAN
-							uint64_t			m_EUniverse : 8;	// universe this account belongs to
-							uint64_t		m_EAccountType : 4;			// type of account - can't show as EAccountType, due to signed / unsigned difference
-							uint64_t		m_unAccountInstance : 20;	// dynamic instance ID
-							uint64_t				m_unAccountID : 32;			// unique account identifier
-#else
-							uint64_t				m_unAccountID : 32;			// unique account identifier
-							uint64_t		m_unAccountInstance : 20;	// dynamic instance ID
-							uint64_t		m_EAccountType : 4;			// type of account - can't show as EAccountType, due to signed / unsigned difference
-							uint64_t			m_EUniverse : 8;	// universe this account belongs to
-#endif
-						} m_comp;
-
-						uint64_t m_unAll64Bits;
-					};
-
-					union SteamID_t lobby_id = {0};
-					lobby_id.m_unAll64Bits = data->lobby_id;
-
-					static char buf[256] = {0};
-					Clay_String s = {0};
-					s.length = snprintf(buf, sizeof(buf), "%lld", lobby_id.m_comp.m_unAccountID);
-					s.chars = buf;
-					CLAY_TEXT(s, CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {255, 255, 255, 255}}));
-
-					static char buf2[256] = {0};
-					s.length = snprintf(buf2, sizeof(buf2), "%llu", lobby_id.m_comp.m_unAccountID);
-					s.chars = buf2;
-					CLAY_TEXT(s, CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {255, 255, 255, 255}}));
-				}
-			}
-		} else if (data->state == NETWORK_BATTLE_STATE_PLAY) {
-			CLAY({.id = CLAY_ID("HeaderBar"), .layout = { .sizing = {.width = CLAY_SIZING_GROW(0)}, .childGap = 16}}) {
-
-				CLAY({
-						.id = CLAY_IDI("PlayerBar", 1),
-						.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = {.width = CLAY_SIZING_GROW(0)}, .padding = CLAY_PADDING_ALL(16), .childGap = 16 },
-						.backgroundColor = {0, 0, 0, 64}
-					}) {
-
-					CLAY({
-							.id = CLAY_IDI("HealthBar", 1),
-							.layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(50) }},
-							.backgroundColor = {0, 0, 255, 255}
-						}) {
-
-						CLAY({.id = CLAY_IDI("EmptyHealth", 1),
-								.layout = { .sizing = { .width = CLAY_SIZING_PERCENT(1.0f - p1_hp_filled), .height = CLAY_SIZING_GROW(0) }},
-								.backgroundColor = {0, 0, 0, 255},
-							});
-						CLAY({.id = CLAY_IDI("FilledHealth", 1),
-								.layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0) }},
-								.backgroundColor = {240, 240, 240, 255},
-							});
-					}
-					CLAY({.id = CLAY_IDI("PlayerInfo", 1), .layout = {.sizing = {CLAY_SIZING_GROW(0)}}}) {
-						CLAY({.id = CLAY_IDI("PlayerName", 1)}) {
-							CLAY_TEXT(CLAY_STRING("SuperBob"), CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {255, 255, 255, 255}}));
-					        }
-						CLAY({.id = CLAY_IDI("PlayerFill", 1), .layout = {.sizing = {CLAY_SIZING_GROW(0)}}}) { }
-						CLAY({.id = CLAY_IDI("PlayerRounds", 1)}) {
-							for (int i = 1; i <= rounds_first_to; ++i) {
-								if (i <= rounds_p1_won) {
-									CLAY_TEXT(CLAY_STRING("X"), CLAY_TEXT_CONFIG({.fontSize = 32, .textColor = {255, 255, 255, 255}}));
-								} else {
-									CLAY_TEXT(CLAY_STRING("O"), CLAY_TEXT_CONFIG({.fontSize = 32, .textColor = {255, 255, 255, 255}}));
-								}
-							}
-					        }
-					}
-				}
-
-				CLAY_TEXT(CLAY_STRING("59"), CLAY_TEXT_CONFIG({ .fontSize = 50, .textColor = {255, 255, 255, 255} }));
-
-				CLAY({
-						.id = CLAY_IDI("PlayerBar", 2),
-						.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = {.width = CLAY_SIZING_GROW(0)}, .padding = CLAY_PADDING_ALL(16), .childGap = 16, .childAlignment = {.x = CLAY_ALIGN_X_RIGHT} },
-						.backgroundColor = {0, 0, 0, 64}
-					}) {
-
-					CLAY({
-							.id = CLAY_IDI("HealthBar", 2),
-							.layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(50) }},
-							.backgroundColor = {0, 0, 255, 255}
-						}) {
-
-						CLAY({.id = CLAY_IDI("FilledHealth", 2),
-								.layout = { .sizing = { .width = CLAY_SIZING_PERCENT(p2_hp_filled), .height = CLAY_SIZING_GROW(0) }},
-								.backgroundColor = {240, 240, 240, 255},
-							});
-						CLAY({.id = CLAY_IDI("EmptyHealth", 2),
-								.layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0) }},
-								.backgroundColor = {0, 0, 0, 255},
-							});
-					}
-
-					CLAY({.id = CLAY_IDI("PlayerInfo", 2), .layout = {.sizing = {CLAY_SIZING_GROW(0)}}}) {
-						CLAY({.id = CLAY_IDI("PlayerRounds", 2)}) {
-							for (int i = 1; i <= rounds_first_to; ++i) {
-								if (i <= rounds_p2_won) {
-									CLAY_TEXT(CLAY_STRING("X"), CLAY_TEXT_CONFIG({.fontSize = 32, .textColor = {255, 255, 255, 255}}));
-								} else {
-									CLAY_TEXT(CLAY_STRING("O"), CLAY_TEXT_CONFIG({.fontSize = 32, .textColor = {255, 255, 255, 255}}));
-								}
-							}
-					        }
-						CLAY({.id = CLAY_IDI("PlayerFill", 2), .layout = {.sizing = {CLAY_SIZING_GROW(0)}}}) { }
-						CLAY({.id = CLAY_IDI("PlayerName", 2)}) {
-							CLAY_TEXT(CLAY_STRING("Seb"), CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {255, 255, 255, 255}}));
-					        }
-					}
-
-				}
-
-
-			}
-
-			CLAY({.id = CLAY_ID("HUD"), .layout = { .layoutDirection = CLAY_LEFT_TO_RIGHT, .sizing = {.width = CLAY_SIZING_GROW(0)} }}) {
-
-				CLAY({
-						.id = CLAY_IDI("PlayerInput", 1),
-						.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = {.width = CLAY_SIZING_FIT(0), .height = CLAY_SIZING_GROW(0)}, .padding = CLAY_PADDING_ALL(16), .childGap = 16 },
-					}) {
-					struct BattleState* battle_state = &simulation->battle_context.battle_state;
-					struct TekPlayerComponent const *p1 = &battle_state->p1_entity.tek;
-					(void)p1;
-					#if 0
-					uint32_t input_last_frame = battle_state->frame_number;
-					for (uint32_t i = 0; i < INPUT_BUFFER_SIZE; i++) {
-						uint32_t input_index = (p1->current_input_index + (INPUT_BUFFER_SIZE - i)) % INPUT_BUFFER_SIZE;
-						enum BattleInputBits input = p1->input_buffer[input_index];
-						uint32_t input_duration = input_last_frame - p1->input_buffer_frame_start[input_index];
-						input_last_frame = p1->input_buffer_frame_start[input_index];
-
-						char label[64] = {0};
-						uint32_t label_length = sprintf(label, "%s %s - %u", _get_motion_label(input), _get_action_label(input), input_duration);
-
-						Clay_String label_string = (Clay_String){
-							.isStaticallyAllocated = false,
-							.length = label_length,
-							.chars = ui_string(label, label_length),
-						};
-						CLAY_TEXT(label_string, CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {0, 0, 0, 255}}));
-					}
-					#endif
-				}
-
-				CLAY({.id = CLAY_ID("Empty"), .layout = { .sizing = {CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0)}}}) {}
-
-				CLAY({
-						.id = CLAY_IDI("PlayerInput", 2),
-						.layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .sizing = {.width = CLAY_SIZING_FIT(0), .height = CLAY_SIZING_GROW(0)}, .padding = CLAY_PADDING_ALL(16), .childGap = 16, .childAlignment = {.x = CLAY_ALIGN_X_RIGHT} },
-					}) {
-					struct BattleState* battle_state = &simulation->battle_context.battle_state;
-					struct TekPlayerComponent const *p2 = &battle_state->p2_entity.tek;
-					(void)p2;
-
-					#if 0
-					uint32_t input_last_frame = battle_state->frame_number;
-					for (uint32_t i = 0; i < INPUT_BUFFER_SIZE; i++) {
-						uint32_t input_index = (p2->current_input_index + (INPUT_BUFFER_SIZE - i)) % INPUT_BUFFER_SIZE;
-						enum BattleInputBits input = p2->input_buffer[input_index];
-						uint32_t input_duration = input_last_frame - p2->input_buffer_frame_start[input_index];
-						input_last_frame = p2->input_buffer_frame_start[input_index];
-
-						char label[64] = {0};
-						uint32_t label_length = sprintf(label, "%s %s - %u", _get_motion_label(input), _get_action_label(input), input_duration);
-
-						Clay_String label_string = (Clay_String){
-							.isStaticallyAllocated = false,
-							.length = label_length,
-							.chars = ui_string(label, label_length),
-						};
-						CLAY_TEXT(label_string, CLAY_TEXT_CONFIG({ .fontSize = 24, .textColor = {0, 0, 0, 255} }));
-					}
-					#endif
-				}
-			}
-
+	if (data->state == NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_CREATION) {
+		UiWidgetId outer = ui_push_container(h, "vertical_container", 0, UI_SIZE_PERCENT(1.0f), UI_SIZE_PERCENT(1.0f));
+		ui_widget_set_layout(h, outer, 1, 256.0f); // Y=1
+		{
+			ui_push_container(h, "row", 0, (UiSize){0}, (UiSize){0});
+			ui_label_nt(h, "text" , "Waiting for lobby creation", FONT_SIZE, COLOR);
+			ui_pop_parent(h);
 		}
+		ui_pop_parent(h);
+	} else if (data->state == NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_PLAYERS) {
+		UiWidgetId outer = ui_push_container(h, "vertical_container", 0, UI_SIZE_PERCENT(1.0f), UI_SIZE_PERCENT(1.0f));
+		ui_widget_set_layout(h, outer, 1, 256.0f); // Y=1
+		{
+			ui_push_container(h, "row", 0, (UiSize){0}, (UiSize){0});
+			ui_label_nt(h, "text" , "Waiting for players", FONT_SIZE, COLOR);
+			ui_pop_parent(h);
+		}
+		ui_pop_parent(h);
+	} else if (data->state == NETWORK_BATTLE_STATE_PLAY) {
+
+		UiWidgetId outer = ui_push_container(h, "vertical_container", 0, UI_SIZE_PERCENT(1.0f), UI_SIZE_PERCENT(1.0f));
+		ui_widget_set_layout(h, outer, 1, 16.0f); // Y=11
 
 
+		const int OUTLINE_COLOR = ADJUST_INT(0xFFecf4f1);
+		const int FILLED_COLOR = ADJUST_INT(0xFF02e9fb);
+		const int EMPTY_COLOR = ADJUST_INT(0xFF00008e);
+		//  light grey - ecf4f1
+		//  yellow - 02e9fb
+		//  green - 37cf29
+		//  dark red - 00008e
+		//  red - 0000fc
+
+		// header bar
+		ui_push_container(h, "header_bar", 0, UI_SIZE_PERCENT(1.0f), (UiSize){0});
+		{
+			UiWidgetId p1_bar = ui_push_container(h, "p1_bar", 0, UI_SIZE_FLEX, (UiSize){0});
+			ui_widget_set_layout(h, p1_bar, UI_AXIS_Y, 4.0f);
+			{
+				UiWidgetId hp_bar = ui_push_container(h, "health_bar", 0, UI_SIZE_PERCENT(1.0f), UI_SIZE_PIXELS(50.0f));
+				ui_widget_set_layout(h, hp_bar, UI_AXIS_X, 2.0f); // 4px padding
+				ui_widget_set_color(h, hp_bar, OUTLINE_COLOR);
+				{
+					float empty_bar_percent = 1.0f - p1_hp_filled;
+					float filled_bar_percent = p1_hp_filled;
+
+					UiWidgetId emptyhealth = ui_widget_make(h, 0, "empty_health");
+					ui_widget_set_size_x(h, emptyhealth, UI_SIZE_PERCENT(empty_bar_percent));
+					ui_widget_set_size_y(h, emptyhealth, UI_SIZE_PERCENT(1.0f));
+					ui_widget_set_color(h, emptyhealth, EMPTY_COLOR);
+
+					UiWidgetId filledhealth = ui_widget_make(h, 0, "filled_health");
+					ui_widget_set_size_x(h, filledhealth, UI_SIZE_PERCENT(filled_bar_percent));
+					ui_widget_set_size_y(h, filledhealth, UI_SIZE_PERCENT(1.0f));
+					ui_widget_set_color(h, filledhealth, FILLED_COLOR);
+				}
+				ui_pop_parent(h);
+
+				ui_push_container(h, "info", 0, UI_SIZE_FLEX, (UiSize){0});
+				{
+					const char *name_str = "SuperBob";
+					uint32_t name_len = (uint32_t)strlen(name_str);
+					ui_label(h, "name", ui_string(name_str, name_len), name_len, 24.0f, 0xFF880000);
+
+					UiWidgetId padding = ui_widget_make(h, 0, "padding");
+					ui_widget_set_size_x(h, padding, UI_SIZE_FLEX);
+					ui_widget_set_size_y(h, padding, UI_SIZE_PIXELS(10.0f));
+
+					ui_push_parent(h, ui_widget_make(h, 0, "rounds"));
+					for (int i = 1; i <= rounds_first_to; ++i) {
+						const char *label = (i <= rounds_p1_won) ? "X" : "O";
+						ui_label(h, "icon", label, 1, 24.0f, 0xFF880000);
+					}
+					ui_pop_parent(h);
+
+				}
+				ui_pop_parent(h);
+			}
+			ui_pop_parent(h);
+
+
+			UiWidgetId padding = ui_push_parent(h, ui_widget_make(h, 0, "padding"));
+			ui_widget_set_layout(h, padding, 0, 8.0f);
+			{
+				ui_label(h, "timer", "59", 2, 50.0f, 0xFF000000);
+			}
+			ui_pop_parent(h);
+
+			UiWidgetId p2_bar = ui_push_container(h, "p2_bar", 0, UI_SIZE_FLEX, (UiSize){0});
+			ui_widget_set_layout(h, p2_bar, UI_AXIS_Y, 4.0f);
+			{
+				UiWidgetId hp_bar = ui_push_container(h, "health_bar", 0, UI_SIZE_PERCENT(1.0f), UI_SIZE_PIXELS(50.0f));
+				ui_widget_set_layout(h, hp_bar, UI_AXIS_X, 2.0f); // 4px padding
+				ui_widget_set_color(h, hp_bar, OUTLINE_COLOR);
+				{
+					float empty_bar_percent = 1.0f - p2_hp_filled;
+					float filled_bar_percent = p2_hp_filled;
+
+					UiWidgetId filledhealth = ui_widget_make(h, 0, "filled_health");
+					ui_widget_set_size_x(h, filledhealth, UI_SIZE_PERCENT(filled_bar_percent));
+					ui_widget_set_size_y(h, filledhealth, UI_SIZE_PERCENT(1.0f));
+					ui_widget_set_color(h, filledhealth, FILLED_COLOR);
+
+					UiWidgetId emptyhealth = ui_widget_make(h, 0, "empty_health");
+					ui_widget_set_size_x(h, emptyhealth, UI_SIZE_PERCENT(empty_bar_percent));
+					ui_widget_set_size_y(h, emptyhealth, UI_SIZE_PERCENT(1.0f));
+					ui_widget_set_color(h, emptyhealth, EMPTY_COLOR);
+				}
+				ui_pop_parent(h);
+
+				ui_push_container(h, "info", 0, UI_SIZE_FLEX, (UiSize){0});
+				{
+					ui_push_parent(h, ui_widget_make(h, 0, "rounds"));
+					for (int i = 1; i <= rounds_first_to; ++i) {
+						const char *label = (i <= rounds_p2_won) ? "X" : "O";
+						ui_label(h, "icon", label, 1, 24.0f, 0xFF880000);
+					}
+					ui_pop_parent(h);
+
+					UiWidgetId padding = ui_widget_make(h, 0, "padding");
+					ui_widget_set_size_x(h, padding, UI_SIZE_FLEX);
+					ui_widget_set_size_y(h, padding, UI_SIZE_PIXELS(10.0f));
+
+					const char *name_str = "Seb";
+					uint32_t name_len = (uint32_t)strlen(name_str);
+					ui_label(h, "name", ui_string(name_str, name_len), name_len, 24.0f, 0xFF880000);
+				}
+				ui_pop_parent(h);
+			}
+			ui_pop_parent(h);
+		}
+		ui_pop_parent(h);
+
+
+		// input replay
+		ui_push_container(h, "hud", 0, UI_SIZE_PERCENT(1.0f), UI_SIZE_FLEX);
+		{
+			ui_push_column(h, "p1_input", 0);
+			_local_battle_render_player_input(h, battle_state, p1);
+			ui_pop_column(h);
+
+			UiWidgetId padding = ui_widget_make(h, 0, "padding");
+			ui_widget_set_size_x(h, padding, (UiSize){UI_SIZE_KIND_FLEX, 1.0f});
+			ui_widget_set_size_y(h, padding, (UiSize){UI_SIZE_KIND_FLEX, 1.0f});
+
+			ui_push_column(h, "p2_input", 0);
+			_local_battle_render_player_input(h, battle_state, p2);
+			ui_pop_column(h);
+		}
+		ui_pop_parent(h);
+		ui_pop_parent(h);
 	}
 }

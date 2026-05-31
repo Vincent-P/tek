@@ -24,9 +24,9 @@ bool mainmenu_update(struct Game *game, struct GameUpdateContext const* ctx)
 		local_battle_init(game);
 		return true;
 	}
-	if (mainmenu->network_pressed) {
+	if (mainmenu->network_host_pressed) {
 		game->current_state = GAME_STATE_NETWORK_BATTLE;
-		network_battle_init(game);
+		network_battle_create_lobby(game);
 		return true;
 	}
 	return false;
@@ -62,8 +62,8 @@ void mainmenu_render(struct Game *game)
 	{
 
 		mainmenu->local_pressed = _mainmenu_render_button(h, "PLAY LOCAL");
-		mainmenu->network_pressed = _mainmenu_render_button(h, "HOST ONLINE");
-		mainmenu->network_pressed = _mainmenu_render_button(h, "JOIN ONLINE");
+		mainmenu->network_host_pressed = _mainmenu_render_button(h, "HOST ONLINE");
+		mainmenu->network_join_pressed = _mainmenu_render_button(h, "JOIN ONLINE");
 		_mainmenu_render_button(h, "OPTIONS");
 		_mainmenu_render_button(h, "QUIT");
 	}

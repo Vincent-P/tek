@@ -6,7 +6,8 @@ struct GameUpdateContext;
 struct MainMenu
 {
 	bool local_pressed;
-	bool network_pressed;
+	bool network_host_pressed;
+	bool network_join_pressed;
 };
 
 

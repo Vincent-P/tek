@@ -8,7 +8,6 @@ typedef uint64_t SteamAPICall_t;
 
 enum NetworkBattleState
 {
-	NETWORK_BATTLE_STATE_MAIN_MENU,
 	// Host
 	NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_CREATION,
 	NETWORK_BATTLE_STATE_WAITING_FOR_LOBBY_PLAYERS,
@@ -31,19 +30,15 @@ struct NetworkBattle
 	GGPOSession *ggpo_session;
 	GGPOPlayer ggpo_players[2];
 	GGPOPlayerHandle ggpo_player_handles[2];
+	bool ggpo_synchronizing;
 
 	// State data
 	enum NetworkBattleState state;
-
-	// UI data
-	bool host_pressed;
-	bool join_pressed;
 };
 
 
-void network_battle_init(struct Game *game);
-// joined through Steam overlay
-void network_battle_on_lobby_joined(struct Game *game, uint64_t lobby_id);
+void network_battle_on_lobby_joined(struct Game *game, uint64_t lobby_id); // joined through Steam overlay
+void network_battle_create_lobby(struct Game *game);
 
 void network_battle_term(struct Game *game);
 bool network_battle_update(struct Game *game, struct GameUpdateContext const *ctx);

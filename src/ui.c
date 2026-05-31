@@ -7,28 +7,6 @@ void ui_new_frame()
 	ui_arena.end = ui_mem + sizeof(ui_mem);
 }
 
-static void ui_handle_button_interaction(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData) {
-	(void)elementId;
-	bool *pressed = (bool *)userData;
-	// Pointer state allows you to detect mouse down / hold / release
-	bool button_clicked = pointerInfo.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME || pointerInfo.state == CLAY_POINTER_DATA_RELEASED_THIS_FRAME;;
-	if (pressed != NULL && button_clicked) {
-		*pressed = true;
-	}
-}
-
-void ui_button(const char *label, bool *clicked)
-{
-	Clay_String label_string = (struct Clay_String) {.isStaticallyAllocated = false, .length = (int32_t)strlen(label), .chars = label};
-
-	Clay_TextElementConfig *label_text_config = CLAY_TEXT_CONFIG({ .fontSize = 32, .textColor = {255, 255, 255, 255}, .textAlignment = CLAY_TEXT_ALIGN_RIGHT });
-
-	CLAY({.id = CLAY_SID(label_string), .layout = { .padding = CLAY_PADDING_ALL(8) } }) {
-		Clay_OnHover(ui_handle_button_interaction, (uintptr_t)clicked);
-		CLAY_TEXT(label_string, label_text_config);
-	}
-}
-
 const char* ui_string(const char* string, uint32_t length)
 {
 	char *copy = arena_new(&ui_arena, char, length);

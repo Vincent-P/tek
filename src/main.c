@@ -7,7 +7,6 @@
 #include <math.h>
 #include <dcimgui.h>
 #include <tracy/tracy/TracyC.h>
-#include <clay.h>
 #define ADJUST_IMPLEMENTATION
 #include <adjust.h>
 
@@ -22,7 +21,6 @@
 #include "debugdraw.h"
 #include "file.h"
 #include "watcher.h"
-#include "clay_integration.h"
 #include "drawer2d.h"
 #include "ui.h"
 
@@ -173,7 +171,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 
 	int display_w, display_h;
 	SDL_GetWindowSizeInPixels(application->window, &display_w, &display_h);
-	clay_integration_init(application->drawer, display_w, display_h);
 
 	postload_assets(&application->assets, application->renderer);
 
@@ -194,7 +191,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 			break;
 		}
 		case GAME_STATE_NETWORK_BATTLE: {
-			network_battle_init(&application->game);
+			// network_battle_init(&application->game);
 			break;
 		}
 		}
@@ -512,7 +509,6 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 
 	imgui_process_event(event);
 	inputs_process_event(event, &application->inputs);
-	clay_integration_process_event(application, event);
 	ui_process_event(&application->game.ui.inputs, event);
 
 
@@ -558,12 +554,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 	drawer2d_reset_frame(application->drawer);
 	ui_new_frame();
 
-	// Setup clay size
-        // Optional: Update internal layout dimensions to support resizing
-        Clay_SetLayoutDimensions((Clay_Dimensions) { (float)display_w, (float)display_h });
-        // All clay layouts are declared between Clay_BeginLayout and Clay_EndLayout
-        Clay_BeginLayout();
-
 	// Setup UI size
 	UiWidgetId root = ui_widget_make(&application->game.ui, 0, "root");
 	ui_widget_set_size_x(&application->game.ui, root, (UiSize){UI_SIZE_KIND_PIXELS, (float)display_w});
@@ -589,9 +579,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 	ui_pop_parent(&application->game.ui);
 	ui_layout_end_frame(&application->game.ui, root, application->drawer);
 	ui_imgui(&application->game.ui, root);
-
-        Clay_RenderCommandArray clay_render_commands = Clay_EndLayout();
-	clay_integration_render(application->drawer, &clay_render_commands);
 
 	ui_render(&application->game.ui, root, application->drawer);
 
@@ -625,7 +612,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 #include "tek.c"
 #include <ufbx.c>
 #include "watcher.c"
-#include "clay_integration.c"
 #include "drawer2d.c"
 #include "atlas2d.c"
 #include "ui.c"
